@@ -1465,7 +1465,7 @@ def _setupAuxillaryFiles(inDir):
     CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
 
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'common')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
 
     ADL_HOME = os.getenv('ADL_HOME')
@@ -1542,7 +1542,7 @@ def _getGRC(inDir,geoDicts):
     CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
 
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'common')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
 
     ADL_HOME = os.getenv('ADL_HOME')
@@ -2284,10 +2284,11 @@ def _retrieve_grib_files(geoDicts):
     ''' Download the GRIB files which cover the dates of the geolocation files.'''
 
     CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'common')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
 
     print "_retrieve_grib_files ANC_SCRIPTS_PATH : ",ANC_SCRIPTS_PATH
+    print "CSPP_ANC_CACHE_DIR : ",CSPP_ANC_CACHE_DIR
 
     # FIXME : Fix rounding up of the seconds if the decisecond>=9.5 
     gribFiles = []
@@ -2315,7 +2316,7 @@ def _retrieve_grib_files(geoDicts):
         try :
             LOG.info('Retrieving NCEP files for %s ...' % (granuleName))
             print 'Retrieving NCEP files for %s ...' % (granuleName)
-            cmdStr = '%s/test_run_jpss_product.csh %s' % (ANC_SCRIPTS_PATH,granuleName)
+            cmdStr = '%s/cspp_retrieve_gdas_gfs.csh %s' % (ANC_SCRIPTS_PATH,granuleName)
             LOG.info('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
             LOG.debug('\t%s' % (repr(args)))
@@ -2363,7 +2364,7 @@ def _create_NCEP_gridBlobs(gribFiles):
     blobFiles = []
 
     CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'common')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
@@ -2419,7 +2420,7 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
     dataIdx  = np.ones(np.shape(dataLat),dtype=np.int64) * -99999
 
     CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'common')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
 
     libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
     print "libFile = ",libFile
@@ -2541,7 +2542,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     global ancEndian 
 
     CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'common')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
     CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
     csppPython = os.getenv('PY')
@@ -2941,7 +2942,7 @@ def _retrieve_NISE_files(geoDicts):
     ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
 
     CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'common')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
 
 
@@ -2953,7 +2954,7 @@ def _retrieve_NISE_files(geoDicts):
 
         try :
             LOG.info('Retrieving NISE files for %s ...' % (dateStamp))
-            cmdStr = '%s/get_anc_jpss_nise.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
+            cmdStr = '%s/get_anc_cspp_nise.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
             LOG.info('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
             LOG.debug('\t%s' % (repr(args)))
@@ -2998,7 +2999,7 @@ def _retrieve_NISE_files(geoDicts):
 
             try :
                 LOG.info('Converting HDFEOS NISE file\n\t%s\nto HDF5...\n\t%s' % (files,new_niseName))
-                cmdStr = '%s/COTS/hdf5/hdf5-1.8.4/bin/h4toh5 %s %s' % (ANC_SCRIPTS_PATH,files,new_niseName)
+                cmdStr = '%s/common/COTS/hdf5/hdf5-1.8.4/bin/h4toh5 %s %s' % (CSPP_HOME,files,new_niseName)
                 LOG.info('\t%s' % (cmdStr))
                 args = shlex.split(cmdStr)
                 LOG.debug('\t%s' % (repr(args)))
@@ -3380,9 +3381,9 @@ def main():
         anc_granules_to_process = list(sift_metadata_for_viirs_sdr(geoType,crossGran=None,work_dir='.'))
         granules_to_process = list(sift_metadata_for_viirs_sdr(geoType,crossGran=1,work_dir='.'))
         if granules_to_process :
-            print "\tgranules_to_process has %d objects..."%(len(granules_to_process))
+            print "\tgranules_to_process() has %d objects..."%(len(granules_to_process))
             LOG.debug(', '.join(x['N_Granule_ID'] for x in granules_to_process))
-            print "\tanc_granules_to_process has %d objects..."%(len(anc_granules_to_process))
+            print "\tanc_granules_to_process() has %d objects..."%(len(anc_granules_to_process))
             LOG.debug(', '.join(x['N_Granule_ID'] for x in anc_granules_to_process))
             break
         else :
@@ -3406,9 +3407,9 @@ def main():
 
     print "\nGetting geolocation information..."
 
-    print "\n%20s%30s%30s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime')
+    print "\n%13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime')
     for dicts in granules_to_process :
-        print "%20s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime'])
+        print "%15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime'])
 
     # Expand any user specifiers in the various paths
 
@@ -3418,13 +3419,13 @@ def main():
     CSPP_ANC_TILE_PATH = os.getenv('CSPP_ANC_TILE_PATH')
     LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH')
     DSTATICDATA = os.getenv('DSTATICDATA')
-    #print "\nCSPP_ANC_HOME:      ",CSPP_ANC_HOME
-    #print "CSPP_ANC_PATH:      ",CSPP_ANC_PATH
-    #print "CSPP_ANC_CACHE_DIR: ",CSPP_ANC_CACHE_DIR
-    #print "CSPP_ANC_TILE_PATH: ",CSPP_ANC_TILE_PATH
-    #print "LD_LIBRARY_PATH:    ",LD_LIBRARY_PATH
-    #print "DSTATICDATA:        ",DSTATICDATA
-    #print ""
+    print "\nCSPP_ANC_HOME:      ",CSPP_ANC_HOME
+    print "CSPP_ANC_PATH:      ",CSPP_ANC_PATH
+    print "CSPP_ANC_CACHE_DIR: ",CSPP_ANC_CACHE_DIR
+    print "CSPP_ANC_TILE_PATH: ",CSPP_ANC_TILE_PATH
+    print "LD_LIBRARY_PATH:    ",LD_LIBRARY_PATH
+    print "DSTATICDATA:        ",DSTATICDATA
+    print ""
 
     # Retrieve and granulate the required ancillary data...
 
@@ -3445,8 +3446,8 @@ def main():
             LOG.info("Downloading GRIB and NISE ancillary into cache and linking into workspace")
             gribFiles = _retrieve_grib_files(anc_granules_to_process)
             niseFiles = _retrieve_NISE_files(anc_granules_to_process)
-            print gribFiles
-            print niseFiles
+            print "gribFiles: ",gribFiles
+            print "niseFiles: ",niseFiles
             all_dyn_anc = list(gribFiles) + list(niseFiles)
             print all_dyn_anc
             LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
