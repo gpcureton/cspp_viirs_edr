@@ -9,10 +9,7 @@
 
 trace_cmd()
 {
-    echo "trace"
-
-    #ln -s /mnt/hgfs/CSPP_ANC_HOME/ADL ${CSPP_HOME}/static
-    #ln -s  ln -s /mnt/hgfs/CSPP_ANC_CACHE/* ${CSPP_HOME}/cache
+    echo "Running executable with strace..."
 
     echo "rm -rf ${CSPP_HOME}/cache/*"
     rm -rf ${CSPP_HOME}/cache/*
@@ -23,7 +20,7 @@ trace_cmd()
 
 get_opens_and_xml_and_exe()
 {
-    echo "opens"
+    echo "Parsing the strace file to get the opens, exe and xml files..."
     rm *.txt
 
     # Get all the file opens. This catches a lot of junk we don't want, so the output from this 
@@ -41,8 +38,10 @@ get_opens_and_xml_and_exe()
     cat $ALLOPENS | grep \\.xml > xml.txt
 }
 
-filter_assorted()
+remove_unwanted_paths()
 {
+    echo "Removing all system related paths, and other unwanted paths..."
+
     # remove system stuff 
     cat $ALLOPENS \
         | grep -v "/dev" \
@@ -61,6 +60,8 @@ filter_assorted()
 
 combine_lib_and_xml_and_exe()
 {
+    echo "Combine the lib, xml and exe path lists..."
+
     # combine opened, executed and miscellaneous lists.
 
     cat exe.txt  > fileList.txt
@@ -106,7 +107,7 @@ add_misc_files()
 
 prepare_txt()
 {
-    # Create a list of the static data directories
+    # Massage the various file paths to remove artefacts
 
     leave=$(basename ${CSPP_HOME})
 
@@ -116,15 +117,19 @@ prepare_txt()
         | sed s#$leave/ADL/bin/../lib#$leave/ADL/lib# \
         | sed s#$leave/ADL/tools/bin/../../../common#$leave/common# \
         | sed s#$leave/ADL/tools/bin/../../lib#$leave/ADL/lib# \
-        | sed s#${REPO_HOME}/contrib/scripts#$leave/common# \
         | grep  -v -x -e "/lib64/.*" \
         | grep  -x -v -e "/lib/.*" \
         | grep -v -e "cache" \
         | grep -v -e "GM[OT][DC]O.*\.h5" \
         | grep -v -e "SV[IM][0-9][0-9].*\.h5" \
         | grep -v -e "edr_viirs_masks_NPP.*\.xml" \
+        | grep -v -e "/sbin/*" \
+        | grep -v -e "/var/*" \
+        | grep -v -e "\.history" \
+        | sed s#${REPO_HOME}/trunk/scripts/edr#$leave/viirs/edr# \
         | sort | uniq > $FILELIST
 
+        #| sed s#${REPO_HOME}/trunk/scripts/edr#$leave/common# \
 }
 
 
@@ -183,11 +188,11 @@ create_viirs_edr_masks_static_tarball()
 
     cd ${CSPP_HOME}
     cd ..
-    tar -cvz --dereference -T ${WORK_DIR}/package/packing_list.txt -f ${CNAME}.tar.gz
+    tar -cvz --dereference -T ${WORK_DIR}/package/$STATIC_FILELIST -f ${CNAME}-static.tar.gz
     
-    cp ${CNAME}.tar.gz $CSPP_PACKAGES
-    cp -f ${WORK_DIR}/package/packing_list.txt $CSPP_PACKAGES/viirs_edr_masks_packing_list.lst
-    chmod gu+rw $CSPP_PACKAGES/viirs_edr_masks_packing_list.lst
+    cp ${CNAME}-static.tar.gz $CSPP_PACKAGES
+    cp -f ${WORK_DIR}/package/$STATIC_FILELIST $CSPP_PACKAGES/${STATIC_FILELIST%.txt}.lst
+    chmod gu+rw $CSPP_PACKAGES/${STATIC_FILELIST%.txt}.lst
 }
 
 
@@ -216,17 +221,20 @@ fi
 main ()
 {
     echo "Starting"
+
     #trace_cmd 
-    get_opens_and_xml_and_exe
-    filter_assorted
-    combine_lib_and_xml_and_exe
-    check_if_files_exist
-    add_python
-    add_misc_files
-    prepare_txt
-    create_static_data_list
+    
+    #get_opens_and_xml_and_exe
+    #remove_unwanted_paths
+    #combine_lib_and_xml_and_exe
+    #check_if_files_exist
+    #add_python
+    #add_misc_files
+    #prepare_txt
+    #create_static_data_list
+    
     #create_viirs_edr_masks_tarball
-    #create_viirs_edr_masks_static_tarball
+    create_viirs_edr_masks_static_tarball
 }
 
 CMD=$1

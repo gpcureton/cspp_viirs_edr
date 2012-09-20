@@ -31,12 +31,12 @@ else
 fi
 
 # test that we are reasonably sure we have what we need installed
-test -f "$CSPP_HOME/common/adl_viirs_edr_masks.py" \
-    || oops "VIIRS software package needs to be installed"
+test -f "$CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py" \
+    || oops "$CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py not found"
 test -x "$CSPP_HOME/ADL/bin/ProEdrViirsMasksController.exe" \
-    || oops "VIIRS software package needs to be installed"
+    || oops "$CSPP_HOME/ADL/bin/ProEdrViirsMasksController.exe not found"
 test -x "$PY" \
-    || oops "Common CSPP software package needs to be installed"
+    || oops "Common CSPP python interpreter $PY not found"
 test -w "$CSPP_ANC_CACHE_DIR" \
     || warn "CSPP_ANC_CACHE_DIR is not writable"
 
@@ -77,34 +77,42 @@ fi
 
 #$PY $CSPP_HOME/viirs/edr/viirsEdrMasks.py -h || oops "VIIRS EDR Masks Controller did not complete without errors."
 
+GDB=''
+#GDB='gdb --args'
+
 ##############################
 #       No Algorithm         #
 ##############################
 
 # Run everything except the algorithm...
-#$PY $CSPP_HOME/common/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --sdr_endianness=little --skip_algorithm -vvv --debug
+#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_algorithm -vvv --debug
 
 # Skip the SDR unpacking...
-#$PY $CSPP_HOME/common/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --sdr_endianness=little --skip_sdr_unpack --skip_algorithm -vvv --debug
+#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack --skip_algorithm -vvv --debug
+#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack --skip_algorithm -vvv --debug
 
 # Skip the ancillary generation...
-#$PY $CSPP_HOME/common/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --skip_ancillary --skip_algorithm -vvv --debug
+#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --skip_ancillary --skip_algorithm -vvv --debug
 
 # Skip the sdr unpacking AND ancillary generation...
-#$PY $CSPP_HOME/common/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --skip_sdr_unpack --skip_ancillary --skip_algorithm -vvv --debug
+#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --skip_sdr_unpack --skip_ancillary --skip_algorithm -vvv --debug
 
 ##############################
 #       With Algorithm       #
 ##############################
 
 # Skip the SDR unpacking...
-#$PY $CSPP_HOME/common/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --sdr_endianness=little --skip_sdr_unpack #-vvv --debug
+#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack -vvv --debug
 
 # Skip the ancillary generation...
-#$PY $CSPP_HOME/common/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --sdr_endianness=little --skip_ancillary -vvv --debug
+#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_ancillary -vvv --debug
 
 # Skip the sdr unpacking AND ancillary generation...
-$PY $CSPP_HOME/common/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --sdr_endianness=little --skip_sdr_unpack --skip_ancillary -vvv # --debug
+$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack --skip_ancillary -vvv  --debug
 
 # Run the whole thing...
-#$PY $CSPP_HOME/common/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --sdr_endianness=little -vvv  --debug
+#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  -vvv  #--debug
+
+
+#$PY $CSPP_HOME/viirs/edr/NCEPtoBlob.py -x $CSPP_HOME/ADL/xml/ANC/NCEP_ANC_Int.xml -g $CSPP_HOME/cache/2012_02_17_048/gdas1.pgrb00.1p0deg.20120217_18_000.grib2 -e little -o $CSPP_HOME/cache/2012_02_17_048/gdas1.pgrb00.1p0deg.20120217_18_000.grib2_blob.le
+#$PY $CSPP_HOME/viirs/edr/NCEPtoBlob.py -x $CSPP_HOME/ADL/xml/ANC/NCEP_ANC_Int.xml -g $CSPP_HOME/cache/2012_09_05_249/gdas1.pgrb00.1p0deg.20120905_00_000.grib2 -e little -o $CSPP_HOME/cache/2012_09_05_249/gdas1.pgrb00.1p0deg.20120905_00_000.grib2_blob.le

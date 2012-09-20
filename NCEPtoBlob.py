@@ -578,6 +578,7 @@ class NCEPclass(object):
                     except Exception, err:
                         print "ERROR: %s" % (str(err))
                         print "There was a problem assigning layer %s of %s" % (level,msgKey)
+                        return -1
 
             else :
                 try :
@@ -592,8 +593,12 @@ class NCEPclass(object):
                 except Exception, err:
                     print "ERROR: %s" % (str(err))
                     print "There was a problem assigning %s" % (msgKey)
+                    return -1
 
             print "\tShape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr)))
+
+        print "Finished creating NCEP GRIB blob %s" % (newNCEPblob)
+        return 0
 
 ###################################################
 #                  Main Function                  #

@@ -88,6 +88,10 @@ from tables import exceptions as pyEx
 
 import ViirsData
 
+from thermo import rh_to_mr
+rh_to_mr_vec = np.vectorize(rh_to_mr)
+
+from NCEPtoBlob import NCEPclass
 #import pyhdf
 
 
@@ -1939,12 +1943,12 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
 
     print "\ngridrows, gridcols = ",gridrows, gridcols
 
-    #posLatMask = ma.masked_less(latitude,0.).mask
-    #negLatMask = ma.masked_greater_equal(latitude,0.).mask
-    
     ##
-    posLatMask = np.zeros(latitude.shape,dtype=bool)
-    negLatMask = np.ones(latitude.shape,dtype=bool)
+    posLatMask = ma.masked_less(latitude,0.).mask
+    negLatMask = ma.masked_greater_equal(latitude,0.).mask
+    ##
+    #posLatMask = np.zeros(latitude.shape,dtype=bool)
+    #negLatMask = np.ones(latitude.shape,dtype=bool)
     ##
 
     print "\nNumber of posLatMask masked values = ",np.sum(posLatMask)
@@ -1958,21 +1962,21 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
     phi = np.radians(ma.array(latitude,mask=posLatMask,fill_value=0))
     lam = np.radians(ma.array(longitude,mask=posLatMask,fill_value=0))
 
-    #print "\nphi = "
-    #print phi[:8,:10]
+    print "\nphi = "
+    print phi[:8,:10]
 
-    #print "\nlam = "
-    #print lam[:8,:10]
+    print "\nlam = "
+    print lam[:8,:10]
 
     rho =  2. * rg * np.sin((pi / 4.0) - (phi / 2.0))
     r = r0 + rho * np.sin(lam)
     s = s0 + rho * np.cos(lam)          
 
-    #print "\nr = "
-    #print r[:8,:10]
+    print "\nr = "
+    print r[:8,:10]
 
-    #print "\ns = "
-    #print s[:8,:10]
+    print "\ns = "
+    print s[:8,:10]
 
     i_pos = round_(r, 0).astype('int') - 1
     j_pos = round_(s, 0).astype('int') - 1
@@ -2025,12 +2029,19 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
     print "\nnise_val = "
     print nise_val[:8,:10]
 
+    print "\nk_pos[posIdx] = "
+    print k_pos[posIdx]
+
+    print "\nk_neg[negIdx] = "
+    print k_neg[negIdx]
+
     nise_val[posIdx] = nHemi[k_pos[posIdx]]
     nise_val[negIdx] = sHemi[k_neg[negIdx]]
 
     print "\nmin(data) = ",np.min(nise_val)
     print "max(data) = ",np.max(nise_val)
 
+    print "\nnise_val = "
     print nise_val[:8,:10]
 
     # From ADL/include/ProEdrViirsCMIPGbl.h ...
@@ -2374,7 +2385,7 @@ def _create_NCEP_gridBlobs(gribFiles):
         gribFile = path.basename(files)
         gribBlob = "%s_blob.le" % (gribFile)
         gribBlob = path.join(gribPath,gribBlob)
-        print "%s" % (gribBlob)
+        print "Creating NCEP GRIB blob %s" % (gribBlob)
 
         if not os.path.exists(gribBlob):
             try :
@@ -2407,6 +2418,107 @@ def _create_NCEP_gridBlobs(gribFiles):
             LOG.info('Gridded NCEP blob files %s exists, skipping.' % (gribBlob))
             blobFiles.append(gribBlob)
 
+    return blobFiles
+
+
+def _create_NCEP_gridBlobs_alt(gribFiles):
+    '''Converts NCEP GRIB files into NCEP blobs'''
+
+    from copy import deepcopy
+
+    blobFiles = []
+
+    CSPP_HOME = os.getenv('CSPP_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
+    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    csppPython = os.getenv('PY')
+    ADL_HOME = os.getenv('ADL_HOME')
+
+    for files in gribFiles :
+        gribPath = path.dirname(files)
+        gribFile = path.basename(files)
+        gribBlob = "%s_blob.le" % (gribFile)
+        gribBlob = path.join(gribPath,gribBlob)
+        print "Creating NCEP GRIB blob %s" % (gribBlob)
+
+        if not os.path.exists(gribBlob):
+            try :
+                LOG.info('Transcoding %s to %s ...' % (files,gribBlob))
+                NCEPxml = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
+
+                # Create the grib object and populate with the grib file data
+                NCEPobj = NCEPclass(gribFile=files)
+
+                # Convert surface pressure from Pa to mb or hPa ...
+                NCEPobj.NCEPmessages['surfacePressure'].data /= 100.
+
+                # Convert total column ozone from DU or kg m**-2 to Atm.cm ...
+                NCEPobj.NCEPmessages['totalColumnOzone'].data /= 1000.
+
+                # Convert total precipitable water kg m^{-2} to cm ...
+                NCEPobj.NCEPmessages['totalPrecipitableWater'].data /= 10.
+
+                # Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}
+                moistureObj = NCEPobj.NCEPmessages['waterVaporMixingRatioLayers'].messageLevelData
+                temperatureObj = NCEPobj.NCEPmessages['temperatureLayers'].messageLevelData
+
+                # Compute the 100mb mixing ratio in g/kg
+                if moistureObj['100'].name == 'Specific humidity':
+                    specHumidity_100mb = moistureObj['100'].data
+                    mixingRatio_100mb = 1000. * specHumidity_100mb/(1. - specHumidity_100mb)
+                elif  moistureObj['100'].name == 'Relative humidity':
+                    relativeHumidity_100mb = moistureObj['100'].data
+                    temperature_100mb = temperatureObj['100'].data
+                    mixingRatio_100mb = rh_to_mr_vec(relativeHumidity_100mb,100.,temperature_100mb)
+                else :
+                    pass
+
+                for level,levelIdx in NCEPobj.NCEP_LAYER_LEVELS.items() : 
+                    levelStrIdx = level[:-2]
+                    pressure = NCEPobj.NCEP_LAYER_VALUES[levelIdx]
+
+                    if pressure < 100. :
+                        # Copy the 100mb message object to this pressure, and assign the correct
+                        # mixing ratio
+                        moistureObj[levelStrIdx] = deepcopy(moistureObj['100'])
+                        moistureObj[levelStrIdx].level = levelStrIdx
+
+                        # Compute the mixing ratio in g/kg
+                        mixingRatio = np.maximum(mixingRatio_100mb,0.003) * ((pressure/100.)**3.)
+                        mixingRatio = np.maximum(mixingRatio_100mb,0.003)
+                    else :
+                        # Compute the mixing ratio in g/kg
+                        if moistureObj[levelStrIdx].name == 'Specific humidity':
+                            specHumidity = moistureObj[levelStrIdx].data 
+                            mixingRatio = 1000. * specHumidity/(1. - specHumidity)
+                        elif  moistureObj[levelStrIdx].name == 'Relative humidity':
+                            relativeHumidity = moistureObj[levelStrIdx].data
+                            temperature = temperatureObj[levelStrIdx].data
+                            mixingRatio = rh_to_mr_vec(relativeHumidity,pressure,temperature)
+                        else :
+                            pass
+
+                    moistureObj[levelStrIdx].data = mixingRatio
+
+                # Write the contents of the NCEPobj object to an ADL blob file
+                endian = adl_blob.LITTLE_ENDIAN
+                procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
+
+                #blobFiles.append(gribBlob)
+                if not (procRetVal == 0) :
+                    LOG.error('Transcoding of ancillary files failed for %s.' % (files))
+                    sys.exit(procRetVal)
+                else :
+                    LOG.info('Finished creating NCEP GRIB blob %s' % (gribBlob))
+                    blobFiles.append(gribBlob)
+
+            except Exception, err:
+                LOG.warn( "%s" % (str(err)))
+        else :
+            LOG.info('Gridded NCEP blob files %s exists, skipping.' % (gribBlob))
+            blobFiles.append(gribBlob)
+
+    LOG.info('Returning NCEP GRIB blob file names %r' % (blobFiles))
     return blobFiles
 
 def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
@@ -3451,8 +3563,8 @@ def main():
             all_dyn_anc = list(gribFiles) + list(niseFiles)
             print all_dyn_anc
             LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
-            LOG.info("Linking static and dynamic ancillary data into workspace")
-            link_ancillary_to_work_dir(anc_dir, all_dyn_anc)
+            #LOG.info("Linking static and dynamic ancillary data into workspace")
+            #link_ancillary_to_work_dir(anc_dir, all_dyn_anc)
 
         # Link in auxillary files
 
@@ -3464,7 +3576,8 @@ def main():
 
         # Transcode the NCEP GRIB files into NCEP global grid blob files
 
-        gridBlobFiles = _create_NCEP_gridBlobs(gribFiles)
+        #gridBlobFiles = _create_NCEP_gridBlobs(gribFiles)
+        gridBlobFiles = _create_NCEP_gridBlobs_alt(gribFiles)
 
         print gridBlobFiles
 
@@ -3523,7 +3636,8 @@ def main():
         noncritical_problem = crashed_runs or no_output_runs or geo_problem_runs or bad_log_runs
 
         ## print final disposition message and get return code
-        rc = get_return_code(unpacking_problems, len(xml_files_to_process), len(no_output_runs), noncritical_problem)
+        environment_error=False # TODO: Handle this exception properly.
+        rc = get_return_code(unpacking_problems, len(xml_files_to_process), len(no_output_runs), noncritical_problem, environment_error)
 
         ## if no errors or only non-critical errors: clean up
         if rc == 0 and not options.cspp_debug:
