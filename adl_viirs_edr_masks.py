@@ -92,7 +92,8 @@ from thermo import rh_to_mr
 rh_to_mr_vec = np.vectorize(rh_to_mr)
 
 from NCEPtoBlob import NCEPclass
-#import pyhdf
+#import pyhdf.SD as SD
+from HDF4File import HDF4File
 
 
 ########## From ATMS SDR ##################
@@ -549,6 +550,7 @@ XML_TMPL_VIIRS_MASKS_EDR = """<InfTkConfig>
   <useExtSiWriter>FALSE</useExtSiWriter>
   <debugLogLevel>HIGH</debugLogLevel>
   <debugLevel>DBG_HIGH</debugLevel>
+  <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
   <perfPath>${WORK_DIR}/perf</perfPath>
   <dbgPath>${WORK_DIR}/log</dbgPath>
@@ -993,6 +995,7 @@ def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLis
     DEM_lonMaxIdx = DEM_lonIdx[-1]
 
     print "Opening DEM file ",DEM_fileName
+    # TODO : Use original HDF4 file which contains elevation and LWM.
     DEMobj = pytables.openFile(DEM_fileName,'r')
     DEM_node = DEMobj.getNode('/demGRID/Data Fields/LandWater')
 
@@ -1551,8 +1554,6 @@ def _getGRC(inDir,geoDicts):
 
     ADL_HOME = os.getenv('ADL_HOME')
 
-    masksCollShortNames = 'VIIRS-MOD-GRC'
-
     # Get a bunch of information about the geolocation
     latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
 
@@ -1564,113 +1565,119 @@ def _getGRC(inDir,geoDicts):
     print "latCrnList : %r" % (latCrnList)
     print "lonCrnList : %r\n" % (lonCrnList)
 
-    for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
+    masksCollShortNames = ['VIIRS-MOD-GRC','VIIRS-MOD-GRC-TC']
+    xmlNames = ['VIIRS_MOD_GRC.xml','VIIRS_MOD_GRC_TC.xml']
 
-        N_Granule_ID = geoDict['N_Granule_ID']
-        LOG.info("Creating new VIIRS-MOD-GRC asc file for granule ID %s" % (N_Granule_ID))
+    for shortName,xmlName in zip(masksCollShortNames,xmlNames):
 
-        print "geoDict keys are..."
-        print geoDict.keys()
+        for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
 
-        # Create a new URID to be used in making the asc filenames
+            N_Granule_ID = geoDict['N_Granule_ID']
+            LOG.info("Creating new %s asc file for granule ID %s" % (shortName,N_Granule_ID))
 
-        URID_dict = _getURID()
+            print "geoDict keys are..."
+            print geoDict.keys()
 
-        URID = URID_dict['URID']
+            # Create a new URID to be used in making the asc filenames
 
-        blobDir = inDir
+            URID_dict = _getURID()
 
-        ascFileName = path.join(blobDir,URID+'.asc')
-        blobName = path.join(blobDir,URID+'.'+masksCollShortNames)
+            URID = URID_dict['URID']
 
-        LOG.info("ascFileName : %s" % (ascFileName))
-        LOG.info("blobName : %s" % (blobName))
+            blobDir = inDir
 
-        # Create new VIIRS-MOD-GRC blob
+            ascFileName = path.join(blobDir,URID+'.asc')
+            blobName = path.join(blobDir,URID+'.'+shortName)
 
-        endian = ancEndian
-        xmlName = path.join(ADL_HOME,'xml/VIIRS','VIIRS_MOD_GRC.xml')
-        #xmlName = path.join(ADL_HOME,'xml/VIIRS','VIIRS_MOD_GRC_TC.xml')
+            LOG.info("ascFileName : %s" % (ascFileName))
+            LOG.info("blobName : %s" % (blobName))
 
-        newGRCblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
+            # Create new VIIRS-MOD-GRC blob
 
-        # Make a new VIIRS-MOD-GRC asc file from the template, and substitute for the various tags
+            endian = ancEndian
+            xmlPath = path.join(ADL_HOME,'xml/VIIRS',xmlName)
+            #xmlName = path.join(ADL_HOME,'xml/VIIRS','VIIRS_MOD_GRC.xml')
+            #xmlName = path.join(ADL_HOME,'xml/VIIRS','VIIRS_MOD_GRC_TC.xml')
 
-        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-MOD-GRC_Template.asc")
+            newGRCblobObj = adl_blob.create(xmlPath, blobName, endian=endian, overwrite=True)
 
-        print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
+            # Make a new VIIRS-MOD-GRC asc file from the template, and substitute for the various tags
 
-        # Parse the geolocation asc file to get struct information which will be 
-        # written to the ancillary asc files
+            ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-MOD-GRC_Template.asc")
 
-        geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-        print "\nOpening %s..." % (geoAscFileName)
+            print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
 
-        geoAscFile = open(geoAscFileName,'rt')
+            # Parse the geolocation asc file to get struct information which will be 
+            # written to the ancillary asc files
 
-        ObservedDateTime =  _getAscLine(geoAscFile,"ObservedDateTime")
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
-        RangeDateTimeStr =  ObservedDateTime
-        RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
+            geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
+            print "\nOpening %s..." % (geoAscFileName)
 
-        GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
+            geoAscFile = open(geoAscFileName,'rt')
 
-        BeginningOrbitNumber =  _getAscLine(geoAscFile,"BeginningOrbitNumber")
+            ObservedDateTime =  _getAscLine(geoAscFile,"ObservedDateTime")
+            #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
+            RangeDateTimeStr =  ObservedDateTime
+            RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
 
-        N_Nadir_Latitude_Max  = _getAscLine(geoAscFile,"N_Nadir_Latitude_Max")
-        N_Nadir_Latitude_Min  = _getAscLine(geoAscFile,"N_Nadir_Latitude_Min")
-        N_Nadir_Longitude_Max = _getAscLine(geoAscFile,"N_Nadir_Longitude_Max")
-        N_Nadir_Longitude_Min = _getAscLine(geoAscFile,"N_Nadir_Longitude_Min")
+            GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
+            GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
 
-        North_Bounding_Coordinate = _getAscLine(geoAscFile,"North_Bounding_Coordinate")
-        South_Bounding_Coordinate = _getAscLine(geoAscFile,"South_Bounding_Coordinate")
-        East_Bounding_Coordinate  = _getAscLine(geoAscFile,"East_Bounding_Coordinate")
-        West_Bounding_Coordinate  = _getAscLine(geoAscFile,"West_Bounding_Coordinate")
+            BeginningOrbitNumber =  _getAscLine(geoAscFile,"BeginningOrbitNumber")
 
-        N_Day_Night_Flag  = _getAscLine(geoAscFile,"N_Day_Night_Flag")
-        Ascending_Descending_Indicator  = _getAscLine(geoAscFile,"Ascending/Descending_Indicator")
+            N_Nadir_Latitude_Max  = _getAscLine(geoAscFile,"N_Nadir_Latitude_Max")
+            N_Nadir_Latitude_Min  = _getAscLine(geoAscFile,"N_Nadir_Latitude_Min")
+            N_Nadir_Longitude_Max = _getAscLine(geoAscFile,"N_Nadir_Longitude_Max")
+            N_Nadir_Longitude_Min = _getAscLine(geoAscFile,"N_Nadir_Longitude_Min")
 
-        geoAscFile.close()
+            North_Bounding_Coordinate = _getAscLine(geoAscFile,"North_Bounding_Coordinate")
+            South_Bounding_Coordinate = _getAscLine(geoAscFile,"South_Bounding_Coordinate")
+            East_Bounding_Coordinate  = _getAscLine(geoAscFile,"East_Bounding_Coordinate")
+            West_Bounding_Coordinate  = _getAscLine(geoAscFile,"West_Bounding_Coordinate")
 
-        ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-        ascFile = open(ascFileName,"wt") # create a new text file
+            N_Day_Night_Flag  = _getAscLine(geoAscFile,"N_Day_Night_Flag")
+            Ascending_Descending_Indicator  = _getAscLine(geoAscFile,"Ascending/Descending_Indicator")
 
-        print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
+            geoAscFile.close()
 
-        print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
+            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+            ascFile = open(ascFileName,"wt") # create a new text file
 
-        for line in ascTemplateFile.readlines():
-           line = line.replace("CSPP_URID",URID)
-           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",URID_dict['creationDate_nousecStr'])
-           line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
-           line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",masksCollShortNames)
-           line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
-           line = line.replace("CSPP_BEGINNING_ORBIT_NUMBER",BeginningOrbitNumber)
-           line = line.replace("CSPP_CREATIONDATETIME",URID_dict['creationDateStr'])
-           line = line.replace("  CSPP_OBSERVED_DATE_TIME",ObservedDateTime)
-           line = line.replace("  CSPP_RANGE_DATE_TIME",RangeDateTimeStr)
-           line = line.replace("  CSPP_GRINGLATITUDE",GRingLatitudeStr)
-           line = line.replace("  CSPP_GRINGLONGITUDE",GRingLongitudeStr)
-           #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
+            print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
 
-           line = line.replace("  CSPP_NADIR_LATITUDE_MAX",N_Nadir_Latitude_Max)
-           line = line.replace("  CSPP_NADIR_LATITUDE_MIN",N_Nadir_Latitude_Min)
-           line = line.replace("  CSPP_NADIR_LONGITUDE_MAX",N_Nadir_Longitude_Max)
-           line = line.replace("  CSPP_NADIR_LONGITUDE_MIN",N_Nadir_Longitude_Min)
+            print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
 
-           line = line.replace("  CSPP_NORTH_BOUNDING_COORD",North_Bounding_Coordinate)
-           line = line.replace("  CSPP_SOUTH_BOUNDING_COORD",South_Bounding_Coordinate)
-           line = line.replace("  CSPP_EAST_BOUNDING_COORD",East_Bounding_Coordinate)
-           line = line.replace("  CSPP_WEST_BOUNDING_COORD",West_Bounding_Coordinate)
+            for line in ascTemplateFile.readlines():
+               line = line.replace("CSPP_URID",URID)
+               line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",URID_dict['creationDate_nousecStr'])
+               line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
+               line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",shortName)
+               line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
+               line = line.replace("CSPP_BEGINNING_ORBIT_NUMBER",BeginningOrbitNumber)
+               line = line.replace("CSPP_CREATIONDATETIME",URID_dict['creationDateStr'])
+               line = line.replace("  CSPP_OBSERVED_DATE_TIME",ObservedDateTime)
+               line = line.replace("  CSPP_RANGE_DATE_TIME",RangeDateTimeStr)
+               line = line.replace("  CSPP_GRINGLATITUDE",GRingLatitudeStr)
+               line = line.replace("  CSPP_GRINGLONGITUDE",GRingLongitudeStr)
+               #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
 
-           line = line.replace("  CSPP_DAY_NIGHT_FLAG",N_Day_Night_Flag)
-           line = line.replace("  CSPP_ASCENDING_DESCENDING_INDICATOR",Ascending_Descending_Indicator)
+               line = line.replace("  CSPP_NADIR_LATITUDE_MAX",N_Nadir_Latitude_Max)
+               line = line.replace("  CSPP_NADIR_LATITUDE_MIN",N_Nadir_Latitude_Min)
+               line = line.replace("  CSPP_NADIR_LONGITUDE_MAX",N_Nadir_Longitude_Max)
+               line = line.replace("  CSPP_NADIR_LONGITUDE_MIN",N_Nadir_Longitude_Min)
 
-           ascFile.write(line) 
+               line = line.replace("  CSPP_NORTH_BOUNDING_COORD",North_Bounding_Coordinate)
+               line = line.replace("  CSPP_SOUTH_BOUNDING_COORD",South_Bounding_Coordinate)
+               line = line.replace("  CSPP_EAST_BOUNDING_COORD",East_Bounding_Coordinate)
+               line = line.replace("  CSPP_WEST_BOUNDING_COORD",West_Bounding_Coordinate)
 
-        ascFile.close()
-        ascTemplateFile.close()
+               line = line.replace("  CSPP_DAY_NIGHT_FLAG",N_Day_Night_Flag)
+               line = line.replace("  CSPP_ASCENDING_DESCENDING_INDICATOR",Ascending_Descending_Indicator)
+
+               ascFile.write(line) 
+
+            ascFile.close()
+            ascTemplateFile.close()
 
 
 def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
@@ -1914,10 +1921,34 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
 
     print "\nGranulating NISE file %s" % (NISE_fileName)
 
-    NISEobj = pytables.openFile(NISE_fileName,'r')
-    nHemi = NISEobj.getNode('/Northern Hemisphere/Data Fields/Extent')[:,:]
-    sHemi = NISEobj.getNode('/Southern Hemisphere/Data Fields/Extent')[:,:]
-    NISEobj.close()
+    #################
+    # Using HDF5
+    #################
+
+    #NISEobj = pytables.openFile(NISE_fileName,'r')
+    #nHemi = NISEobj.getNode('/Northern Hemisphere/Data Fields/Extent')[:,:]
+    #sHemi = NISEobj.getNode('/Southern Hemisphere/Data Fields/Extent')[:,:]
+    #NISEobj.close()
+
+    #################
+    # Using HDF4
+    #################
+
+    LOG.info("Opening the NISE file %s" % (NISE_fileName))
+    fileObj = HDF4File(NISE_fileName)
+
+    northDsetName = "Northern Hemisphere/Data Fields/Extent"
+    southDsetName = "Southern Hemisphere/Data Fields/Extent"
+    #northDsetName = "Northern Hemisphere/Data Fields/Age"
+    #southDsetName = "Southern Hemisphere/Data Fields/Age"
+
+    LOG.info("Retrieving NISE HDF4 path '%s'" % (northDsetName))
+    nHemi = fileObj.getDataset(northDsetName)
+
+    LOG.info("Retrieving NISE HDF4 path '%s'" % (southDsetName))
+    sHemi = fileObj.getDataset(southDsetName)
+
+    #################
 
     xsize, ysize = nHemi.shape    
     
@@ -3050,13 +3081,12 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
             ascFile.close()
             ascTemplateFile.close()
 
-def _retrieve_NISE_files(geoDicts):
+def _retrieve_NISE_files_and_convert(geoDicts):
     ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
 
     CSPP_HOME = os.getenv('CSPP_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
-
 
     niseFiles = []
 
@@ -3132,6 +3162,57 @@ def _retrieve_NISE_files(geoDicts):
             newNiseFiles.append(new_niseName)
 
     return newNiseFiles
+
+
+def _retrieve_NISE_files(geoDicts):
+    ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
+
+    CSPP_HOME = os.getenv('CSPP_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
+    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+
+    niseFiles = []
+
+    for geoDict in geoDicts:
+        timeObj = geoDict['ObservedStartTime']
+        dateStamp = timeObj.strftime("%Y%j")
+
+        try :
+            LOG.info('Retrieving NISE files for %s ...' % (dateStamp))
+            cmdStr = '%s/get_anc_cspp_nise.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
+            LOG.info('\t%s' % (cmdStr))
+            args = shlex.split(cmdStr)
+            LOG.debug('\t%s' % (repr(args)))
+
+            procRetVal = 0
+            procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            procObj.wait()
+            procRetVal = procObj.returncode
+
+            procOutput = procObj.stdout.readlines()
+            #procOutput = procObj.stdout.read()
+
+            # FIXME : How to get this output to have linebreaks when using readlines()
+            #LOG.debug(procOutput)
+            
+            for lines in procOutput:
+                if CSPP_ANC_CACHE_DIR in lines :
+                    lines = string.replace(lines,'\n','')
+                    niseFiles.append(lines)
+
+            # TODO : On error, jump to a cleanup routine
+            if not (procRetVal == 0) :
+                LOG.error('Retrieval of NISE files failed for %s.' % (dateStamp))
+                #sys.exit(procRetVal)
+
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
+
+    # Uniqify the list of NISE files
+    niseFiles = list(set(niseFiles))
+    niseFiles.sort()
+
+    return niseFiles
 
 
 # Look through new log files for completed messages
@@ -3472,6 +3553,7 @@ def main():
         h5_names = glob(path.join(input_dir,'GM*O_npp*.h5')) \
                    + glob(path.join(input_dir,'SVM*_npp*.h5')) \
                    + glob(path.join(input_dir,'SVI*_npp*.h5'))
+        t1 = time()
         for fn in h5_names:
             try:
                 unpack(work_dir, fn)
@@ -3479,9 +3561,12 @@ def main():
                 LOG.debug(traceback.format_exc())
                 LOG.error('ADL_Unpacker failed on %r: %r . Continuing' % (fn, oops))
                 unpacking_problems += 1
+        t2 = time()
+        LOG.info ("Unpacking of VIIRS SDR files took %f seconds." % (t2-t1))
     else :
         LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
 
+    print "Unpacking problems = %d" % (unpacking_problems)
     print "Work directory is %s" % (work_dir)
 
     # Read through ascii metadata and build up information table
@@ -3503,7 +3588,11 @@ def main():
 
     if not granules_to_process:
         LOG.error("Error: Found no granules to process!")
-        return get_return_code(unpacking_problems, num_xml_files_to_process=0, num_no_output_runs=0, noncritical_problem=False)
+        num_xml_files_to_process = 0
+        num_no_output_runs = 0
+        noncritical_problem = False
+        environment_error = False
+        return get_return_code(unpacking_problems, num_xml_files_to_process, num_no_output_runs, noncritical_problem, environment_error)
 
     # Set the VIIRS SDR endianness from the input option...
 
@@ -3555,7 +3644,7 @@ def main():
         # FUTURE: This currently doesn't operate correctly without this, since we rely on the cache scripts
         #   to tell us where to find the ancillary data whether it was downloaded or not.
         if allow_cache_update:
-            LOG.info("Downloading GRIB and NISE ancillary into cache and linking into workspace")
+            LOG.info("Downloading GRIB and NISE ancillary into cache")
             gribFiles = _retrieve_grib_files(anc_granules_to_process)
             niseFiles = _retrieve_NISE_files(anc_granules_to_process)
             print "gribFiles: ",gribFiles
@@ -3563,8 +3652,6 @@ def main():
             all_dyn_anc = list(gribFiles) + list(niseFiles)
             print all_dyn_anc
             LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
-            #LOG.info("Linking static and dynamic ancillary data into workspace")
-            #link_ancillary_to_work_dir(anc_dir, all_dyn_anc)
 
         # Link in auxillary files
 
@@ -3641,6 +3728,7 @@ def main():
 
         ## if no errors or only non-critical errors: clean up
         if rc == 0 and not options.cspp_debug:
+            print "Cleaning up workspace..."
             _cleanup(work_dir, 'edr_viirs_masks*.xml', 'ProEdrViirsMasksController.exe_*', log_dir, anc_dir, perf_dir)
 
         return rc

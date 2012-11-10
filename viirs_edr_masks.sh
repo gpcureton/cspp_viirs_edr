@@ -40,45 +40,179 @@ test -x "$PY" \
 test -w "$CSPP_ANC_CACHE_DIR" \
     || warn "CSPP_ANC_CACHE_DIR is not writable"
 
-
-#
-# help text
-#
-
-if [ -z "$1" ]; then
+help_usage() {
   cat <<EOF
-Usage:
 
-  export CSPP_HOME=/path/to/CSPP3.1
-  source $CSPP_HOME/cspp_env.sh
+Run the ADL VIIRS EDR.
 
-  mkdir work
-  cd work
-  viirs_edr_masks.sh /path/to/testdata
+Usage: 
+    export CSPP_HOME=/path/to/CSPP/dir
+    \$CSPP_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
 
-  Only input is the directory containing the VIIRS SDR HDF5 files.
 
-  Work-directory will be created if it doesn't exist; defaults to '.'
-  Intermediate and output files will be written to the work directory, which defaults to '.'.
-  You can override work directory with '-W new_work_dir'.
+Options:
 
-  HDF5 EDR output files will be written to the work directory.
+  --version             Show program's version number and exit
 
-  Work directory should be cleaned between uses.
-Example:
-  \$CSPP_HOME/viirs/edr/viirs_edr_masks.sh /path/to/testdata
+  -h, --help            Show this help message and exit
+
+  Mandatory Arguments:
+    At a minimum these arguments must be specified
+
+    -i INPUTDIRECTORY, --inputDirectory=INPUTDIRECTORY
+                        The base directory where input are placed
+    
+    --sdr_endianness=SDR_ENDIANNESS
+                        The input VIIRS SDR endianness.
+                        Possible values are...
+                        'little', 'big'
+
+  Extra Options:
+    These options may be used to customize behaviour of this program.
+
+    -w WORK_DIR, --workDirectory=WORK_DIR
+                        The directory which all activity will occur in,
+                        defaults to the current directory.
+
+    --skip_ancillary    Skip the retrieval and granulation of ancillary data.
+
+    --skip_sdr_unpack   Skip the unpacking of the VIIRS SDR HDF5 files.
+    
+    --skip_algorithm    Skip running the VIIRS Masks algorithm.
+    
+    --debug             Enable debug mode on ADL and avoid cleaning workspace
+    
+    --anc_endianness=ANC_ENDIANNESS
+                        The input VIIRS ancillary endianness.
+                        Possible values are...
+                        'little', 'big'. [default: 'little']
+    
+    -v, --verbose       each occurrence increases verbosity 1 level from
+                        ERROR: -v=WARNING -vv=INFO -vvv=DEBUG"
 EOF
-  exit 3
+
+}
+
+usage() {
+  cat <<EOF
+
+Run the ADL VIIRS EDR.
+
+Usage: 
+    export CSPP_HOME=/path/to/CSPP/dir
+    \$CSPP_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
+
+  -h, --help            Show the mandatory args and options and exit.
+
+EOF
+
+}
+
+#
+# Gather the various command line options...
+#
+
+INPUT_DIR_OPT=
+WORK_DIR_OPT=
+SKIP_SDR_UNPACK_OPT=
+SKIP_ANCILLARY_OPT=
+SKIP_ALGORITHM_OPT=
+ANC_ENDIANNESS_OPT=
+SDR_ENDIANNESS_OPT=
+DEBUG_OPT=
+VERBOSITY_OPT=
+
+OPTS=`getopt -o "i:w:dvh" -l "input_directory:,work_directory:,skip_ancillary,skip_sdr_unpack,skip_algorithm,debug,anc_endianness:,sdr_endianness:,verbose,help" -- "$@"`
+
+# If returncode from getopt != 0, exit with error.
+if [ $? != 0 ]
+then
+    echo "There was an error with getopt, aborting.."
+    exit 1
 fi
 
-# set LD_LIBRARY_PATH as late as possible
-# no longer needed as of CSPP3.1beta2
-# export LD_LIBRARY_PATH=$CSPP_HOME/common/local/lib:$CSPP_HOME/common/local/lib64:$ADL_HOME/lib:$CSPP_HOME/common/ShellB3/lib
+# A little magic
+eval set -- "$OPTS"
 
-#$PY $CSPP_HOME/viirs/edr/viirsEdrMasks.py -h || oops "VIIRS EDR Masks Controller did not complete without errors."
+# Now go through all the options
+while true ;
+do
+    #echo "Checking opts"
+    case "$1" in
+        -i|--input_directory)
+            INPUT_DIR_OPT="--inputDirectory=$2"
+            shift 2;;
+
+        --sdr_endianness)
+            SDR_ENDIANNESS_OPT="--sdr_endianness=$2"
+            shift 2;;
+
+        -w|--work_directory)
+            WORK_DIR_OPT="--workDirectory=$2"
+            shift 2;;
+
+        --skip_sdr_unpack)
+            SKIP_SDR_UNPACK_OPT="--skip_sdr_unpack"
+            shift ;;
+
+        --skip_ancillary)
+            SKIP_ANCILLARY_OPT="--skip_ancillary"
+            shift;;
+
+        --skip_algorithm)
+            SKIP_ALGORITHM_OPT="--skip_algorithm"
+            shift ;;
+
+        --anc_endianness)
+            ANC_ENDIANNESS_OPT="--anc_endianness=$2"
+            shift ;;
+
+        -d|--debug)
+            DEBUG_OPT="--debug"
+            shift ;;
+
+        -v|--verbose)
+            VERBOSITY_OPT="-"$(echo $VERBOSITY_OPT | sed s#-##)"v"
+            shift ;;
+
+        -h|--help)
+            help_usage
+            shift;
+            break ;;
+
+        --) 
+            usage
+            shift;
+            break;;
+    esac
+done
+
 
 GDB=''
 #GDB='gdb --args'
+
+#echo "INPUT_DIR_OPT       = "$INPUT_DIR_OPT
+#echo "SDR_ENDIANNESS_OPT  = "$SDR_ENDIANNESS_OPT
+#echo "WORK_DIR_OPT        = "$WORK_DIR_OPT
+#echo "SKIP_SDR_UNPACK_OPT = "$SKIP_SDR_UNPACK_OPT
+#echo "SKIP_ANCILLARY_OPT  = "$SKIP_ANCILLARY_OPT
+#echo "SKIP_ALGORITHM_OPT  = "$SKIP_ALGORITHM_OPT
+#echo "ANC_ENDIANNESS_OPT  = "$ANC_ENDIANNESS_OPT
+#echo "DEBUG_OPT           = "$DEBUG_OPT
+#echo "VERBOSITY_OPT       = "$VERBOSITY_OPT
+
+#exit 1
+
+$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
+    $INPUT_DIR_OPT \
+    $SDR_ENDIANNESS_OPT \
+    $WORK_DIR_OPT \
+    $SKIP_SDR_UNPACK_OPT \
+    $SKIP_ANCILLARY_OPT \
+    $SKIP_ALGORITHM_OPT \
+    $ANC_ENDIANNESS_OPT \
+    $DEBUG_OPT \
+    $VERBOSITY_OPT
 
 ##############################
 #       No Algorithm         #
@@ -102,17 +236,19 @@ GDB=''
 ##############################
 
 # Skip the SDR unpacking...
-#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack -vvv --debug
+#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack #-vvv --debug
 
 # Skip the ancillary generation...
 #$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_ancillary -vvv --debug
 
 # Skip the sdr unpacking AND ancillary generation...
-$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack --skip_ancillary -vvv  --debug
+#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack --skip_ancillary -vvv  --debug
 
 # Run the whole thing...
-#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  -vvv  #--debug
+#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ # -vvv  --debug
 
+##############################
+#         Packaging          #
+##############################
 
-#$PY $CSPP_HOME/viirs/edr/NCEPtoBlob.py -x $CSPP_HOME/ADL/xml/ANC/NCEP_ANC_Int.xml -g $CSPP_HOME/cache/2012_02_17_048/gdas1.pgrb00.1p0deg.20120217_18_000.grib2 -e little -o $CSPP_HOME/cache/2012_02_17_048/gdas1.pgrb00.1p0deg.20120217_18_000.grib2_blob.le
-#$PY $CSPP_HOME/viirs/edr/NCEPtoBlob.py -x $CSPP_HOME/ADL/xml/ANC/NCEP_ANC_Int.xml -g $CSPP_HOME/cache/2012_09_05_249/gdas1.pgrb00.1p0deg.20120905_00_000.grib2 -e little -o $CSPP_HOME/cache/2012_09_05_249/gdas1.pgrb00.1p0deg.20120905_00_000.grib2_blob.le
+#bash $CSPP_HOME/../CSPP_repo/trunk/scripts/edr/CSPP_ViirsEdrMasks_Package.sh  $CSPP_HOME/viirs/edr/viirs_edr_masks.sh ../../sample_data/viirs/edr/input/VIIRS_OPS_unpackTest/HDF5/

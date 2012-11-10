@@ -1,10 +1,10 @@
 #######################
 # University of Wisconsin Madison,  Space Science Engineering Center (SSEC)
-#file_Date = '$Date: 2011-09-20 15:55:43 -0500 (Tue, 20 Sep 2011) $'
-#file_Revision = '$Revision: 160 $'
-#file_Author = '$Author: scottm $'
-#file_HeadURL = '$HeadURL: https://svn.ssec.wisc.edu/repos/jpss_adl/trunk/add-ons/scripts/adlController.sh $'
-#file_Id = '$Id: adlController.sh 160 2011-09-20 20:55:43Z scottm $'
+#file_Date = '$Date$'
+#file_Revision = '$Revision$'
+#file_Author = '$Author$'
+#file_HeadURL = '$HeadURL$'
+#file_Id = '$Id$'
 #######################
 
 trace_cmd()
@@ -38,15 +38,30 @@ get_opens_and_xml_and_exe()
     cat $ALLOPENS | grep \\.xml > xml.txt
 }
 
+combine_lib_and_xml_and_exe()
+{
+    echo "Combine the lib, xml and exe path lists..."
+
+    # combine opened, executed and miscellaneous lists.
+
+    cat exe.txt  > combinedfileList.txt
+    cat xml.txt  >> combinedfileList.txt
+    cat $ALLOPENS  >> combinedfileList.txt
+    #cat filterOutput.txt >> fileList.txt
+
+}
+
 remove_unwanted_paths()
 {
     echo "Removing all system related paths, and other unwanted paths..."
 
     # remove system stuff 
-    cat $ALLOPENS \
+    #cat $ALLOPENS \
+    cat combinedfileList.txt \
         | grep -v "/dev" \
         | grep -v "/etc" \
         | grep -v "/proc" \
+        | grep -v "/opt" \
         | grep -v "selinux" \
         | grep -v "/tmp" \
         | grep -v "/usr" \
@@ -54,35 +69,27 @@ remove_unwanted_paths()
         | grep -v ${WORK_DIR} \
         | grep -v "${CSPP_HOME}/static" \
         | grep -v \.pyc \
-        | grep -v "/common/ShellB3"  > filterOutput.txt
+        | grep -v "/common/ShellB3"  > filteredFileList.txt
     
-}
-
-combine_lib_and_xml_and_exe()
-{
-    echo "Combine the lib, xml and exe path lists..."
-
-    # combine opened, executed and miscellaneous lists.
-
-    cat exe.txt  > fileList.txt
-    cat xml.txt  >> fileList.txt
-    cat filterOutput.txt >> fileList.txt
-
 }
 
 check_if_files_exist()
 {
 
     # check that files realy exist. strace records all opens,  this includes search path attempts
-    fileList=$(cat fileList.txt)
+    fileList=$(cat filteredFileList.txt)
     for f in $fileList ;
     do
+        echo "Checking file "$f" ..."
         if [ -f $f ] ;
         then
             if [ `dirname $f` != "." ] ;
             then
-            echo "Good: " $f  
-            echo $f >> filesExist.txt
+                echo "Good: " $f  
+                echo $f >> filesExist.txt
+            else
+                echo "Missing: " $f  
+                echo $f >> filesNotExist.txt
             fi
         fi
     
@@ -110,13 +117,20 @@ prepare_txt()
     # Massage the various file paths to remove artefacts
 
     leave=$(basename ${CSPP_HOME})
+    repo_leave=$(basename ${REPO_HOME})
+
+    echo "leave = "$leave
+    echo "repo_leave = "$repo_leave
 
     cat filesExist.txt \
+        | sed s#\/\/#\/# \
         | sed s#${CSPP_HOME}#${leave}# \
         | sed s#$leave/ADL/bin/../../common#$leave/common# \
         | sed s#$leave/ADL/bin/../lib#$leave/ADL/lib# \
         | sed s#$leave/ADL/tools/bin/../../../common#$leave/common# \
         | sed s#$leave/ADL/tools/bin/../../lib#$leave/ADL/lib# \
+        | sed s#${REPO_HOME}#${repo_leave}# \
+        | sed s#$repo_leave/trunk/scripts/edr#$leave/viirs/edr# \
         | grep  -v -x -e "/lib64/.*" \
         | grep  -x -v -e "/lib/.*" \
         | grep -v -e "cache" \
@@ -126,9 +140,9 @@ prepare_txt()
         | grep -v -e "/sbin/*" \
         | grep -v -e "/var/*" \
         | grep -v -e "\.history" \
-        | sed s#${REPO_HOME}/trunk/scripts/edr#$leave/viirs/edr# \
         | sort | uniq > $FILELIST
 
+        #| sed s#${REPO_HOME}/trunk/scripts/edr#$leave/viirs/edr# \
         #| sed s#${REPO_HOME}/trunk/scripts/edr#$leave/common# \
 }
 
@@ -151,14 +165,16 @@ create_viirs_edr_masks_tarball()
     cd ..
     tar -cvz --dereference -T ${WORK_DIR}/package/$FILELIST -f ${CNAME}.tar.gz
     
-    cp ${CNAME}.tar.gz $CSPP_PACKAGES
-    cp -f ${WORK_DIR}/package/$FILELIST $CSPP_PACKAGES/${FILELIST%.txt}.lst
-    chmod gu+rw $CSPP_PACKAGES/${FILELIST%.txt}.lst
+    cp ${CNAME}.tar.gz $CSPP_PACKAGES/CSPP_VIIRS_EDR
+    cp -f ${WORK_DIR}/package/$FILELIST $CSPP_PACKAGES/packing_lists/${FILELIST%.txt}.lst
+    chmod gu+rw $CSPP_PACKAGES/packing_lists/${FILELIST%.txt}.lst
 }
 
 create_static_data_list()
 {
     # Create a list of the static data directories
+
+    rm -f $STATIC_FILELIST
 
     leave=$(basename ${CSPP_HOME})
 
@@ -170,6 +186,7 @@ create_static_data_list()
          "${CSPP_HOME}/static/ViirsEdrMasks_Aux/"$'\n'\
          "${CSPP_HOME}/static/VIIRS-MOD-GRC/" \
          | sort | uniq | sed s/^\ // | sed s#${CSPP_HOME}#${leave}# >> $STATIC_FILELIST
+
 }
 
 create_viirs_edr_masks_static_tarball()
@@ -190,9 +207,9 @@ create_viirs_edr_masks_static_tarball()
     cd ..
     tar -cvz --dereference -T ${WORK_DIR}/package/$STATIC_FILELIST -f ${CNAME}-static.tar.gz
     
-    cp ${CNAME}-static.tar.gz $CSPP_PACKAGES
-    cp -f ${WORK_DIR}/package/$STATIC_FILELIST $CSPP_PACKAGES/${STATIC_FILELIST%.txt}.lst
-    chmod gu+rw $CSPP_PACKAGES/${STATIC_FILELIST%.txt}.lst
+    cp ${CNAME}-static.tar.gz $CSPP_PACKAGES/CSPP_VIIRS_EDR
+    cp -f ${WORK_DIR}/package/$STATIC_FILELIST $CSPP_PACKAGES/packing_lists/${STATIC_FILELIST%.txt}.lst
+    chmod gu+rw $CSPP_PACKAGES/packing_lists/${STATIC_FILELIST%.txt}.lst
 }
 
 
@@ -224,17 +241,17 @@ main ()
 
     #trace_cmd 
     
-    #get_opens_and_xml_and_exe
-    #remove_unwanted_paths
-    #combine_lib_and_xml_and_exe
-    #check_if_files_exist
-    #add_python
-    #add_misc_files
-    #prepare_txt
+    get_opens_and_xml_and_exe
+    combine_lib_and_xml_and_exe
+    remove_unwanted_paths
+    check_if_files_exist
+    add_python
+    add_misc_files
+    prepare_txt
     #create_static_data_list
     
-    #create_viirs_edr_masks_tarball
-    create_viirs_edr_masks_static_tarball
+    create_viirs_edr_masks_tarball
+    #create_viirs_edr_masks_static_tarball
 }
 
 CMD=$1
@@ -246,7 +263,7 @@ echo "WORK_DIR = "$WORK_DIR
 export CNAME=$(basename ${CMD%.sh})
 echo "CNAME = "$CNAME
 
-export REPO_HOME='/mnt/data/geoffc/CSPP_BETA2_2-15-2012/CSPP_repo'
+export REPO_HOME='/data/geoffc/CSPP_VIIRS_EDR/CSPP_repo'
 echo "REPO_HOME = "$REPO_HOME
 
 export TRACE=${WORK_DIR}/${CNAME}.strace.log
@@ -258,8 +275,8 @@ export ALLOPENS=opens.txt
 export FILELIST=$CNAME-packing_list.txt
 export STATIC_FILELIST=$CNAME-static_packing_list.txt
 
-#export CSPP_PACKAGES="/mnt/hgfs/LATESTEST/packing_lists"
-export CSPP_PACKAGES="/mnt/data/geoffc/CSPP_BETA2_2-15-2012/packing_lists"
+# Directory where packing lists will be put on jpss-cloud
+export CSPP_PACKAGES="/data/geoffc/CSPP_VIIRS_EDR/distribution"
 
 
 main 
