@@ -1,7 +1,27 @@
 #!/usr/bin/env python
+# encoding: utf-8
+"""
+ViirsData.py
 
-#from matplotlib.colors import Colormap, normalize, LinearSegmentedColormap,ListedColormap
-#from matplotlib import cm as cm
+Purpose: Provide required data for VIIRS Cloud and Aerosol products.
+
+Created by Geoff Cureton on 2012-11-13.
+Copyright (c) 2012 University of Wisconsin SSEC. All rights reserved.
+"""
+
+file_Date = '$Date$'
+file_Revision = '$Revision$'
+file_Author = '$Author$'
+file_HeadURL = '$HeadURL$'
+file_Id = '$Id$'
+
+__author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
+__version__ = '$Id$'
+__docformat__ = 'Epytext'
+
+
+from matplotlib.colors import Colormap, normalize, LinearSegmentedColormap,ListedColormap
+from matplotlib import cm as cm
 import numpy as np
 import time
 
@@ -685,8 +705,8 @@ class CloudProdData:
                              (1.0 , 0.0 , 0.0 )
                           )
             }
-            #cmap_ice_water = LinearSegmentedColormap('ice_water_cm',ice_water_cmdata,256)
-            #self.cmap_ice_water = cmap_ice_water
+            cmap_ice_water = LinearSegmentedColormap('ice_water_cm',ice_water_cmdata,256)
+            self.cmap_ice_water = cmap_ice_water
 
 
     CloudProduct = {
