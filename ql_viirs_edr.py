@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-NCT3_productPlot.py
+ql_viirs_edr.py
 
-The purpose of this script is to test possible command line 
-configurations for NCT3_productPlot.py
+Purpose: Create quicklook PNGs for VIIRS EDR products.
 
 Minimum commandline...
 
-python NCT3_productPlot.py -g geofile.h5 -i ipfile.h5 -p CTP
+export CSPP_HOME=/path/to/CSPP
+source $CSPP_HOME/cspp_env.sh
+source $CSPP_HOME/common/cspp_common.sh
 
-Created by Geoff Cureton on 2011-03-06.
-Copyright (c) 2011 University of Wisconsin SSEC. All rights reserved.
+python ql_viirs_edr.py -g geofile.h5 -i ipfile.h5 -p CTP
+
+Created by Geoff Cureton on 2012-11-13.
+Copyright (c) 2012 University of Wisconsin SSEC. All rights reserved.
 """
 
 file_Date = '$Date$'
@@ -41,9 +44,6 @@ from matplotlib.figure import Figure
 matplotlib.use('Agg')
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
-#matplotlib.use('WXAgg')
-#from matplotlib.backends.backend_wxagg import FigureCanvasAgg as FigureCanvas
-
 # This must come *after* the backend is specified.
 import matplotlib.pyplot as ppl
 
@@ -51,11 +51,14 @@ from mpl_toolkits.basemap import Basemap
 
 import optparse as optparse
 
-import VIIRS as VIIRS
+#import VIIRS as VIIRS
+import ViirsData
+import viirs_cloud_mask as viirsCM
+import viirs_cloud_products as viirsCld
+import viirs_aerosol_products as viirsAero
 
 import tables as pytables
 from tables import exceptions as pyEx
-from HDF5 import getobj
 
 ###################################################
 #                  Global Data                    #
@@ -81,12 +84,12 @@ def gran_VCM(geoList,cmList,shrink=1):
 
     # Define the colourmap we want to use.
     print "Importing the CloudMaskProduct object..."
-    CloudMaskProduct = VIIRS.ViirsData.CloudMaskData
+    CloudMaskProduct = ViirsData.CloudMaskData
     print "done"
 
     try :
-        reload(VIIRS.viirsCM)
-        reload(VIIRS.ViirsData)
+        reload(viirsCM)
+        reload(ViirsData)
         del(viirsCMobj)
         del(latArr)
         del(lonArr)
@@ -98,16 +101,16 @@ def gran_VCM(geoList,cmList,shrink=1):
         pass
 
     print "Creating viirsCMobj..."
-    viirsCMobj = VIIRS.viirsCM.viirsCM()
+    viirsCMobj = viirsCM.viirsCM()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
         print "Ingesting granule %d using cmByte=%d and cmBit=%d ..." % (grans,cmByte,cmBit)
-        retArr = viirsCMobj.ingest(geoList[grans],cmList[grans],cmByte,cmBit,1)
+        retArr = viirsCMobj.ingest(geoList[grans],cmList[grans],cmByte,cmBit,shrink)
 
         try :
 
@@ -183,8 +186,8 @@ def gran_COP(geoList,copList,dataSet,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsCld)
-        reload(VIIRS.ViirsData)
+        reload(viirsCld)
+        reload(ViirsData)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -194,12 +197,12 @@ def gran_COP(geoList,copList,dataSet,shrink=1):
         pass
 
     print "Creating viirsCldObj..."
-    reload(VIIRS.viirsCld)
-    viirsCldObj = VIIRS.viirsCld.viirsCld()
+    reload(viirsCld)
+    viirsCldObj = viirsCld.viirsCld()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -276,8 +279,8 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsAero)
-        reload(VIIRS.ViirsData)
+        reload(viirsAero)
+        reload(ViirsData)
         del(viirsAeroObj)
         del(latArr)
         del(lonArr)
@@ -286,12 +289,12 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
         pass
 
     print "Creating viirsCldObj..."
-    reload(VIIRS.viirsCld)
-    viirsCldObj = VIIRS.viirsCld.viirsCld()
+    reload(viirsCld)
+    viirsCldObj = viirsCld.viirsCld()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -308,7 +311,8 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
-            group = getobj(ViirsGeoFileObj,'/All_Data')
+            #group = getobj(ViirsGeoFileObj,'/All_Data')
+            group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Geolocation Group : %s " % (geoGroupName)
@@ -368,7 +372,8 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
                 sys.exit(1)
 
             # Detemine the edr group name and related information
-            group = getobj(ViirsEDRFileObj,'/All_Data')
+            #group = getobj(ViirsEDRFileObj,'/All_Data')
+            group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Edr Group : %s " % (edrGroupName)
@@ -547,8 +552,8 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsCld)
-        reload(VIIRS.ViirsData)
+        reload(viirsCld)
+        reload(ViirsData)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -557,12 +562,12 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
         pass
 
     print "Creating viirsCldObj..."
-    reload(VIIRS.viirsCld)
-    viirsCldObj = VIIRS.viirsCld.viirsCld()
+    reload(viirsCld)
+    viirsCldObj = viirsCld.viirsCld()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -579,7 +584,8 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
-            group = getobj(ViirsGeoFileObj,'/All_Data')
+            #group = getobj(ViirsGeoFileObj,'/All_Data')
+            group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Geolocation Group : %s " % (geoGroupName)
@@ -639,7 +645,8 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
                 sys.exit(1)
 
             # Detemine the edr group name and related information
-            group = getobj(ViirsEDRFileObj,'/All_Data')
+            #group = getobj(ViirsEDRFileObj,'/All_Data')
+            group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Edr Group : %s " % (edrGroupName)
@@ -810,8 +817,8 @@ def gran_CTp(geoList,ctpList,dataSet,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsCld)
-        reload(VIIRS.ViirsData)
+        reload(viirsCld)
+        reload(ViirsData)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -821,12 +828,12 @@ def gran_CTp(geoList,ctpList,dataSet,shrink=1):
         pass
 
     print "Creating viirsCldObj..."
-    reload(VIIRS.viirsCld)
-    viirsCldObj = VIIRS.viirsCld.viirsCld()
+    reload(viirsCld)
+    viirsCldObj = viirsCld.viirsCld()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -902,8 +909,8 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsCld)
-        reload(VIIRS.ViirsData)
+        reload(viirsCld)
+        reload(ViirsData)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -912,12 +919,12 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
         pass
 
     print "Creating viirsCldObj..."
-    reload(VIIRS.viirsCld)
-    viirsCldObj = VIIRS.viirsCld.viirsCld()
+    reload(viirsCld)
+    viirsCldObj = viirsCld.viirsCld()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -934,7 +941,8 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
-            group = getobj(ViirsGeoFileObj,'/All_Data')
+            #group = getobj(ViirsGeoFileObj,'/All_Data')
+            group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Geolocation Group : %s " % (geoGroupName)
@@ -994,7 +1002,8 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
                 sys.exit(1)
 
             # Detemine the edr group name and related information
-            group = getobj(ViirsEDRFileObj,'/All_Data')
+            #group = getobj(ViirsEDRFileObj,'/All_Data')
+            group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Edr Group : %s " % (edrGroupName)
@@ -1164,8 +1173,8 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsCld)
-        reload(VIIRS.ViirsData)
+        reload(viirsCld)
+        reload(ViirsData)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -1174,12 +1183,12 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
         pass
 
     print "Creating viirsCldObj..."
-    reload(VIIRS.viirsCld)
-    viirsCldObj = VIIRS.viirsCld.viirsCld()
+    reload(viirsCld)
+    viirsCldObj = viirsCld.viirsCld()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -1196,7 +1205,8 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
-            group = getobj(ViirsGeoFileObj,'/All_Data')
+            #group = getobj(ViirsGeoFileObj,'/All_Data')
+            group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Geolocation Group : %s " % (geoGroupName)
@@ -1256,7 +1266,8 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
                 sys.exit(1)
 
             # Detemine the edr group name and related information
-            group = getobj(ViirsEDRFileObj,'/All_Data')
+            #group = getobj(ViirsEDRFileObj,'/All_Data')
+            group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Edr Group : %s " % (edrGroupName)
@@ -1427,8 +1438,8 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsCld)
-        reload(VIIRS.ViirsData)
+        reload(viirsCld)
+        reload(ViirsData)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -1437,12 +1448,12 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
         pass
 
     print "Creating viirsCldObj..."
-    reload(VIIRS.viirsCld)
-    viirsCldObj = VIIRS.viirsCld.viirsCld()
+    reload(viirsCld)
+    viirsCldObj = viirsCld.viirsCld()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -1459,7 +1470,8 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
-            group = getobj(ViirsGeoFileObj,'/All_Data')
+            #group = getobj(ViirsGeoFileObj,'/All_Data')
+            group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Geolocation Group : %s " % (geoGroupName)
@@ -1519,7 +1531,8 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
                 sys.exit(1)
 
             # Detemine the edr group name and related information
-            group = getobj(ViirsEDRFileObj,'/All_Data')
+            #group = getobj(ViirsEDRFileObj,'/All_Data')
+            group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Edr Group : %s " % (edrGroupName)
@@ -1690,8 +1703,8 @@ def gran_AOT(geoList,aotList,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsAero)
-        reload(VIIRS.ViirsData)
+        reload(viirsAero)
+        reload(ViirsData)
         del(viirsAeroObj)
         del(latArr)
         del(lonArr)
@@ -1705,12 +1718,12 @@ def gran_AOT(geoList,aotList,shrink=1):
         pass
 
     print "Creating viirsSdrObj..."
-    reload(VIIRS.viirsAero)
-    viirsAeroObj = VIIRS.viirsAero.viirsAero()
+    reload(viirsAero)
+    viirsAeroObj = viirsAero.viirsAero()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     onboard_pt_value = trimObj.sdrTypeFill['ONBOARD_PT_FILL']['float32']
     onground_pt_value = trimObj.sdrTypeFill['ONGROUND_PT_FILL']['float32']
     na_fill_value = trimObj.sdrTypeFill['NA_FILL']['float32']
@@ -1788,8 +1801,8 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
     '''
 
     try :
-        reload(VIIRS.viirsAero)
-        reload(VIIRS.ViirsData)
+        reload(viirsAero)
+        reload(ViirsData)
         del(viirsAeroObj)
         del(latArr)
         del(lonArr)
@@ -1803,12 +1816,12 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
         pass
 
     print "Creating viirsSdrObj..."
-    reload(VIIRS.viirsAero)
-    viirsAeroObj = VIIRS.viirsAero.viirsAero()
+    reload(viirsAero)
+    viirsAeroObj = viirsAero.viirsAero()
     print "done"
 
     # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
+    trimObj = ViirsData.ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -1825,7 +1838,8 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
-            group = getobj(ViirsGeoFileObj,'/All_Data')
+            #group = getobj(ViirsGeoFileObj,'/All_Data')
+            group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Geolocation Group : %s " % (geoGroupName)
@@ -1922,7 +1936,8 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
                 sys.exit(1)
 
             # Detemine the edr group name and related information
-            group = getobj(ViirsEDRFileObj,'/All_Data')
+            #group = getobj(ViirsEDRFileObj,'/All_Data')
+            group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
             print "Edr Group : %s " % (edrGroupName)
@@ -2039,95 +2054,6 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
-def gran_Sdr(geoList,sdrList,isRadiance=True,shrink=1):
-    '''
-    Returns the granulated SDR dataset
-    '''
-
-    try :
-        reload(VIIRS.viirsSDR)
-        reload(VIIRS.ViirsData)
-        del(viirsSdrObj)
-        del(latArr)
-        del(lonArr)
-        del(sdrArr)
-    except :
-        pass
-
-    print "Creating viirsSdrObj..."
-    reload(VIIRS.viirsSDR)
-    viirsSdrObj = VIIRS.viirsSDR.viirsSDR()
-    print "done"
-
-    # Determine the correct fillValue
-    trimObj = VIIRS.ViirsData.ViirsTrimTable()
-    eps = 1.e-6
-
-    for grans in np.arange(len(geoList)):
-        print "Ingesting granule %d ..." % (grans)
-        retArr = viirsSdrObj.ingest(geoList[grans],sdrList[grans],isRadiance,1)
-        print "done\n"
-        try :
-
-            latArr  = viirsSdrObj.Lat[:,:]
-            lonArr  = viirsSdrObj.Lon[:,:]
-            ModeGran = viirsSdrObj.ModeGran
-            
-            lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
-            lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
-
-            badGeo = False
-            if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
-                badGeo = True
-            if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
-                badGeo = True
-
-            if badGeo :
-                sys.exit(1)
-                
-            latArr   = np.ravel(latArr)[::shrink]
-            lonArr   = np.ravel(lonArr)[::shrink]
-            sdrArr   = np.ravel(viirsSdrObj.ViirsSDR[:,:])[::shrink]
-
-            # Determine masks for each fill type, for the SDR
-            sdrFillMasks = {}
-            for fillType in trimObj.sdrTypeFill.keys() :
-                fillValue = trimObj.sdrTypeFill[fillType][sdrArr.dtype.name]
-                if 'float' in fillValue.__class__.__name__ :
-                    sdrFillMasks[fillType] = ma.masked_inside(sdrArr,fillValue-eps,fillValue+eps).mask
-                    if (sdrFillMasks[fillType].__class__.__name__ != 'ndarray') :
-                        sdrFillMasks[fillType] = None
-                elif 'int' in fillValue.__class__.__name__ :
-                    sdrFillMasks[fillType] = ma.masked_equal(sdrArr,fillValue).mask
-                    if (sdrFillMasks[fillType].__class__.__name__ != 'ndarray') :
-                        sdrFillMasks[fillType] = None
-                else :
-                    print "Dataset was neither int not float... a worry"
-                    pass
-
-            # Construct the total mask from all of the various fill values
-            totalMask = ma.array(np.zeros(sdrArr.shape,dtype=np.bool))
-            for fillType in trimObj.sdrTypeFill.keys() :
-                if sdrFillMasks[fillType] is not None :
-                    totalMask = totalMask * ma.array(np.zeros(sdrArr.shape,dtype=np.bool),\
-                        mask=sdrFillMasks[fillType])
-
-            # Apply the pixel trim mask to all arrays, and compress...
-            try :
-                data  = ma.compressed(ma.array(sdrArr,  mask=totalMask.mask))
-                lats  = ma.compressed(ma.array(latArr,  mask=totalMask.mask))
-                lons  = ma.compressed(ma.array(lonArr,  mask=totalMask.mask))
-            except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
-                sys.exit(1)
-
-        except Exception, err :
-            print ">> error: %s..." % (str(err))
-            sys.exit(1)
-
-    return lats,lons,data,lat_0,lon_0,retArr[1],ModeGran
 
 ###################################################
 #                 Plotting Functions              #
@@ -2140,8 +2066,8 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     '''
 
     # The min and max values of the dataset
-    vmin = np.min(VIIRS.ViirsData.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
-    vmax = np.max(VIIRS.ViirsData.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
+    vmin = np.min(ViirsData.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
+    vmax = np.max(ViirsData.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
 
     if (np.shape(gridLon)[0]==0) :
         print "We have no valid data, synthesising dummy data..."
@@ -2151,17 +2077,17 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
         pointSize = 0.001
 
     # Setup plotting data
-    cmap = ListedColormap(VIIRS.ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit])
+    cmap = ListedColormap(ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit])
 
     figWidth = 5. # inches
     figHeight = 4. # inches
 
-    numCats = np.array(VIIRS.ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit]).size
+    numCats = np.array(ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit]).size
     numBounds = numCats + 1
 
-    VIIRS.ViirsData.CloudMaskData.ViirsCMTickPos = np.arange(float(numBounds))/float(numCats)
-    VIIRS.ViirsData.CloudMaskData.ViirsCMTickPos = VIIRS.ViirsData.CloudMaskData.ViirsCMTickPos[0 :-1] + \
-        VIIRS.ViirsData.CloudMaskData.ViirsCMTickPos[1]/2.
+    ViirsData.CloudMaskData.ViirsCMTickPos = np.arange(float(numBounds))/float(numCats)
+    ViirsData.CloudMaskData.ViirsCMTickPos = ViirsData.CloudMaskData.ViirsCMTickPos[0 :-1] + \
+        ViirsData.CloudMaskData.ViirsCMTickPos[1]/2.
 
     # Create figure with default size, and create canvas to draw on
     fig = Figure(figsize=((figWidth,figHeight)))
@@ -2211,8 +2137,8 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
 
     # Set the colourbar tick locations and ticklabels
     tickPos = np.array([0,1,2,3])
-    #tickPos = VIIRS.ViirsData.CloudMaskData.ViirsCMTickPos * 4.
-    tickLabels = VIIRS.ViirsData.CloudMaskData.ViirsCMtickNames[cmByte][cmBit]
+    #tickPos = ViirsData.CloudMaskData.ViirsCMTickPos * 4.
+    tickLabels = ViirsData.CloudMaskData.ViirsCMtickNames[cmByte][cmBit]
 
     # Old style...
     #ppl.setp(cax,xticks=tickPos)
@@ -2273,7 +2199,7 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     '''
 
     # Setup plotting data
-    reload(VIIRS.ViirsData)
+    reload(ViirsData)
 
     # The plot range...
     print "vmin,vmax = ",vmin,vmax 
@@ -2386,192 +2312,6 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     print "Writing file to ",outFileName
     canvas.print_figure(outFileName,dpi=dpi)
 
-def orthoPlot_Sdr(gridLat,gridLon,gridData,vmin_0,vmax_0,ModeGran, \
-        lat_0=0.,lon_0=0.,pointSize=1.,scale=1.3,mapRes='c',\
-        sdrKey='M15',isRadiance=True,prodFileName='', \
-        outFileName='out.png',dpi=300,titleStr='VIIRS SDR'):
-    '''
-    Plots the VIIRS Scientific Data Record (SDR)on an orthographic projection
-    '''
-
-    # Setup plotting data
-    reload(VIIRS.ViirsData)
-
-    print "Initial vmin/vmax of data is %r/%r" % (vmin_0,vmax_0)
-
-    if (isRadiance or sdrKey=='DNB') :
-        print ">>> Radiance"
-        # If we have a zero size array, make a dummy dataset
-        # to span the allowed data range, which will be plotted with 
-        # vanishing pointsize
-        if (np.shape(gridLon)[0]==0) :
-            print "We have no valid data, synthesising dummy data..."
-            gridLat = np.array([lat_0,lat_0])
-            gridLon = np.array([lon_0,lon_0])
-            vmin = VIIRS.ViirsData.ViirsBandDynamicRadRange[sdrKey][0]
-            vmax = VIIRS.ViirsData.ViirsBandDynamicRadRange[sdrKey][1]
-            gridData = np.array([vmin,vmax])
-            pointSize = 0.001
-        else :
-            # Choose the correct values of the vmin and vmax
-            print "orthoPlot_SDR ModeGran = ",ModeGran
-            if ModeGran==0 :
-                vmin = 0. if vmin_0==None else vmin_0
-                vmax = 1.e-7 if vmax_0==None else vmax_0
-            elif ModeGran==1 :
-                vmin = 0. if vmin_0==None else vmin_0
-                vmax = 1.e-2 if vmax_0==None else vmax_0
-            else :
-                vmin = 0. if vmin_0==None else vmin_0
-                vmax = 1.e-4 if vmax_0==None else vmax_0
-
-        print "vmin,vmax = %.6e,%.6e W m^{-2} str^{-1} um^{-1}" % (vmin,vmax)
-
-        cbartitleString = str(VIIRS.ViirsData.ViirsBandCenter[sdrKey])+ \
-            "$\mu\mathrm{m}$ Radiance ($\mathrm{W m^{-2} str^{-1} \mu{m}^{-1}}$)"
-        if VIIRS.ViirsData.ViirsBandType[sdrKey] == 'emissive':
-            cmap=cm.binary
-        elif VIIRS.ViirsData.ViirsBandType[sdrKey] == 'reflective':
-            cmap=cm.binary_r
-        elif VIIRS.ViirsData.ViirsBandType[sdrKey] == 'radiance':
-            cmap=cm.binary_r
-    else :
-        if VIIRS.ViirsData.ViirsBandType[sdrKey] == 'emissive':
-            print ">>> Brightness Temperature"
-            # If we have a zero size array, make a dummy dataset
-            # to span the allowed data range, which will be plotted with 
-            # vanishing pointsize
-            if (np.shape(gridLon)[0]==0) :
-                print "We have no valid data, synthesising dummy data..."
-                gridLat = np.array([lat_0,lat_0])
-                gridLon = np.array([lon_0,lon_0])
-                vmin = VIIRS.ViirsData.ViirsBandDynamicBtempRange[sdrKey][0]
-                vmax = VIIRS.ViirsData.ViirsBandDynamicBtempRange[sdrKey][1]
-                gridData = np.array([vmin,vmax])
-                pointSize = 0.001
-            else :
-                # Brightness Temps: 220K->320K (3.7um to 220K->340K)
-                if sdrKey=='I04' or sdrKey=='M12' :
-                    vmin,vmax = 220.,340.
-                else :
-                    vmin,vmax = 220.,320.
-
-            print "vmin,vmax = %f,%f K" % (vmin,vmax)
-            cbartitleString = str(VIIRS.ViirsData.ViirsBandCenter[sdrKey])+ \
-                "$\mu\mathrm{m}$ Brightness Temperature ($\mathrm{K}$)"
-            cmap=cm.binary
-
-        elif VIIRS.ViirsData.ViirsBandType[sdrKey] == 'reflective':
-            print ">>> Reflectance"
-            vmin,vmax = 0.,0.8
-            # If we have a zero size array, make a dummy dataset
-            # to span the allowed data range, which will be plotted with 
-            # vanishing pointsize
-            if (np.shape(gridLon)[0]==0) :
-                print "We have no valid data, synthesising dummy data..."
-                gridLat = np.array([lat_0,lat_0])
-                gridLon = np.array([lon_0,lon_0])
-                gridData = np.array([vmin,vmax])
-                pointSize = 0.001
-            cbartitleString = str(VIIRS.ViirsData.ViirsBandCenter[sdrKey])+ \
-                "$\mu\mathrm{m}$ : Reflectance"
-            cmap=cm.binary_r
-
-    figWidth = 5. # inches
-    figHeight = 4. # inches
-
-    # Create figure with default size, and create canvas to draw on
-    fig = Figure(figsize=((figWidth,figHeight)))
-    canvas = FigureCanvas(fig)
-
-    # Create main axes instance, leaving room for colorbar at bottom,
-    # and also get the Bbox of the axes instance
-    ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
-    ax = fig.add_axes(ax_rect)
-
-    # Granule axis title
-    ax_title = ppl.setp(ax,title=prodFileName)
-    ppl.setp(ax_title,fontsize=6)
-    ppl.setp(ax_title,family="monospace")
-
-    # Create Basemap instance
-    # set 'ax' keyword so pylab won't be imported.
-    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution='c')
-    print "scale = ",scale
-    m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,\
-        ax=ax,fix_aspect=True,resolution=mapRes,\
-        llcrnrx = -1. * scale * 3200. * 750./2.,\
-        llcrnry = -1. * scale * 3200. * 750./2.,\
-        urcrnrx =       scale * 3200. * 750./2.,\
-        urcrnry =       scale * 3200. * 750./2.)
-
-    x,y=m(np.array(gridLon),np.array(gridLat))
-
-    # Some map style configuration stufff
-    #m.drawlsmask(ax=ax,land_color='gray',ocean_color='black',lakes=True)
-    m.drawmapboundary(ax=ax,linewidth=0.01,fill_color='grey')
-    m.drawcoastlines(ax=ax,linewidth=0.3,color='white')
-    #m.fillcontinents(ax=ax,color='gray',lake_color='black',zorder=0)
-    #m.drawparallels(np.arange(-90.,120.,30.),color='white')
-    #m.drawmeridians(np.arange(0.,420.,60.),color='white')
-
-    # Plot the granule data
-    #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,faceted=False,vmin=vmin,vmax=vmax)
-    cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
-
-    if (ModeGran == 0) and (VIIRS.ViirsData.ViirsBandType[sdrKey] == 'reflective') :
-        fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
-
-    # add a colorbar axis
-    cax_rect = [0.05 , 0.05, 0.9 , 0.06 ] # [left,bottom,width,height]
-    cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
-
-    # Plot the colorbar.
-    cb = fig.colorbar(cs, cax=cax, orientation='horizontal')
-    ppl.setp(cax.get_xticklabels(),fontsize=7)
-
-    # Colourbar title
-    cax_title = ppl.setp(cax,title=cbartitleString)
-    ppl.setp(cax_title,fontsize=9)
-
-    #
-    # Add a small globe with the swath indicated on it #
-    #
-
-    # Create main axes instance, leaving room for colorbar at bottom,
-    # and also get the Bbox of the axes instance
-    glax_rect = [0.81, 0.75, 0.18, 0.20 ] # [left,bottom,width,height]
-    glax = fig.add_axes(glax_rect)
-
-    m_globe = Basemap(lat_0=0.,lon_0=0.,\
-        ax=glax,resolution='c',area_thresh=10000.,projection='robin')
-
-    # If we previously had a zero size data array, increase the pointSize
-    # so the data points are visible on the global plot
-    pointSize = 0.2
-    if (np.shape(gridLon)[0]==2) :
-        print "We have no valid data, synthesising dummy data..."
-        pointSize = 5.
-
-    x,y = m_globe(np.array(gridLon),np.array(gridLat))
-    swath = np.zeros(np.shape(x),dtype=int)
-
-    m_globe.drawcoastlines(ax=glax,linewidth=0.1)
-    m_globe.fillcontinents(ax=glax,color='gray',zorder=0)
-    m_globe.drawmapboundary(linewidth=0.1)
-
-    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none')
-
-    # Globe axis title
-    glax_xlabel = ppl.setp(glax,xlabel=titleStr)
-    ppl.setp(glax_xlabel,fontsize=6)
-
-    # Redraw the figure
-    canvas.draw()
-
-    # save image 
-    print "Writing file to ",outFileName
-    canvas.print_figure(outFileName,dpi=dpi)
 
 def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
         lat_0=0.,lon_0=0.,\
@@ -2582,8 +2322,8 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     '''
 
     # Setup plotting data
-    reload(VIIRS.ViirsData)
-    CloudProduct = VIIRS.ViirsData.CloudProdData.CloudProduct[dataSet][abScale]
+    reload(ViirsData)
+    CloudProduct = ViirsData.CloudProdData.CloudProduct[dataSet][abScale]
 
     pointSize_water = pointSize
     pointSize_ice = pointSize
@@ -2782,8 +2522,8 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
     '''
 
     # Setup plotting data
-    reload(VIIRS.ViirsData)
-    CloudProduct = VIIRS.ViirsData.CloudProdData.CloudProduct[dataSet]
+    reload(ViirsData)
+    CloudProduct = ViirsData.CloudProdData.CloudProduct[dataSet]
 
     pointSize_water = pointSize
     pointSize_ice = pointSize
@@ -3112,9 +2852,9 @@ def main():
     vmin = options.plotMin
     vmax = options.plotMax
 
-    CloudData = VIIRS.ViirsData.CloudProdData.CloudProd()
+    CloudData = ViirsData.CloudProdData.CloudProd()
     cloud_cmap = CloudData.cmap_ice_water
-    CloudProdData = VIIRS.ViirsData.CloudProdData.CloudProduct
+    CloudProdData = ViirsData.CloudProdData.CloudProduct
 
     # Some defaults plot values if the are not specified on the command line...
 
@@ -3247,43 +2987,6 @@ def main():
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_AOT(lats,lons,aotData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
             pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
-            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
-
-    if 'SDR' in options.ipProd :
-        print "Calling SDR ingester..."
-
-        lats,lons,sdrData,lat_0,lon_0,sdrKey,ModeGran = gran_Sdr([options.geoFile],[options.ipFile],\
-            isRadiance=options.isRadiance,shrink=1)
-
-        if (options.mapAnn == 'SDR'):
-            options.mapAnn = sdrKey
-
-        if "I" in sdrKey :
-            print "Imager resolution..."
-            stride = stride_SDR_I if options.stride==None else options.stride
-            pointSize = pointSize_SDR_I if options.pointSize==None else options.pointSize
-        elif "M" in sdrKey and (options.stride==None):
-            print "We have a moderate resolution granule"
-            stride = stride_SDR_M if options.stride==None else options.stride
-            pointSize = pointSize_SDR_M if options.pointSize==None else options.pointSize
-        else :
-            print "We have a day/night resolution granule"
-            stride = stride_SDR_DNB if options.stride==None else options.stride
-            pointSize = pointSize_SDR_DNB if options.pointSize==None else options.pointSize
-
-        lats = lats[::stride]
-        lons = lons[::stride]
-        sdrData = sdrData[::stride]
-
-        print "Calling SDR plotter..."
-        print "sdrKey = ",sdrKey
-        if sdrKey=='DNB': options.isRadiance = True
-
-        vmin = None if options.plotMin==None else options.plotMin
-        vmax = None if options.plotMax==None else options.plotMax
-
-        orthoPlot_Sdr(lats,lons,sdrData,vmin,vmax,ModeGran,lat_0=lat_0,lon_0=lon_0,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,sdrKey=sdrKey,isRadiance=options.isRadiance,\
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     print "Exiting..."
