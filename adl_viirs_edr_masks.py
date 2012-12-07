@@ -124,7 +124,7 @@ LOG = logging.getLogger(sourcename[1])
 # keys used in metadata dictionaries
 #K_FILENAME = '_asc_filename'
 
-# locations of executables in ADL 3.1
+# locations of executables in ADL
 ADL_VIIRS_MASKS_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsMasksController.exe')
 
 # directories in which we find the ancillary files, including CC-Int file for ATMS SDR
@@ -450,7 +450,7 @@ def isDatelineCrossed(latCrnList,lonCrnList):
 
 def _test_sdr_granules(collectionShortName, work_dir='.'):
     "list granules we'd generate XML for"
-    granules_to_process = list(sift_metadata_for_viirs_sdr(collectionShortName ,work_dir))
+    granules_to_process =  list(sift_metadata_for_viirs_sdr(collectionShortName ,work_dir))
     from pprint import pprint
     pprint([x['N_Granule_ID'] for x in granules_to_process])
     return granules_to_process
@@ -521,7 +521,7 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
     geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)))
 
     if len(geoGroupList)==0:
-        LOG.error('No VIIRS geolocation files were found for collection shortname %s!'%(collectionShortName))
+        LOG.warn('No VIIRS geolocation files were found for collection shortname %s!'%(collectionShortName))
 
     LOG.debug('Sifting VIIRS SDR data for processing opportunities')
     for group in _contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)):
@@ -541,15 +541,15 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
                 #pass
             LOG.info('Processing opportunity: %r at %s with uuid %s' % (gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
             yield gran
-
+ 
 # XML template for ProSdrAtmsController.exe
 XML_TMPL_VIIRS_MASKS_EDR = """<InfTkConfig>
   <idpProcessName>ProEdrViirsMasksController.exe</idpProcessName>
   <siSoftwareId />
   <isRestart>FALSE</isRestart>
   <useExtSiWriter>FALSE</useExtSiWriter>
-  <debugLogLevel>HIGH</debugLogLevel>
-  <debugLevel>DBG_HIGH</debugLevel>
+  <debugLogLevel>LOW</debugLogLevel>
+  <debugLevel>DBG_LOW</debugLevel>
   <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
   <perfPath>${WORK_DIR}/perf</perfPath>
@@ -583,6 +583,47 @@ XML_TMPL_VIIRS_MASKS_EDR = """<InfTkConfig>
 </InfTkConfig>
 """
 
+XML_TMPL_VIIRS_MASKS_EDR_ADL41 = """<InfTkConfig>
+  <idpProcessName>ProEdrViirsMasksController.exe</idpProcessName>
+  <siSoftwareId></siSoftwareId>
+  <isRestart>FALSE</isRestart>
+  <useExtSiWriter>FALSE</useExtSiWriter>
+  <debugLogLevel>NORMAL</debugLogLevel>
+  <debugLevel>DBG_LOW</debugLevel>
+  <dbgDest>D_FILE</dbgDest>
+  <enablePerf>FALSE</enablePerf>
+  <perfPath>${ADL_HOME}/perf</perfPath>
+  <dbgPath>${ADL_HOME}/log</dbgPath>
+  <initData>
+     <domain>OPS</domain>
+     <subDomain>SUBDOMAIN</subDomain>
+     <startMode>INF_STARTMODE_COLD</startMode>
+     <executionMode>INF_EXEMODE_PRIMARY</executionMode>
+     <healthTimeoutPeriod>30</healthTimeoutPeriod>
+  </initData>
+  <lockinMem>FALSE</lockinMem>
+  <rootDir>${ADL_HOME}/log</rootDir>
+  <inputPath>${ADL_HOME}/data/input/withMetadata/ProEdrViirsMasksControllerInputs:${WORK_DIR}</inputPath>
+  <outputPath>${ADL_HOME}/data/output/withMetadata/ProEdrViirsMasksControllerOutputs</outputPath>
+  <dataStartIET>0</dataStartIET>
+  <dataEndIET>0</dataEndIET>
+  <actualScans>0</actualScans>
+  <previousActualScans>0</previousActualScans>
+  <nextActualScans>0</nextActualScans> 
+  <usingMetadata>TRUE</usingMetadata>
+  <configGuideName>ProEdrViirsMasksController_GuideListsrm.cfg</configGuideName>
+
+  <task>
+    <taskType>EDR</taskType>
+    <taskDetails1>NPP001212025477</taskDetails1>
+    <taskDetails2>A1</taskDetails2>
+    <taskDetails3>NPP</taskDetails3>
+    <taskDetails4>VIIRS</taskDetails4>
+  </task>
+
+</InfTkConfig>
+
+"""
 
 def generate_viirs_masks_edr_xml(work_dir, granule_seq):
     "generate XML files for VIIRS Masks EDR granule generation"
@@ -1499,8 +1540,6 @@ def _setupAuxillaryFiles(inDir):
 
         # Make a new asc file from the template, and substitute for the various tags
 
-        print "ADL_ASC_TEMPLATES = ",ADL_ASC_TEMPLATES
-        print "ascTempFile = ",ascTempFileName
         ascTempFileName = path.join(ADL_ASC_TEMPLATES,ascTempFileName)
 
         LOG.info("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTempFileName))
@@ -1565,8 +1604,8 @@ def _getGRC(inDir,geoDicts):
     print "latCrnList : %r" % (latCrnList)
     print "lonCrnList : %r\n" % (lonCrnList)
 
-    masksCollShortNames = ['VIIRS-MOD-GRC','VIIRS-MOD-GRC-TC']
-    xmlNames = ['VIIRS_MOD_GRC.xml','VIIRS_MOD_GRC_TC.xml']
+    masksCollShortNames = ['VIIRS-MOD-GRC-TC', 'VIIRS-MOD-GRC']
+    xmlNames = ['VIIRS_MOD_GRC_TC.xml', 'VIIRS_MOD_GRC.xml']
 
     for shortName,xmlName in zip(masksCollShortNames,xmlNames):
 
@@ -3271,6 +3310,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         t1 = time()
         
         cmd = [ADL_VIIRS_MASKS_EDR, xml]
+        #cmd = ['/usr/bin/gdb -x /data/geoffc/CSPP_VIIRS_EDR/Work_Area/ScottTest/.gdb_commands --args',ADL_VIIRS_MASKS_EDR, xml]
         
         if setup_only:
             print ' '.join(cmd)
@@ -3400,6 +3440,23 @@ def _check_env():
         LOG.warning("%r executable is unlikely to run, is LD_LIBRARY_PATH set?" % ADL_UNPACKER)
     if not _ldd_verify(ADL_VIIRS_MASKS_EDR):
         LOG.warning("%r executable is unlikely to run, is LD_LIBRARY_PATH set?" % ADL_VIIRS_MASKS_EDR)
+        
+def viirs_edr_luts_and_ancillary(work_dir,granules_to_process) :
+   
+    # and the patterns we're looking for
+    ADL_VIIRS_EDR_ANC_GLOBS =  (
+        '*VIIRS-AF-EDR-AC-Int*','*VIIRS-CM-IP-AC-Int*','*VIIRS-AF-EDR-AC-Int*',
+    )
+      
+    try :            
+        ANCILLARY_SUB_DIR="linked_data"    
+        anc_dir=os.path.join(work_dir,ANCILLARY_SUB_DIR)
+        search_dirs = [ os.getenv('CSPP_SDR_LUTS')  ]          
+                    
+        ancillary_files_neeeded=anc_files_needed(ADL_VIIRS_EDR_ANC_GLOBS, search_dirs, granules_to_process)
+        link_ancillary_to_work_dir(work_dir, ancillary_files_neeeded)
+    except :
+        print "Skip exception"
 
 
 def main():
@@ -3447,15 +3504,20 @@ def main():
                       default='.',
                       help="The directory which all activity will occur in, defaults to the current directory.")
     
-    optionalGroup.add_option('--skip_ancillary',
-                      action="store_true",
-                      dest="skipAncillary",
-                      help="Skip the retrieval and granulation of ancillary data.")
-
     optionalGroup.add_option('--skip_sdr_unpack',
                       action="store_true",
                       dest="skipSdrUnpack",
                       help="Skip the unpacking of the VIIRS SDR HDF5 files.")
+
+    optionalGroup.add_option('--skip_aux_linking',
+                      action="store_true",
+                      dest="skipAuxLinking",
+                      help="Skip the the linking to auxillary files.")
+
+    optionalGroup.add_option('--skip_ancillary',
+                      action="store_true",
+                      dest="skipAncillary",
+                      help="Skip the retrieval and granulation of ancillary data.")
 
     optionalGroup.add_option('--skip_algorithm',
                       action="store_true",
@@ -3534,18 +3596,23 @@ def main():
     levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
     output_logFile = "%s/ViirsEdrMasks_output.log" % (log_dir)
     print "log file:  %s/ViirsEdrMasks_output.log" % (log_dir)
-
+ 
     try :
-        logFormat = '(%(levelname)s): %(filename)s ; %(module)s::%(funcName)s ; line %(lineno)d -> %(message)s'
-        logging.basicConfig(format=logFormat, filename=output_logFile, filemode='w', level = levels[options.verbosity])
-
+       logFormat = '(%(levelname)s): %(filename)s ; %(module)s::%(funcName)s ; line %(lineno)d -> %(message)s'
+       logging.basicConfig(format=logFormat, filename=output_logFile, filemode='w', level = levels[options.verbosity])
+    
     except IndexError :
-        print "ERROR : Invalid verbosity flag. Only -v, -vv, -vvv allowed, exiting..."
-        sys.exit(1)
+       print "ERROR : Invalid verbosity flag. Only -v, -vv, -vvv allowed, exiting..."
+       sys.exit(1)
 
     verbosity = '-'
     for v in range(options.verbosity) :
         verbosity += 'v'
+        
+    # Scott M's logging, do we need this?
+    #levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+    #level = logging.INFO
+    #configure_logging(level)
 
     # Unpack HDF5 VIIRS SDRs in the input directory to the work directory
     unpacking_problems = 0
@@ -3556,6 +3623,7 @@ def main():
         t1 = time()
         for fn in h5_names:
             try:
+                LOG.info('Unpacking %r ...' % (fn))
                 unpack(work_dir, fn)
             except CalledProcessError as oops:
                 LOG.debug(traceback.format_exc())
@@ -3573,15 +3641,15 @@ def main():
     LOG.info('Sifting through metadata to find VIIRS SDR processing candidates')
     geolocationShortNames = ['VIIRS-MOD-RGEO-TC','VIIRS-MOD-RGEO','VIIRS-MOD-GEO-TC','VIIRS-MOD-GEO']
     for geoType in geolocationShortNames :
-        print "\nSearching for VIIRS geolocation %s..." % (geoType)
         LOG.info("Searching for VIIRS geolocation %s..." % (geoType))
         anc_granules_to_process = list(sift_metadata_for_viirs_sdr(geoType,crossGran=None,work_dir='.'))
-        granules_to_process = list(sift_metadata_for_viirs_sdr(geoType,crossGran=1,work_dir='.'))
+        granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType,crossGran=1,work_dir='.')))
+        
         if granules_to_process :
             print "\tgranules_to_process() has %d objects..."%(len(granules_to_process))
-            LOG.debug(', '.join(x['N_Granule_ID'] for x in granules_to_process))
+            LOG.info(', '.join(x['N_Granule_ID'] for x in granules_to_process))
             print "\tanc_granules_to_process() has %d objects..."%(len(anc_granules_to_process))
-            LOG.debug(', '.join(x['N_Granule_ID'] for x in anc_granules_to_process))
+            LOG.info(', '.join(x['N_Granule_ID'] for x in anc_granules_to_process))
             break
         else :
             print "\tNo granules for VIIRS geolocation %s..." % (geoType)
@@ -3628,6 +3696,14 @@ def main():
     print "DSTATICDATA:        ",DSTATICDATA
     print ""
 
+    # Link in auxillary files
+
+    if not options.skipAuxLinking :
+        LOG.info('Linking in the VIIRS EDR auxillary files...')
+        _setupAuxillaryFiles(work_dir)
+    else :
+        LOG.info('Skipping linking in the VIIRS EDR auxillary files.')
+
     # Retrieve and granulate the required ancillary data...
 
     if not options.skipAncillary :
@@ -3646,16 +3722,18 @@ def main():
         if allow_cache_update:
             LOG.info("Downloading GRIB and NISE ancillary into cache")
             gribFiles = _retrieve_grib_files(anc_granules_to_process)
+            LOG.debug('dynamic ancillary GRIB files: %s' % repr(gribFiles))
+            if (gribFiles == []) :
+                LOG.error('Failed to find or retrieve any GRIB files, aborting...')
+                return -1
             niseFiles = _retrieve_NISE_files(anc_granules_to_process)
-            print "gribFiles: ",gribFiles
-            print "niseFiles: ",niseFiles
+            LOG.debug('dynamic ancillary NISE files: %s' % repr(niseFiles))
+            if (niseFiles == []) :
+                LOG.error('Failed to find or retrieve any NISE files, aborting...')
+                return -1
             all_dyn_anc = list(gribFiles) + list(niseFiles)
             print all_dyn_anc
             LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
-
-        # Link in auxillary files
-
-        _setupAuxillaryFiles(work_dir)
 
         # Setup GRC files
 
@@ -3709,11 +3787,16 @@ def main():
         # build XML configuration files for jobs that can be run
         LOG.debug("Building XML files for %d granules" % len(granules_to_process))
         CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+        
+        # Scott's lut method (don't use"
+        #viirs_edr_luts_and_ancillary(work_dir,granules_to_process)
+        
         xml_files_to_process = generate_viirs_masks_edr_xml(work_dir, granules_to_process)
         print xml_files_to_process
 
         LOG.info('%d granules to process: \n%s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process)))
-        print '%d granules to process: \n%s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process))
+
+        #sys.exit(0)
 
         LOG.info("Running VIIRS EDR Masks on XML files")
         crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = run_xml_files(work_dir, xml_files_to_process, setup_only = False, WORK_DIR = work_dir, LINKED_ANCILLARY = work_dir)

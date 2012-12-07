@@ -74,10 +74,12 @@ Options:
                         The directory which all activity will occur in,
                         defaults to the current directory.
 
+    --skip_sdr_unpack   Skip the unpacking of the VIIRS SDR HDF5 files.
+
+    --skip_aux_linking  Skip the the linking to the auxillary files.
+    
     --skip_ancillary    Skip the retrieval and granulation of ancillary data.
 
-    --skip_sdr_unpack   Skip the unpacking of the VIIRS SDR HDF5 files.
-    
     --skip_algorithm    Skip running the VIIRS Masks algorithm.
     
     --debug             Enable debug mode on ADL and avoid cleaning workspace
@@ -122,7 +124,9 @@ SDR_ENDIANNESS_OPT=
 DEBUG_OPT=
 VERBOSITY_OPT=
 
-OPTS=`getopt -o "i:w:dvh" -l "input_directory:,work_directory:,skip_ancillary,skip_sdr_unpack,skip_algorithm,debug,anc_endianness:,sdr_endianness:,verbose,help" -- "$@"`
+#echo $@
+
+OPTS=`getopt -o "i:w:dvh" -l "input_directory:,work_directory:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,debug,verbose,help" -- "$@"`
 
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
@@ -143,28 +147,32 @@ do
             INPUT_DIR_OPT="--inputDirectory=$2"
             shift 2;;
 
+        -w|--work_directory)
+            WORK_DIR_OPT="--workDirectory=$2"
+            shift 2;;
+
         --sdr_endianness)
             SDR_ENDIANNESS_OPT="--sdr_endianness=$2"
             shift 2;;
 
-        -w|--work_directory)
-            WORK_DIR_OPT="--workDirectory=$2"
+        --anc_endianness)
+            ANC_ENDIANNESS_OPT="--anc_endianness=$2"
             shift 2;;
 
         --skip_sdr_unpack)
             SKIP_SDR_UNPACK_OPT="--skip_sdr_unpack"
             shift ;;
 
+        --skip_aux_linking)
+            SKIP_AUX_LINKING_OPT="--skip_aux_linking"
+            shift ;;
+
         --skip_ancillary)
             SKIP_ANCILLARY_OPT="--skip_ancillary"
-            shift;;
+            shift ;;
 
         --skip_algorithm)
             SKIP_ALGORITHM_OPT="--skip_algorithm"
-            shift ;;
-
-        --anc_endianness)
-            ANC_ENDIANNESS_OPT="--anc_endianness=$2"
             shift ;;
 
         -d|--debug)
@@ -188,18 +196,35 @@ do
 done
 
 
+echo "INPUT_DIR_OPT        = "$INPUT_DIR_OPT
+echo "SDR_ENDIANNESS_OPT   = "$SDR_ENDIANNESS_OPT
+echo "WORK_DIR_OPT         = "$WORK_DIR_OPT
+echo "SKIP_SDR_UNPACK_OPT  = "$SKIP_SDR_UNPACK_OPT
+echo "SKIP_AUX_LINKING_OPT = "$SKIP_AUX_LINKING_OPT
+echo "SKIP_ANCILLARY_OPT   = "$SKIP_ANCILLARY_OPT
+echo "SKIP_ALGORITHM_OPT   = "$SKIP_ALGORITHM_OPT
+echo "ANC_ENDIANNESS_OPT   = "$ANC_ENDIANNESS_OPT
+echo "DEBUG_OPT            = "$DEBUG_OPT
+echo "VERBOSITY_OPT        = "$VERBOSITY_OPT
+
+
 GDB=''
 #GDB='gdb --args'
+#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
 
-#echo "INPUT_DIR_OPT       = "$INPUT_DIR_OPT
-#echo "SDR_ENDIANNESS_OPT  = "$SDR_ENDIANNESS_OPT
-#echo "WORK_DIR_OPT        = "$WORK_DIR_OPT
-#echo "SKIP_SDR_UNPACK_OPT = "$SKIP_SDR_UNPACK_OPT
-#echo "SKIP_ANCILLARY_OPT  = "$SKIP_ANCILLARY_OPT
-#echo "SKIP_ALGORITHM_OPT  = "$SKIP_ALGORITHM_OPT
-#echo "ANC_ENDIANNESS_OPT  = "$ANC_ENDIANNESS_OPT
-#echo "DEBUG_OPT           = "$DEBUG_OPT
-#echo "VERBOSITY_OPT       = "$VERBOSITY_OPT
+
+echo "$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
+    $INPUT_DIR_OPT \
+    $SDR_ENDIANNESS_OPT \
+    $WORK_DIR_OPT \
+    $SKIP_SDR_UNPACK_OPT \
+    $SKIP_AUX_LINKING_OPT \
+    $SKIP_ANCILLARY_OPT \
+    $SKIP_ALGORITHM_OPT \
+    $ANC_ENDIANNESS_OPT \
+    $DEBUG_OPT \
+    $VERBOSITY_OPT
+"
 
 #exit 1
 
@@ -208,6 +233,7 @@ $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
     $SDR_ENDIANNESS_OPT \
     $WORK_DIR_OPT \
     $SKIP_SDR_UNPACK_OPT \
+    $SKIP_AUX_LINKING_OPT \
     $SKIP_ANCILLARY_OPT \
     $SKIP_ALGORITHM_OPT \
     $ANC_ENDIANNESS_OPT \
