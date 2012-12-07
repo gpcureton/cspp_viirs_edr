@@ -71,6 +71,67 @@ def set_vcm_dset(newCmByte,newCmBit) :
     global cmByte,cmBit 
     cmByte,cmBit = newCmByte,newCmBit
 
+###################################
+#          Get File Lists         #
+###################################
+
+def granuleFiles(geoGlob,prodGlob):
+    '''
+    Returns sorted lists of the geolocation and product files.
+    '''
+    
+    geoDir = path.dirname(path.abspath(path.expanduser(geoGlob)))
+    prodDir = path.dirname(path.abspath(path.expanduser(prodGlob)))
+
+    print "Initial geoGlob = ",geoGlob
+    print "Initial prodGlob = ",prodGlob
+
+    geoGlob = path.basename(path.abspath(path.expanduser(geoGlob)))
+    prodGlob = path.basename(path.abspath(path.expanduser(prodGlob)))
+
+    geoPrefix = string.split(geoGlob,'_')[0]
+
+    print "geoDir = ",geoDir
+    print "prodDir = ",prodDir
+    print "geoGlob = ",geoGlob
+    print "prodGlob = ",prodGlob
+    print "geoPrefix = ",geoPrefix
+
+    geoList_in = glob("%s/%s" % (geoDir,geoGlob))
+    prodList_in = glob("%s/%s" % (prodDir,prodGlob))
+    geoList_in.sort()
+    prodList_in.sort()
+    
+    #print "prodList_in..."
+    #for prodFile in prodList_in:
+        #print prodFile
+
+    geoList = []
+    prodList = []
+    #prodList = prodList_in
+    for files in prodList_in :
+        prod_arr = string.split(path.basename(files),"_")
+        #print "prod_arr = ",prod_arr
+        dateStamp = prod_arr[2]
+        timeStamp = prod_arr[3]
+        geoFileGlob="%s/%s*%s_%s*.h5" % (geoDir,geoPrefix,dateStamp,timeStamp)
+        #print "dateStamp = ",dateStamp
+        #print "timeStamp = ",timeStamp
+        #print "geoFileGlob = ",geoFileGlob
+        geoFile = glob("%s/%s*%s_%s*.h5" % (geoDir,geoPrefix,dateStamp,timeStamp))
+        if (np.shape(geoFile)[0] != 0) :
+            geoList.append(geoFile[0])
+            prodList.append(files)
+        else :
+            #geoList.append(files)
+            print " ... no match found for %s, appending %s" % ( geoFile, files)
+            pass
+    
+    #for geoFile,prodFile in zip(geoList,prodList):
+        #print geoFile,prodFile
+    return geoList,prodList
+
+
 ###################################################
 #              Granulation Functions              #
 ###################################################
@@ -95,8 +156,6 @@ def gran_VCM(geoList,cmList,shrink=1):
         del(lonArr)
         del(cmArr)
         del(qualArr)
-        del(newData)
-        del(dataIdx)
     except :
         pass
 
@@ -109,74 +168,76 @@ def gran_VCM(geoList,cmList,shrink=1):
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
+
         print "Ingesting granule %d using cmByte=%d and cmBit=%d ..." % (grans,cmByte,cmBit)
         retArr = viirsCMobj.ingest(geoList[grans],cmList[grans],cmByte,cmBit,shrink)
 
         try :
-
+            latArr  = np.vstack((latArr,viirsCMobj.Lat[:,:]))
+            lonArr  = np.vstack((lonArr,viirsCMobj.Lon[:,:]))
+        except NameError :
             latArr  = viirsCMobj.Lat[:,:]
             lonArr  = viirsCMobj.Lon[:,:]
-            
-            lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
-            lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
-
-            badGeo = False
-            if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
-                badGeo = True
-            if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
-                badGeo = True
-
-            if badGeo :
-                sys.exit(1)
-
-            cmArr  = viirsCMobj.ViirsCMaskSDS[:,:]
+        
+        try :
+            cmArr  = np.vstack((cmArr,viirsCMobj.ViirsCMaskSDS[:,:]))
+            qualArr  = np.vstack((qualArr,viirsCMobj.ViirsCMquality[:,:]))
+        except NameError :
+            cmArr   = viirsCMobj.ViirsCMaskSDS[:,:]
             qualArr = viirsCMobj.ViirsCMquality[:,:]
 
-            # Determine masks for each fill type, for the VCM IP
-            cmFillMasks = {}
-            for fillType in trimObj.sdrTypeFill.keys() :
-                fillValue = trimObj.sdrTypeFill[fillType][cmArr.dtype.name]
-                if 'float' in fillValue.__class__.__name__ :
-                    cmFillMasks[fillType] = ma.masked_inside(cmArr,fillValue-eps,fillValue+eps).mask
-                    if (cmFillMasks[fillType].__class__.__name__ != 'ndarray') :
-                        cmFillMasks[fillType] = None
-                elif 'int' in fillValue.__class__.__name__ :
-                    cmFillMasks[fillType] = ma.masked_equal(cmArr,fillValue).mask
-                    if (cmFillMasks[fillType].__class__.__name__ != 'ndarray') :
-                        cmFillMasks[fillType] = None
-                else :
-                    print "Dataset was neither int not float... a worry"
-                    pass
+        print "Intermediate latArr.shape = %s" % (str(latArr.shape))
+        print "Intermediate lonArr.shape = %s" % (str(lonArr.shape))
+        print "Intermediate cmArr.shape = %s" % (str(cmArr.shape))
+        print "Intermediate qualArr.shape = %s" % (str(qualArr.shape))
 
-            # Construct the total mask from all of the various fill values
-            totalMask = ma.array(np.zeros(cmArr.shape,dtype=np.bool))
-            for fillType in trimObj.sdrTypeFill.keys() :
-                if cmFillMasks[fillType] is not None :
-                    totalMask = totalMask * ma.array(np.zeros(cmArr.shape,dtype=np.bool),\
-                        mask=cmFillMasks[fillType])
+    lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
+    lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
 
-            # Define the masks, and mask the main dataset
-            ViirsCMqualityMask = ma.masked_equal(qualArr,0)
-            ViirsCMclearMask = ma.masked_equal(cmArr,1)
+    try :
+        # Determine masks for each fill type, for the VCM IP
+        cmFillMasks = {}
+        for fillType in trimObj.sdrTypeFill.keys() :
+            fillValue = trimObj.sdrTypeFill[fillType][cmArr.dtype.name]
+            if 'float' in fillValue.__class__.__name__ :
+                cmFillMasks[fillType] = ma.masked_inside(cmArr,fillValue-eps,fillValue+eps).mask
+                if (cmFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    cmFillMasks[fillType] = None
+            elif 'int' in fillValue.__class__.__name__ :
+                cmFillMasks[fillType] = ma.masked_equal(cmArr,fillValue).mask
+                if (cmFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    cmFillMasks[fillType] = None
+            else :
+                print "Dataset was neither int not float... a worry"
+                pass
 
-            if cmByte==0 and cmBit==1 :
-                totalMask = totalMask * ViirsCMqualityMask
-            elif cmByte==5 and cmBit==0 :
-                totalMask = totalMask * ViirsCMqualityMask * ViirsCMclearMask
+        # Construct the total mask from all of the various fill values
+        totalMask = ma.array(np.zeros(cmArr.shape,dtype=np.bool))
+        for fillType in trimObj.sdrTypeFill.keys() :
+            if cmFillMasks[fillType] is not None :
+                totalMask = totalMask * ma.array(np.zeros(cmArr.shape,dtype=np.bool),\
+                    mask=cmFillMasks[fillType])
 
-            try :
-                data = ma.array(cmArr,mask=totalMask.mask)
-                lats = ma.array(latArr,mask=totalMask.mask)
-                lons = ma.array(lonArr,mask=totalMask.mask)
-            except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
-                sys.exit(1)
+        # Define the masks, and mask the main dataset
+        ViirsCMqualityMask = ma.masked_equal(qualArr,0)
+        ViirsCMclearMask = ma.masked_equal(cmArr,1)
 
-        except :
-            print ">> error: There was an exception..."
+        if cmByte==0 and cmBit==1 :
+            totalMask = totalMask * ViirsCMqualityMask
+        elif cmByte==5 and cmBit==0 :
+            totalMask = totalMask * ViirsCMqualityMask * ViirsCMclearMask
+
+        try :
+            data = ma.array(cmArr,mask=totalMask.mask)
+            lats = ma.array(latArr,mask=totalMask.mask)
+            lons = ma.array(lonArr,mask=totalMask.mask)
+        except ma.core.MaskError :
+            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
             sys.exit(1)
+
+    except :
+        print ">> error: There was an exception..."
+        sys.exit(1)
 
     return lats,lons,data,lat_0,lon_0
 
@@ -2838,6 +2899,12 @@ def main():
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
+    # Get list of the geolocation and product files
+    geoList,prodList = granuleFiles(options.geoFile,options.ipFile)
+
+    for geoFile,prodFile in zip(geoList,prodList):
+        print "%s %s" %(geoFile,prodFile)
+
     # Check that the input files actually exist
     if not glob(options.geoFile) :
         parser.error("Geolocation file \n\t%s\ndoes not exist, aborting..." % (options.geoFile))
@@ -2882,7 +2949,8 @@ def main():
             set_vcm_dset(0,1)
         if 'VCP' in options.ipProd :
             set_vcm_dset(5,0)
-        lats,lons,vcmData,lat_0,lon_0 = gran_VCM([options.geoFile],[options.ipFile],shrink=stride)
+        lats,lons,vcmData,lat_0,lon_0 = gran_VCM(geoList,prodList,shrink=stride)
+
         print "Calling VCM plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_VCM(lats,lons,vcmData,lat_0=lat_0,lon_0=lon_0,\
