@@ -2138,18 +2138,22 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
         pointSize = 0.001
 
     # Setup plotting data
-    cmap = ListedColormap(ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit])
 
     figWidth = 5. # inches
     figHeight = 4. # inches
 
+    cmap = ListedColormap(ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit])
     numCats = np.array(ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit]).size
     numBounds = numCats + 1
+    print "Number of Categories: %d" %(numCats)
+    print "Number of Boundaries: %d" %(numBounds)
 
+    # The tick positions in colourbar ([0..1]) coordinates
     ViirsData.CloudMaskData.ViirsCMTickPos = np.arange(float(numBounds))/float(numCats)
     ViirsData.CloudMaskData.ViirsCMTickPos = ViirsData.CloudMaskData.ViirsCMTickPos[0 :-1] + \
         ViirsData.CloudMaskData.ViirsCMTickPos[1]/2.
 
+    print "ViirsData.CloudMaskData.ViirsCMTickPos: %r" %(ViirsData.CloudMaskData.ViirsCMTickPos)
     # Create figure with default size, and create canvas to draw on
     fig = Figure(figsize=((figWidth,figHeight)))
     canvas = FigureCanvas(fig)
@@ -2166,13 +2170,16 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
 
     # Create Basemap instance
     # set 'ax' keyword so pylab won't be imported.
-    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution='c')
-    m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,\
-        ax=ax,fix_aspect=True,resolution=mapRes,\
-        llcrnrx = -1. * scale * 3200. * 750./2.,\
-        llcrnry = -1. * scale * 3200. * 750./2.,\
-        urcrnrx =       scale * 3200. * 750./2.,\
-        urcrnry =       scale * 3200. * 750./2.)
+    m = Basemap(width=0.35*12000000.,height=0.50*9000000.,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(width=0.35*12000000.,height=0.65*9000000.,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=False,resolution=mapRes)
+    #m = Basemap(width=0.75*12000000.,height=9000000.,projection='merc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,\
+        #ax=ax,fix_aspect=True,resolution=mapRes,\
+        #llcrnrx = -1. * scale * 3200. * 750./2.,\
+        #llcrnry = -1. * scale * 3200. * 750./2.,\
+        #urcrnrx =       scale * 3200. * 750./2.,\
+        #urcrnry =       scale * 3200. * 750./2.)
 
     x,y=m(np.array(gridLon),np.array(gridLat))
 
@@ -2183,9 +2190,16 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     #m.fillcontinents(ax=ax,color='gray',lake_color='black',zorder=0)
     #m.drawparallels(np.arange(-90.,120.,10.),linewidth=0.5,color='white')
     #m.drawmeridians(np.arange(0.,420.,10.),linewidth=0.5,color='white')
+    #m.drawlsmask(ax=ax,land_color='grey',ocean_color='black',lakes=True)
+
+    m.bluemarble()
 
     # Plot the granule data
-    vmin,vmax = -0.5,3.5 # FIXME : This is temporary
+    if cmByte==0 and cmBit==1 :
+        vmin,vmax = -0.5,3.5 # FIXME : This is temporary
+    elif cmByte==5 and cmBit==0 :
+        vmin,vmax = -0.5,7.5 # FIXME : This is temporary
+
     #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
     cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
@@ -2197,9 +2211,19 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     cb = fig.colorbar(cs, cax=cax, orientation='horizontal')
 
     # Set the colourbar tick locations and ticklabels
-    tickPos = np.array([0,1,2,3])
-    #tickPos = ViirsData.CloudMaskData.ViirsCMTickPos * 4.
+    #tickPos = np.array([0,1,2,3])
+
+    # Convert the tick positions to data coordinates
+    tickPos = ViirsData.CloudMaskData.ViirsCMTickPos  * numCats - 0.5
     tickLabels = ViirsData.CloudMaskData.ViirsCMtickNames[cmByte][cmBit]
+
+    #tickPos = [0.25,0.5,0.75]
+    #tickLabels = ['0.25','0.5','0.75']
+    #tickPos = [1.,2.,3.,4.]
+    #tickLabels = ['1.','2.','3.','4.']
+
+    print "tickPos: %r" %(tickPos)
+    print "tickLabels: %r" %(tickLabels)
 
     # Old style...
     #ppl.setp(cax,xticks=tickPos)
@@ -2899,12 +2923,6 @@ def main():
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
-    # Get list of the geolocation and product files
-    geoList,prodList = granuleFiles(options.geoFile,options.ipFile)
-
-    for geoFile,prodFile in zip(geoList,prodList):
-        print "%s %s" %(geoFile,prodFile)
-
     # Check that the input files actually exist
     if not glob(options.geoFile) :
         parser.error("Geolocation file \n\t%s\ndoes not exist, aborting..." % (options.geoFile))
@@ -2913,7 +2931,8 @@ def main():
         
     # We should have everything we need, run the program...
 
-    prodFileName='''%s\n%s %s''' % (path.basename(options.ipFile),options.svnRepoPath,str(options.svnRevision))
+    #prodFileName='''%s\n%s %s''' % (path.basename(options.ipFile),options.svnRepoPath,str(options.svnRevision))
+    prodFileName=''
     dataSet = string.lower((options.ipProd).lstrip())
     mapRes = str(options.mapRes)
     vmin = options.plotMin
@@ -2941,6 +2960,12 @@ def main():
     pointSize_SDR_I = 0.05
 
     global cmByte,cmBit 
+
+    # Obtain matched lists of the geolocation and product files
+
+    geoList,prodList = granuleFiles(options.geoFile,options.ipFile)
+
+    # Call the granulation and plotting routine for the desired product...
 
     if 'VCM' in options.ipProd  or 'VCP' in options.ipProd:
         print "Calling VCM ingester..."
