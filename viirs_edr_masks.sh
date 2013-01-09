@@ -59,14 +59,9 @@ Options:
   Mandatory Arguments:
     At a minimum these arguments must be specified
 
-    -i INPUTDIRECTORY, --inputDirectory=INPUTDIRECTORY
+    -i INPUTFILES, --input_files=INPUTFILES
                         The base directory where input are placed
     
-    --sdr_endianness=SDR_ENDIANNESS
-                        The input VIIRS SDR endianness.
-                        Possible values are...
-                        'little', 'big'
-
   Extra Options:
     These options may be used to customize behaviour of this program.
 
@@ -84,6 +79,11 @@ Options:
     
     --debug             Enable debug mode on ADL and avoid cleaning workspace
     
+    --sdr_endianness=SDR_ENDIANNESS
+                        The input VIIRS SDR endianness.
+                        Possible values are...
+                        'little', 'big'
+
     --anc_endianness=ANC_ENDIANNESS
                         The input VIIRS ancillary endianness.
                         Possible values are...
@@ -114,7 +114,7 @@ EOF
 # Gather the various command line options...
 #
 
-INPUT_DIR_OPT=
+INPUT_FILES_OPT=
 WORK_DIR_OPT=
 SKIP_SDR_UNPACK_OPT=
 SKIP_ANCILLARY_OPT=
@@ -126,7 +126,7 @@ VERBOSITY_OPT=
 
 #echo $@
 
-OPTS=`getopt -o "i:w:dvh" -l "input_directory:,work_directory:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,debug,verbose,help" -- "$@"`
+OPTS=`getopt -o "i:w:dvh" -l "input_files:,work_directory:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,debug,verbose,help" -- "$@"`
 
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
@@ -143,12 +143,12 @@ while true ;
 do
     #echo "Checking opts"
     case "$1" in
-        -i|--input_directory)
-            INPUT_DIR_OPT="--inputDirectory=$2"
+        -i|--input_files)
+            INPUT_FILES_OPT="--input_files=$2"
             shift 2;;
 
         -w|--work_directory)
-            WORK_DIR_OPT="--workDirectory=$2"
+            WORK_DIR_OPT="--work_directory=$2"
             shift 2;;
 
         --sdr_endianness)
@@ -196,13 +196,13 @@ do
 done
 
 
-echo "INPUT_DIR_OPT        = "$INPUT_DIR_OPT
-echo "SDR_ENDIANNESS_OPT   = "$SDR_ENDIANNESS_OPT
+echo "INPUT_FILES_OPT      = "$INPUT_FILES_OPT
 echo "WORK_DIR_OPT         = "$WORK_DIR_OPT
 echo "SKIP_SDR_UNPACK_OPT  = "$SKIP_SDR_UNPACK_OPT
 echo "SKIP_AUX_LINKING_OPT = "$SKIP_AUX_LINKING_OPT
 echo "SKIP_ANCILLARY_OPT   = "$SKIP_ANCILLARY_OPT
 echo "SKIP_ALGORITHM_OPT   = "$SKIP_ALGORITHM_OPT
+echo "SDR_ENDIANNESS_OPT   = "$SDR_ENDIANNESS_OPT
 echo "ANC_ENDIANNESS_OPT   = "$ANC_ENDIANNESS_OPT
 echo "DEBUG_OPT            = "$DEBUG_OPT
 echo "VERBOSITY_OPT        = "$VERBOSITY_OPT
@@ -213,29 +213,29 @@ GDB=''
 #$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
 
 
-echo "$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
-    $INPUT_DIR_OPT \
-    $SDR_ENDIANNESS_OPT \
-    $WORK_DIR_OPT \
-    $SKIP_SDR_UNPACK_OPT \
-    $SKIP_AUX_LINKING_OPT \
-    $SKIP_ANCILLARY_OPT \
-    $SKIP_ALGORITHM_OPT \
-    $ANC_ENDIANNESS_OPT \
-    $DEBUG_OPT \
-    $VERBOSITY_OPT
-"
+#echo "$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
+    #$INPUT_FILES_OPT \
+    #$WORK_DIR_OPT \
+    #$SKIP_SDR_UNPACK_OPT \
+    #$SKIP_AUX_LINKING_OPT \
+    #$SKIP_ANCILLARY_OPT \
+    #$SKIP_ALGORITHM_OPT \
+    #$SDR_ENDIANNESS_OPT \
+    #$ANC_ENDIANNESS_OPT \
+    #$DEBUG_OPT \
+    #$VERBOSITY_OPT
+#"
 
 #exit 1
 
 $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
-    $INPUT_DIR_OPT \
-    $SDR_ENDIANNESS_OPT \
+    $INPUT_FILES_OPT \
     $WORK_DIR_OPT \
     $SKIP_SDR_UNPACK_OPT \
     $SKIP_AUX_LINKING_OPT \
     $SKIP_ANCILLARY_OPT \
     $SKIP_ALGORITHM_OPT \
+    $SDR_ENDIANNESS_OPT \
     $ANC_ENDIANNESS_OPT \
     $DEBUG_OPT \
     $VERBOSITY_OPT
