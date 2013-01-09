@@ -169,7 +169,7 @@ def gran_VCM(geoList,cmList,shrink=1):
 
     for grans in np.arange(len(geoList)):
 
-        print "Ingesting granule %d using cmByte=%d and cmBit=%d ..." % (grans,cmByte,cmBit)
+        print "\nIngesting granule %d using cmByte=%d and cmBit=%d ..." % (grans,cmByte,cmBit)
         retArr = viirsCMobj.ingest(geoList[grans],cmList[grans],cmByte,cmBit,shrink)
 
         try :
@@ -235,8 +235,8 @@ def gran_VCM(geoList,cmList,shrink=1):
             print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
             sys.exit(1)
 
-    except :
-        print ">> error: There was an exception..."
+    except Exception, err :
+        print ">> error: %s..." % (str(err))
         sys.exit(1)
 
     return lats,lons,data,lat_0,lon_0
@@ -1794,63 +1794,98 @@ def gran_AOT(geoList,aotList,shrink=1):
     print "na_fill_value = ",na_fill_value
 
     for grans in np.arange(len(geoList)):
-        print "Ingesting granule %d ..." % (grans)
-        retArr = viirsAeroObj.ingest(geoList[grans],aotList[grans],'aot',1,'linear')
+
+        print "\nIngesting granule %d ..." % (grans)
+        retList = viirsAeroObj.ingest(geoList[grans],aotList[grans],'aot',shrink,'linear')
 
         try :
+            latArr  = np.vstack((latArr,viirsAeroObj.Lat[:,:]))
+            lonArr  = np.vstack((lonArr,viirsAeroObj.Lon[:,:]))
+            ModeGran = viirsAeroObj.ModeGran
+            print "subsequent geo arrays..."
+        except NameError :
             latArr  = viirsAeroObj.Lat[:,:]
             lonArr  = viirsAeroObj.Lon[:,:]
             ModeGran = viirsAeroObj.ModeGran
-            
-            lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
-            lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
+            print "first geo arrays..."
 
-            badGeo = False
-            if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
-                badGeo = True
-            if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
-                badGeo = True
-
-            if badGeo :
-                sys.exit(1)
-
+        try :
+            aotArr  = np.vstack((aotArr ,viirsAeroObj.ViirsAProdSDS[:,:]))
+            retArr  = np.vstack((retArr ,viirsAeroObj.ViirsAProdRet[:,:]))
+            qualArr = np.vstack((qualArr,viirsAeroObj.ViirsCMquality[:,:]))
+            lsmArr  = np.vstack((lsmArr ,viirsAeroObj.LandSeaMask[:,:]))
+            print "subsequent aot arrays..."
+        except NameError :
             aotArr  = viirsAeroObj.ViirsAProdSDS[:,:]
             retArr  = viirsAeroObj.ViirsAProdRet[:,:]
             qualArr = viirsAeroObj.ViirsCMquality[:,:]
             lsmArr  = viirsAeroObj.LandSeaMask[:,:]
+            print "first aot arrays..."
 
-            # Define the onboard and onground pixel trim and N/A masks
-            onboard_pt_mask = ma.masked_inside(aotArr,onboard_pt_value-eps,onboard_pt_value+eps)
-            onground_pt_mask = ma.masked_inside(aotArr,onground_pt_value-eps,onground_pt_value+eps)
-            na_fill_mask = ma.masked_inside(aotArr,na_fill_value-eps,na_fill_value+eps)
+        print "Intermediate aotArr.shape = %s" % (str(aotArr.shape))
+        print "Intermediate retArr.shape = %s" % (str(retArr.shape))
+        print "Intermediate qualArr.shape = %s" % (str(qualArr.shape))
+        print "Intermediate lsmArr.shape = %s" % (str(lsmArr.shape))
 
-            # Define the product CM quality and Aerosol retrieval type masks
-            ViirsCMqualityMask = ma.masked_equal(qualArr,0)
-            ViirsAProdRetMask  = ma.masked_not_equal(retArr,0)
-            missingMask        = ma.masked_less(aotArr,-0.)
+    lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
+    lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
 
-            # Define the land and water masks
-            ViirsLandMask      = ma.masked_greater(lsmArr,1)
-            ViirsWaterMask     = ma.masked_less(lsmArr,2)
+    print "lat_0,lon_0 = ",lat_0,lon_0
 
-            # Define the total mask
-            totalMask = onboard_pt_mask * onground_pt_mask * \
-                        ViirsCMqualityMask * ViirsAProdRetMask * \
-                        missingMask * na_fill_mask
+    try :
+        # Determine masks for each fill type, for the VCM IP
+        aotFillMasks = {}
+        for fillType in trimObj.sdrTypeFill.keys() :
+            fillValue = trimObj.sdrTypeFill[fillType][aotArr.dtype.name]
+            if 'float' in fillValue.__class__.__name__ :
+                aotFillMasks[fillType] = ma.masked_inside(aotArr,fillValue-eps,fillValue+eps).mask
+                if (aotFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    aotFillMasks[fillType] = None
+            elif 'int' in fillValue.__class__.__name__ :
+                aotFillMasks[fillType] = ma.masked_equal(aotArr,fillValue).mask
+                if (aotFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    aotFillMasks[fillType] = None
+            else :
+                print "Dataset was neither int not float... a worry"
+                pass
 
-            try :
-                data = ma.array(aotArr,mask=totalMask.mask)
-                lats = ma.array(latArr,mask=totalMask.mask)
-                lons = ma.array(lonArr,mask=totalMask.mask)
-            except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
-                sys.exit(1)
+        # Construct the total mask from all of the various fill values
+        totalMask = ma.array(np.zeros(aotArr.shape,dtype=np.bool))
+        for fillType in trimObj.sdrTypeFill.keys() :
+            if aotFillMasks[fillType] is not None :
+                totalMask = totalMask * ma.array(np.zeros(aotArr.shape,dtype=np.bool),\
+                    mask=aotFillMasks[fillType])
 
-        except :
-            print ">> error: There was an exception..."
+        # Define the onboard and onground pixel trim and N/A masks
+        onboard_pt_mask = ma.masked_inside(aotArr,onboard_pt_value-eps,onboard_pt_value+eps)
+        onground_pt_mask = ma.masked_inside(aotArr,onground_pt_value-eps,onground_pt_value+eps)
+        na_fill_mask = ma.masked_inside(aotArr,na_fill_value-eps,na_fill_value+eps)
+
+        # Define the product CM quality and Aerosol retrieval type masks
+        ViirsCMqualityMask = ma.masked_equal(qualArr,0)
+        ViirsAProdRetMask  = ma.masked_not_equal(retArr,0)
+        missingMask        = ma.masked_less(aotArr,-0.)
+
+        # Define the land and water masks
+        ViirsLandMask      = ma.masked_greater(lsmArr,1)
+        ViirsWaterMask     = ma.masked_less(lsmArr,2)
+
+        # Define the total mask
+        totalMask = onboard_pt_mask * onground_pt_mask * \
+                    ViirsCMqualityMask * ViirsAProdRetMask * \
+                    missingMask * na_fill_mask
+
+        try :
+            data = ma.array(aotArr,mask=totalMask.mask)
+            lats = ma.array(latArr,mask=totalMask.mask)
+            lons = ma.array(lonArr,mask=totalMask.mask)
+        except ma.core.MaskError :
+            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
             sys.exit(1)
+
+    except Exception, err :
+        print ">> error: %s..." % (str(err))
+        sys.exit(1)
 
     print "gran_AOT ModeGran = ",ModeGran
 
@@ -2130,6 +2165,9 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     vmin = np.min(ViirsData.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
     vmax = np.max(ViirsData.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
 
+    # If we have a zero size data array, make a dummy dataset
+    # to span the allowed data range, which will be plotted with 
+    # vanishing pointsize
     if (np.shape(gridLon)[0]==0) :
         print "We have no valid data, synthesising dummy data..."
         gridLat = np.array([lat_0,lat_0])
@@ -2154,6 +2192,7 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
         ViirsData.CloudMaskData.ViirsCMTickPos[1]/2.
 
     print "ViirsData.CloudMaskData.ViirsCMTickPos: %r" %(ViirsData.CloudMaskData.ViirsCMTickPos)
+
     # Create figure with default size, and create canvas to draw on
     fig = Figure(figsize=((figWidth,figHeight)))
     canvas = FigureCanvas(fig)
@@ -2170,7 +2209,9 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
 
     # Create Basemap instance
     # set 'ax' keyword so pylab won't be imported.
-    m = Basemap(width=0.35*12000000.,height=0.50*9000000.,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    windowWidth = scale *(0.35*12000000.)
+    windowHeight = scale *(0.50*9000000.)
+    m = Basemap(width=windowWidth,height=windowHeight,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
     #m = Basemap(width=0.35*12000000.,height=0.65*9000000.,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=False,resolution=mapRes)
     #m = Basemap(width=0.75*12000000.,height=9000000.,projection='merc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
     #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
@@ -2283,11 +2324,22 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     Plots the VIIRS Aerosol Optical Thickness on an orthographic projection
     '''
 
-    # Setup plotting data
     reload(ViirsData)
 
     # The plot range...
     print "vmin,vmax = ",vmin,vmax 
+
+    # If we have a zero size data array, make a dummy dataset
+    # to span the allowed data range, which will be plotted with 
+    # vanishing pointsize
+    if (np.shape(gridLon)[0]==0) :
+        print "We have no valid data, synthesising dummy data..."
+        gridLat = np.array([lat_0,lat_0])
+        gridLon = np.array([lon_0,lon_0])
+        gridData = np.array([0.,1.])
+        pointSize = 0.001
+
+    # Setup plotting data
 
     figWidth = 5. # inches
     figHeight = 4. # inches
@@ -2308,39 +2360,35 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
 
     # Create Basemap instance
     # set 'ax' keyword so pylab won't be imported.
-    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution='c')
-    print "scale = ",scale
-    m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,\
-        ax=ax,fix_aspect=True,resolution=mapRes,\
-        llcrnrx = -1. * scale * 3200. * 750./2.,\
-        llcrnry = -1. * scale * 3200. * 750./2.,\
-        urcrnrx =       scale * 3200. * 750./2.,\
-        urcrnry =       scale * 3200. * 750./2.)
+    windowWidth = scale *(0.35*12000000.)
+    windowHeight = scale *(0.50*9000000.)
+    m = Basemap(width=windowWidth,height=windowHeight,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(width=0.35*12000000.,height=0.65*9000000.,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=False,resolution=mapRes)
+    #m = Basemap(width=0.75*12000000.,height=9000000.,projection='merc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,\
+        #ax=ax,fix_aspect=True,resolution=mapRes,\
+        #llcrnrx = -1. * scale * 3200. * 750./2.,\
+        #llcrnry = -1. * scale * 3200. * 750./2.,\
+        #urcrnrx =       scale * 3200. * 750./2.,\
+        #urcrnry =       scale * 3200. * 750./2.)
 
-    # If we have a zero size data array, make a dummy dataset
-    # to span the allowed data range, which will be plotted with 
-    # vanishing pointsize
-    if (np.shape(gridLon)[0]==0) :
-        print "We have no valid data, synthesising dummy data..."
-        gridLat = np.array([lat_0,lat_0])
-        gridLon = np.array([lon_0,lon_0])
-        gridData = np.array([0.,1.])
-        pointSize = 0.001
 
     x,y=m(np.array(gridLon),np.array(gridLat))
 
     # Some map style configuration stufff
     #m.drawlsmask(ax=ax,land_color='gray',ocean_color='black',lakes=True)
-    m.drawmapboundary(ax=ax,linewidth=0.01,fill_color='grey')
+    m.drawmapboundary(ax=ax,linewidth=0.01,fill_color='black')
     m.drawcoastlines(ax=ax,linewidth=0.3,color='white')
-    #m.fillcontinents(ax=ax,color='gray',lake_color='black',zorder=0)
+    m.fillcontinents(ax=ax,color='gray',lake_color='black',zorder=0)
     #m.drawparallels(np.arange(-90.,120.,30.),color='white')
     #m.drawmeridians(np.arange(0.,420.,60.),color='white')
+
+    #m.bluemarble()
 
     # Plot the granule data
     print "shape of gridData is %s" % (repr(np.shape(gridData)))
     #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
-    #cs = m.contourf(x,y,gridData,axes=ax,levels=np.linspace(vmin,vmax,100),antialiased=False,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
     cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     print "orthoPlot_AOT ModeGran = ",ModeGran
@@ -2974,6 +3022,7 @@ def main():
             set_vcm_dset(0,1)
         if 'VCP' in options.ipProd :
             set_vcm_dset(5,0)
+
         lats,lons,vcmData,lat_0,lon_0 = gran_VCM(geoList,prodList,shrink=stride)
 
         print "Calling VCM plotter..."
@@ -3075,7 +3124,9 @@ def main():
         stride = stride_IP if options.stride==None else options.stride
         vmin = -0.05 if (vmin==None) else vmin
         vmax = 0.8 if (vmax==None) else vmax
-        lats,lons,aotData,lat_0,lon_0,ModeGran = gran_AOT([options.geoFile],[options.ipFile],shrink=stride)
+
+        lats,lons,aotData,lat_0,lon_0,ModeGran = gran_AOT(geoList,prodList,shrink=stride)
+        
         print "Calling AOT plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_AOT(lats,lons,aotData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \

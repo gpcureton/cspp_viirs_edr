@@ -151,23 +151,19 @@ class viirsAero:
 
         # Get the VIIRS IP dataset
         try :
-            self.ViirsAProdSDS = getobj(ViirsAProdFileObj,\
-                AerosolProduct.SDSname)[::shrinkFactor,::shrinkFactor]
+            self.ViirsAProdSDS = ViirsAProdFileObj.getNode(AerosolProduct.SDSname)[::shrinkFactor,::shrinkFactor]
             print "Type of self.ViirsAProdSDS is: ",self.ViirsAProdSDS.dtype.name
 
             ViirsDataSetPath = '/All_Data/VIIRS-Aeros-Opt-Thick-IP_All/QF1'
-            self.ViirsCMquality =  getobj(ViirsAProdFileObj,\
-                ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+            self.ViirsCMquality =  ViirsAProdFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
             self.ViirsCMquality = np.bitwise_and(self.ViirsCMquality,192) >> 6
 
             ViirsDataSetPath = '/All_Data/VIIRS-Aeros-Opt-Thick-IP_All/QF2'
-            self.LandSeaMask =  getobj(ViirsAProdFileObj,\
-                ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+            self.LandSeaMask =  ViirsAProdFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
             self.LandSeaMask = np.bitwise_and(self.LandSeaMask,112) >> 4
 
             ViirsDataSetPath = '/All_Data/VIIRS-Aeros-Opt-Thick-IP_All/QF3'
-            self.ViirsAProdRet =  getobj(ViirsAProdFileObj,\
-                ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+            self.ViirsAProdRet = ViirsAProdFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
             self.ViirsAProdRet = np.bitwise_and(self.ViirsAProdRet,28) >> 2
 
             print "Closing Aerosol Product file"

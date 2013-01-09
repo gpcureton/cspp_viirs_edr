@@ -110,6 +110,10 @@ add_python()
 add_misc_files()
 {
     echo "${CSPP_HOME}/cspp_env.sh" >> filesExist.txt
+    echo "${CSPP_HOME}/viirs/edr/ql_viirs_edr.py" >> filesExist.txt
+    echo "${CSPP_HOME}/viirs/edr/viirs_aerosol_products.py" >> filesExist.txt
+    echo "${CSPP_HOME}/viirs/edr/viirs_cloud_mask.py" >> filesExist.txt
+    echo "${CSPP_HOME}/viirs/edr/viirs_cloud_products.py" >> filesExist.txt
 }
 
 prepare_txt()
@@ -165,8 +169,12 @@ create_viirs_edr_masks_tarball()
     cd ..
     tar -cvz --dereference -T ${WORK_DIR}/package/$FILELIST -f ${CNAME}.tar.gz
     
-    cp ${CNAME}.tar.gz $CSPP_PACKAGES/CSPP_VIIRS_EDR
-    cp -f ${WORK_DIR}/package/$FILELIST $CSPP_PACKAGES/packing_lists/${FILELIST%.txt}.lst
+    echo "Copying "${CNAME}".tar.gz "$CSPP_PACKAGES"/CSPP_VIIRS_EDR/"
+    cp -vf ${CNAME}.tar.gz $CSPP_PACKAGES/CSPP_VIIRS_EDR/
+
+    echo "Copying "${WORK_DIR}"/package/"$FILELIST" "$CSPP_PACKAGES"/packing_lists/"${FILELIST%.txt}".lst"
+    cp -vf ${WORK_DIR}/package/$FILELIST $CSPP_PACKAGES/packing_lists/${FILELIST%.txt}.lst
+    
     chmod gu+rw $CSPP_PACKAGES/packing_lists/${FILELIST%.txt}.lst
 }
 
@@ -207,8 +215,12 @@ create_viirs_edr_masks_static_tarball()
     cd ..
     tar -cvz --dereference -T ${WORK_DIR}/package/$STATIC_FILELIST -f ${CNAME}-static.tar.gz
     
-    cp ${CNAME}-static.tar.gz $CSPP_PACKAGES/CSPP_VIIRS_EDR
-    cp -f ${WORK_DIR}/package/$STATIC_FILELIST $CSPP_PACKAGES/packing_lists/${STATIC_FILELIST%.txt}.lst
+    echo "Copying "${CNAME}"-static.tar.gz to "$CSPP_PACKAGES"/CSPP_VIIRS_EDR"
+    cp -vf ${CNAME}-static.tar.gz $CSPP_PACKAGES/CSPP_VIIRS_EDR
+
+    echo "Copying "${WORK_DIR}"/package/"$STATIC_FILELIST" to "$CSPP_PACKAGES"/packing_lists/"${STATIC_FILELIST%.txt}".lst"
+    cp -vf ${WORK_DIR}/package/$STATIC_FILELIST $CSPP_PACKAGES/packing_lists/${STATIC_FILELIST%.txt}.lst
+
     chmod gu+rw $CSPP_PACKAGES/packing_lists/${STATIC_FILELIST%.txt}.lst
 }
 
@@ -257,6 +269,9 @@ main ()
 CMD=$1
 PARMS=$2
 
+echo "CMD = "$CMD
+echo "PARMS = "$PARMS
+
 export WORK_DIR=$(pwd)
 echo "WORK_DIR = "$WORK_DIR
 
@@ -278,5 +293,6 @@ export STATIC_FILELIST=$CNAME-static_packing_list.txt
 # Directory where packing lists will be put on jpss-cloud
 export CSPP_PACKAGES="/data/geoffc/CSPP_VIIRS_EDR/distribution"
 
+#exit
 
 main 
