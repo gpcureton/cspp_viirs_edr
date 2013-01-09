@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/bin/bash
 # $Id$
 # Wrapper environment script for VIIRS EDR components from ADL 3.1
 #
