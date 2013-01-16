@@ -4694,7 +4694,7 @@ def main():
                       action="store",
                       dest="inputFiles",
                       type="string",
-                      help="The base directory where input are placed")
+                      help="The fully qualified path to the input files. May be a directory or a file glob.")
 
     parser.add_option_group(mandatoryGroup)
 
@@ -4703,7 +4703,7 @@ def main():
     optionalGroup = optparse.OptionGroup(parser, "Extra Options",
                          "These options may be used to customize behaviour of this program.")
 
-    optionalGroup.add_option('-w','--workDirectory',
+    optionalGroup.add_option('-w','--work_directory',
                       action="store",
                       dest="work_dir",
                       type="string",
