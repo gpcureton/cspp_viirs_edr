@@ -134,7 +134,7 @@ OPTS=`getopt -o "i:w:dvh" -l "input_files:,work_directory:,anc_endianness:,sdr_e
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
 then
-    echo "There was an error with getopt, aborting.."
+    echo "There was an error with the command line parameters to viirs_edr_masks.sh, aborting..."
     exit 1
 fi
 
@@ -239,17 +239,16 @@ then
     exit 0
 fi
 
-
-echo "INPUT_FILES_OPT      = "$INPUT_FILES_OPT
-echo "WORK_DIR_OPT         = "$WORK_DIR_OPT
-echo "SKIP_SDR_UNPACK_OPT  = "$SKIP_SDR_UNPACK_OPT
-echo "SKIP_AUX_LINKING_OPT = "$SKIP_AUX_LINKING_OPT
-echo "SKIP_ANCILLARY_OPT   = "$SKIP_ANCILLARY_OPT
-echo "SKIP_ALGORITHM_OPT   = "$SKIP_ALGORITHM_OPT
-echo "SDR_ENDIANNESS_OPT   = "$SDR_ENDIANNESS_OPT
-echo "ANC_ENDIANNESS_OPT   = "$ANC_ENDIANNESS_OPT
-echo "DEBUG_OPT            = "$DEBUG_OPT
-echo "VERBOSITY_OPT        = "$VERBOSITY_OPT
+#echo "INPUT_FILES_OPT      = "$INPUT_FILES_OPT
+#echo "WORK_DIR_OPT         = "$WORK_DIR_OPT
+#echo "SKIP_SDR_UNPACK_OPT  = "$SKIP_SDR_UNPACK_OPT
+#echo "SKIP_AUX_LINKING_OPT = "$SKIP_AUX_LINKING_OPT
+#echo "SKIP_ANCILLARY_OPT   = "$SKIP_ANCILLARY_OPT
+#echo "SKIP_ALGORITHM_OPT   = "$SKIP_ALGORITHM_OPT
+#echo "SDR_ENDIANNESS_OPT   = "$SDR_ENDIANNESS_OPT
+#echo "ANC_ENDIANNESS_OPT   = "$ANC_ENDIANNESS_OPT
+#echo "DEBUG_OPT            = "$DEBUG_OPT
+#echo "VERBOSITY_OPT        = "$VERBOSITY_OPT
 
 
 GDB=''
@@ -283,39 +282,6 @@ $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
     $ANC_ENDIANNESS_OPT \
     $DEBUG_OPT \
     $VERBOSITY_OPT
-
-##############################
-#       No Algorithm         #
-##############################
-
-# Run everything except the algorithm...
-#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_algorithm -vvv --debug
-
-# Skip the SDR unpacking...
-#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack --skip_algorithm -vvv --debug
-#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack --skip_algorithm -vvv --debug
-
-# Skip the ancillary generation...
-#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --skip_ancillary --skip_algorithm -vvv --debug
-
-# Skip the sdr unpacking AND ancillary generation...
-#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ --skip_sdr_unpack --skip_ancillary --skip_algorithm -vvv --debug
-
-##############################
-#       With Algorithm       #
-##############################
-
-# Skip the SDR unpacking...
-#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack #-vvv --debug
-
-# Skip the ancillary generation...
-#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_ancillary -vvv --debug
-
-# Skip the sdr unpacking AND ancillary generation...
-#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./  --skip_sdr_unpack --skip_ancillary -vvv  --debug
-
-# Run the whole thing...
-#$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py --inputDirectory=$1 --sdr_endianness=little -w ./ # -vvv  --debug
 
 ##############################
 #         Packaging          #

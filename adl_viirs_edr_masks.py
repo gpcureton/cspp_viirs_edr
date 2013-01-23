@@ -42,7 +42,7 @@ Minimum commandline:
 
 where...
 
-    INPUTDIR: The base directory where input are placed.
+    INPUTFILES: The fully qualified path to the input files. May be a directory or a file glob.
 
 
 Created by Geoff Cureton on 2011-09-30.
@@ -96,7 +96,6 @@ from NCEPtoBlob import NCEPclass
 #import pyhdf.SD as SD
 from HDF4File import HDF4File
 
-########## From ATMS SDR ##################
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
 import adl_asc
@@ -105,46 +104,31 @@ from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain,
 # ancillary search and unpacker common routines
 # We need [ 'CSPP_HOME', 'ADL_HOME', 'CSPP_ANC_TILE_PATH', 'CSPP_ANC_CACHE_DIR', 'CSPP_ANC_PATH' ] environment 
 # variables to be set...
-from adl_common import sh, anc_files_needed, link_ancillary_to_work_dir, configure_logging, unpack, env, h5_xdr_inventory, get_return_code
+from adl_common import sh, anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
 from adl_common import ADL_HOME, CSPP_ANC_PATH, CSPP_ANC_CACHE_DIR, COMMON_SDR_LOG_CHECK_TABLE
 
 # log file scanning
 import adl_log
 
 # cache loading and searching
-import adl_anc_retrieval
+#import adl_anc_retrieval
 
 # N_GEO_Ref fix for ADL
-from adl_geo_ref import write_geo_ref
+#from adl_geo_ref import write_geo_ref
+
+# post-processing on blob+asc products
+#from adl_post_process import repack_products,aggregate_products,add_geo_attribute_to_aggregates
+#from adl_post_process import SHORTNAME_2_PRODUCTID
 
 # every module should have a LOG object
 sourcename= file_Id.split(" ")
 LOG = logging.getLogger(sourcename[1])
-
-# keys used in metadata dictionaries
-#K_FILENAME = '_asc_filename'
+from adl_common import configure_logging
+from adl_common import _test_logging as test_logging
 
 # locations of executables in ADL
 ADL_VIIRS_MASKS_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsMasksController.exe')
 ADL_VIIRS_AEROSOL_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe')
-
-# directories in which we find the ancillary files, including CC-Int file for ATMS SDR
-ADL_ANC_DIRS = CSPP_ANC_PATH
-
-# and the patterns we're looking for
-# tile set is not included in this since we link it in via $CSPP_ANC_TILE_PATH
-#
-
-#ADL_VIIRS_ANC_GLOBS =  ( '*CmnGeo-SAA-AC*',
-                        #'*ATMS-SDR-CC*',
-                        #'*off_Planet-Eph-ANC*',
-                        #'*CMNGEO-PARAM-LUT*',
-                        #'*USNO-PolarWander*',
-                        #'*TLE-AUX*'
-                        #)
-
-# filenames which we'll need to set N_GEO_Ref on
-#ADL_ATMS_SDR_GLOBS = ( 'SATMS*.h5', 'TATMS*.h5' )
 
 # we're not likely to succeed in processing using geolocation smaller than this many bytes
 MINIMUM_SDR_BLOB_SIZE = 81000000
@@ -152,11 +136,12 @@ MINIMUM_SDR_BLOB_SIZE = 81000000
 # maximum delay between granule end time and next granule start time to consider them contiguous
 MAX_CONTIGUOUS_DELTA=timedelta(seconds = 2)
 
-# attribute paths for Masks EDR and IP
+# Attribute paths for Masks EDR and IP
 MOD_GEO_TC_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
 CM_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0/N_Granule_ID'
 AF_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-AF-EDR/VIIRS-AF-EDR_Gran_0/N_Granule_ID'
-# TODO: Find the appropriate paths for the Aerosol IP/EDR
+
+# Attribute paths for Aerosol EDR and IP
 AOT_IP_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0/N_Granule_ID'
 AOT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-EDR/VIIRS-Aeros-EDR_Gran_0/N_Granule_ID'
 SUSMAT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-SusMat-EDR/VIIRS-SusMat-EDR_Gran_0/N_Granule_ID'
@@ -308,7 +293,7 @@ def toJulianDate(inTime):
     try :
         return time.strftime("%Y%j",time.strptime(inTime, "%Y%m%d"))
     except :
-        print "error: incorrect data format (%s). Should conform to yyyymmdd." % (inTime)
+        LOG.error("Incorrect data format (%s). Should conform to yyyymmdd." % (inTime))
         return 1
 
 def fromJulianDate(inTime):
@@ -319,7 +304,7 @@ def fromJulianDate(inTime):
     try :
         return time.strftime("%Y%m%d",time.strptime(inTime,"%Y%j"))
     except :
-        print "error: incorrect data format (%s). Should conform to yyyyddd." % (inTime)
+        LOG.error("Incorrect data format (%s). Should conform to yyyyddd." % (inTime))
         return 1
 
 #----------------------------------------------------------------------------
@@ -358,8 +343,8 @@ def findDatelineCrossings(latCrnList,lonCrnList):
     # For an ascending granule, the corner points are numbered [0,1,3,2], from the southeast
     # corner moving anti-clockwise.
 
-    print "latCrnList = ",latCrnList
-    print "lonCrnList = ",lonCrnList
+    LOG.debug("latCrnList = %r " % (latCrnList))
+    LOG.debug("lonCrnList = %r " % (lonCrnList))
 
     for idx1,idx2 in zip([1,3,2],[0,1,3]):
         
@@ -418,33 +403,34 @@ def isDatelineCrossed(latCrnList,lonCrnList):
     ascendingNode = []
     descendingNode = []
 
+    LOG.debug("Determining granule dateline crossings...")
+
     for granLats,granLons in zip(latCrnList,lonCrnList):
-        print "Processing granule..."
+        LOG.debug("Processing granule...")
         isDatelineCrosser = False
         isAscendingNode = False
         isDecendingNode = False
 
         # TODO : Use the ADL method of determining dateline crossings
         numCrossings = findDatelineCrossings(granLats,granLons)
-        print "Number of dataline crossings %d" % (numCrossings)
-        LOG.info("Number of dataline crossings %d" % (numCrossings))
+        LOG.debug("Number of dataline crossings %d" % (numCrossings))
 
         # Ascending node ? ...
         if (granLats[2] > granLats[0]):
-            print "Ascending node..."
+            LOG.debug("Ascending node...")
             isAscendingNode = True
             # Dateline crosser ? ...
             if (granLons[0] < granLons[3]):
-                print "Dateline crosser...\n"
+                LOG.debug("Dateline crosser...\n")
                 isDatelineCrosser = True
 
         # Descending node ? ...
         if (granLats[0] > granLats[2]):
-            print "Descending node..."
+            LOG.debug("Descending node...")
             isDecendingNode = True
             # Dateline crosser ? ...
             if (granLons[1] < granLons[2]):
-                print "Dateline crosser...\n"
+                LOG.debug("Dateline crosser...\n")
                 isDatelineCrosser = True
 
         dateLineCrossed.append(isDatelineCrosser)
@@ -466,9 +452,9 @@ def _create_input_file_globs(inputFiles):
         input_dir = os.path.dirname(input_path)
         input_files = os.path.basename(input_path)
 
-    print "input_path = %s" %(input_path)
-    print "input_dir = %s" %(input_dir)
-    print "input_files = %s" %(input_files)
+    LOG.debug("input_path = %s" %(input_path))
+    LOG.debug("input_dir = %s" %(input_dir))
+    LOG.debug("input_files = %s" %(input_files))
 
     inputGlobs = {"GEO":None,\
                   "MOD":None,\
@@ -477,24 +463,20 @@ def _create_input_file_globs(inputFiles):
     charsToKill = string.ascii_letters + string.digits + "."
 
     if (input_files is None):
-        print "First branch..."
         inputGlobs['GEO'] = 'GMTCO_npp*.h5'
         inputGlobs['MOD'] = 'SVM*_npp*.h5'
         inputGlobs['IMG'] = 'SVI*_npp*.h5'
     elif ((('GMTCO' in input_files) or ('SVM' in input_files) or ('SVI' in input_files)) and ('*' in input_files)) :
-        print "Second branch..."
         fileGlob = string.rstrip(string.lstrip(input_files,charsToKill),charsToKill)
-        print "fileGlob = %s" %(fileGlob)
+        LOG.debug("fileGlob = %s" %(fileGlob))
         inputGlobs['GEO'] = "GMTCO%s.h5" %(fileGlob)
         inputGlobs['MOD'] = "SVM*%s.h5" %(fileGlob)
         inputGlobs['IMG'] = "SVI*%s.h5" %(fileGlob)
         for fileType in ['GEO','MOD','IMG']:
             inputGlobs[fileType] = string.replace(inputGlobs[fileType],"**","*")
     elif os.path.isfile(input_path) :
-        print "Third branch..."
-        # TODO : If a single file is given, try to 
         fileGlob = string.rstrip(string.lstrip(string.split(input_files,"b")[0],charsToKill),charsToKill)
-        print "fileGlob = %s" %(fileGlob)
+        LOG.debug("fileGlob = %s" %(fileGlob))
         inputGlobs['GEO'] = "GMTCO%s*.h5" %(fileGlob)
         inputGlobs['MOD'] = "SVM*%s*.h5" %(fileGlob)
         inputGlobs['IMG'] = "SVI*%s*.h5" %(fileGlob)
@@ -805,20 +787,22 @@ def _get_geo_Arrays(geoDicts):
         N_Granule_ID = geoDict['N_Granule_ID']
         ObservedStartTimeObj = geoDict['ObservedStartTime']
 
-        print "\n###########################"
-        print "  Geolocation Information  "
-        print "###########################"
-        print "N_Granule_ID : ", N_Granule_ID
-        print "ObservedStartTime : ", ObservedStartTimeObj.__str__()
-        print "URID : ", URID
-        print "N_Collection_Short_Name : ", geo_Collection_ShortName
-        print "###########################\n"
+        LOG.debug("\n###########################")
+        LOG.debug("  Geolocation Information  ")
+        LOG.debug("###########################")
+        LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
+        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
+        LOG.debug("URID : %r" % (URID))
+        LOG.debug("###########################\n")
+
+
 
         geoAscFileName = geoDict['_filename']
         geoBlobFileName = string.replace(geoAscFileName,'asc',geo_Collection_ShortName)
 
-        print "geolocation asc file :  %s" % (geoAscFileName)
-        print "geolocation blob file : %s" % (geoBlobFileName)
+        LOG.debug("geolocation asc file :  %s" % (geoAscFileName))
+        LOG.debug("geolocation blob file : %s" % (geoBlobFileName))
 
         # Do we have terrain corrected geolocation?
 
@@ -828,9 +812,9 @@ def _get_geo_Arrays(geoDicts):
 
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
-            print "We have long form geolocation names"
+            LOG.debug("We have long form geolocation names")
         elif (geo_Collection_ShortName=='VIIRS-MOD-GEO' or geo_Collection_ShortName=='VIIRS-MOD-RGEO-TC') :
-            print "We have short form geolocation names"
+            LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
             LOG.error("Invalid geolocation shortname")
@@ -841,7 +825,7 @@ def _get_geo_Arrays(geoDicts):
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(adlHome,'xml/VIIRS',geoXmlFile)
         if os.path.exists(geoXmlFile):
-            LOG.info("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
 
         # Open the geolocation blob and get the latitude and longitude
 
@@ -858,7 +842,7 @@ def _get_geo_Arrays(geoDicts):
             longitude = getattr(geoBlobArrObj,'lon').astype('float')
         
         scanMode = getattr(geoBlobArrObj,'scan_mode').astype('uint8')
-        print "Scan Mode = %r" % (scanMode)
+        LOG.debug("Scan Mode = %r" % (scanMode))
 
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
@@ -868,11 +852,8 @@ def _get_geo_Arrays(geoDicts):
         lonMin,lonMax = np.min(longitude),np.max(longitude)
         lonRange = lonMax-lonMin
 
-        print "min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-        print "min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
-
-        LOG.info("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-        LOG.info("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+        LOG.debug("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+        LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Determine the latitude and longitude fill masks, so we can restore the 
         # fill values after we have scaled...
@@ -892,11 +873,8 @@ def _get_geo_Arrays(geoDicts):
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.info("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-            LOG.info("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-
-        print "\nNew min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-        print "New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
+            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
 
@@ -908,17 +886,18 @@ def _get_geo_Arrays(geoDicts):
         longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
         longitude = longitude.filled()
 
+        # Shift the longitudes to be between -180 and 180 degrees
         ### FIXME ###
         if lonMax > 180. :
-            print "\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
+            LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
             # Scale to restore -ve longitues, not necessarily # FIXME
             dateLineIdx = np.where(longitude>180.)
-            print "dateLineIdx = " ,dateLineIdx
+            LOG.debug("dateLineIdx = %r" % (dateLineIdx))
             longitude[dateLineIdx] -= 360.
             lonMax = np.max(ma.array(longitude,mask=lonMask))
             lonMin = np.min(ma.array(longitude,mask=lonMask))
             lonRange = lonMax-lonMin
-            print "\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
+            LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
         ### FIXME ###
 
         latitudeList.append(latitude)
@@ -960,16 +939,13 @@ def _subset_IGBP(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
         return -1
 
     dateLineCrossed,ascendingNode,descendingNode = isDatelineCrossed(latCrnList,lonCrnList)
-    print "dateLineCross is %r" % (dateLineCrossed)
-    print "ascendingNode is %r" % (ascendingNode)
-    print "descendingNode is %r\n" % (descendingNode)
+    LOG.debug("dateLineCross is %r" % (dateLineCrossed))
+    LOG.debug("ascendingNode is %r" % (ascendingNode))
+    LOG.debug("descendingNode is %r\n" % (descendingNode))
 
     try :
         IGBP_gridLats = IGBPobj.getNode('/Latitude')[:]
         IGBP_gridLons = IGBPobj.getNode('/Longitude')[:]
-
-        print IGBP_gridLats
-        print IGBP_gridLons
 
         latMin = min(latMinList)
         latMax = max(latMaxList)
@@ -1014,7 +990,7 @@ def _subset_IGBP(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
 
     except Exception, err :
 
-        print "EXCEPTION: %s" % (err)
+        LOG.debug("EXCEPTION: %s" % (err))
         IGBP_node.close()
         IGBPobj.close()
 
@@ -1036,13 +1012,13 @@ def _granulate_IGBP(geoDicts,inDir):
     # Get a bunch of information about the geolocation
     latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
 
-    print "\nGranules -->"
-    print "latMin : %r" % (latMinList)
-    print "latMax : %r" % (latMaxList)
-    print "lonMin : %r" % (lonMinList)
-    print "lonMax : %r" % (lonMaxList)
-    print "latCrnList : %r" % (latCrnList)
-    print "lonCrnList : %r\n" % (lonCrnList)
+    LOG.debug("\nGranules -->")
+    LOG.debug("latMin : %r" % (latMinList))
+    LOG.debug("latMax : %r" % (latMaxList))
+    LOG.debug("lonMin : %r" % (lonMinList))
+    LOG.debug("lonMax : %r" % (lonMaxList))
+    LOG.debug("latCrnList : %r" % (latCrnList))
+    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
 
     IGBP_subset,lat_subset,lon_subset,IGBP_fileName = \
             _subset_IGBP(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList)
@@ -1052,30 +1028,20 @@ def _granulate_IGBP(geoDicts,inDir):
 
     IGBP_type = IGBP_subset.dtype
 
-    #print "lat_subset = ",lat_subset
-    #print "lon_subset = ",lon_subset
-
-    #print "gridLat = ",gridLat
-    #print "gridLon = ",gridLon
-
-    print np.shape(latitudeList)
-    print np.shape(longitudeList)
-
     IGBP_list = []
 
     for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
 
         N_Granule_ID = geoDict['N_Granule_ID']
 
-        LOG.info("Granulating %s ..." % ('IGBP'))
-        print "\nGranulating %s ..." % ('IGBP')
-        print "latitide,longitude shapes: ",latitude.shape , longitude.shape
-        print 'IGBP_subset.shape = %s' % (str(IGBP_subset.shape))
-        print 'gridLat.shape = %s' % (str(gridLat.shape))
-        print 'gridLon.shape = %s' % (str(gridLon.shape))
+        LOG.debug("\nGranulating %s ..." % ('IGBP'))
+        LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+        LOG.debug("IGBP_subset.shape = %s" % (str(IGBP_subset.shape)))
+        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
+        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-        print "min of IGBP_subset  = ",np.min(IGBP_subset)
-        print "max of IGBP_subset  = ",np.max(IGBP_subset)
+        LOG.debug("min of IGBP_subset  = ",np.min(IGBP_subset))
+        LOG.debug("max of IGBP_subset  = ",np.max(IGBP_subset))
 
         data,dataIdx = _grid2Gran(np.ravel(latitude),
                                   np.ravel(longitude),
@@ -1085,8 +1051,8 @@ def _granulate_IGBP(geoDicts,inDir):
 
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
-        print "Shape of first granulated %s data is %s" % ('IGBP',np.shape(data))
-        print "Shape of first granulated %s dataIdx is %s" % ('IGBP',np.shape(dataIdx))
+        LOG.debug("Shape of first granulated %s data is %s" % ('IGBP',np.shape(data)))
+        LOG.debug("Shape of first granulated %s dataIdx is %s" % ('IGBP',np.shape(dataIdx)))
 
         # Convert granulated data back to original type...
 
@@ -1097,8 +1063,8 @@ def _granulate_IGBP(geoDicts,inDir):
 
         fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        print "min of IGBP granule = ",np.min(data)
-        print "max of IGBP granule = ",np.max(data)
+        LOG.debug("min of IGBP granule = %d",np.min(data))
+        LOG.debug("max of IGBP granule = %d",np.max(data))
 
         data = data.filled()
 
@@ -1118,16 +1084,13 @@ def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLis
     DEM_gridLats = -1. * (np.arange(21600.) * DEM_dLat - 90.)
     DEM_gridLons = np.arange(43200.) * DEM_dLon - 180.
 
-    print DEM_gridLats
-    print DEM_gridLons
-
     # Get the subset of DEM global dataset.
     DEM_fileName = path.join(CSPP_ANC_HOME,'LSM/dem30ARC_Global_LandWater_uncompressed.h5')
 
     dateLineCrossed,ascendingNode,descendingNode = isDatelineCrossed(latCrnList,lonCrnList)
-    print "dateLineCross is %r" % (dateLineCrossed)
-    print "ascendingNode is %r" % (ascendingNode)
-    print "descendingNode is %r\n" % (descendingNode)
+    LOG.debug("dateLineCross is %r" % (dateLineCrossed))
+    LOG.debug("ascendingNode is %r" % (ascendingNode))
+    LOG.debug("descendingNode is %r\n" % (descendingNode))
 
     latMin = min(latMinList)
     latMax = max(latMaxList)
@@ -1145,7 +1108,7 @@ def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLis
     DEM_lonMinIdx = DEM_lonIdx[0]
     DEM_lonMaxIdx = DEM_lonIdx[-1]
 
-    print "Opening DEM file ",DEM_fileName
+    LOG.debug("Opening DEM file %s" % (DEM_fileName))
     # TODO : Use original HDF4 file which contains elevation and LWM.
     DEMobj = pytables.openFile(DEM_fileName,'r')
     DEM_node = DEMobj.getNode('/demGRID/Data Fields/LandWater')
@@ -1179,7 +1142,7 @@ def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLis
 
     except Exception, err :
 
-        print "EXCEPTION: %s" % (err)
+        LOG.debug("EXCEPTION: %s" % (err))
 
         DEM_node.close()
         DEMobj.close()
@@ -1199,13 +1162,13 @@ def _granulate_DEM(geoDicts,inDir):
     # Get a bunch of information about the geolocation
     latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
 
-    print "\nGranules -->"
-    print "latMin : %r" % (latMinList)
-    print "latMax : %r" % (latMaxList)
-    print "lonMin : %r" % (lonMinList)
-    print "lonMax : %r" % (lonMaxList)
-    print "latCrnList : %r" % (latCrnList)
-    print "lonCrnList : %r\n" % (lonCrnList)
+    LOG.debug("\nGranules -->")
+    LOG.debug("latMin : %r" % (latMinList))
+    LOG.debug("latMax : %r" % (latMaxList))
+    LOG.debug("lonMin : %r" % (lonMinList))
+    LOG.debug("lonMax : %r" % (lonMaxList))
+    LOG.debug("latCrnList : %r" % (latCrnList))
+    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
 
     DEM_subset,lat_subset,lon_subset,DEM_fileName = \
             _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList)
@@ -1215,30 +1178,20 @@ def _granulate_DEM(geoDicts,inDir):
 
     DEM_type = DEM_subset.dtype
 
-    #print "lat_subset = ",lat_subset
-    #print "lon_subset = ",lon_subset
-
-    #print "gridLat = ",gridLat
-    #print "gridLon = ",gridLon
-
-    print np.shape(latitudeList)
-    print np.shape(longitudeList)
-
     DEM_list = []
 
     for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
 
         N_Granule_ID = geoDict['N_Granule_ID']
 
-        LOG.info("Granulating %s ..." % ('DEM'))
-        print "\nGranulating %s ..." % ('DEM')
-        print "latitide,longitude shapes: ",latitude.shape , longitude.shape
-        print 'DEM_subset.shape = %s' % (str(DEM_subset.shape))
-        print 'gridLat.shape = %s' % (str(gridLat.shape))
-        print 'gridLon.shape = %s' % (str(gridLon.shape))
+        LOG.debug("\nGranulating %s ..." % ('DEM'))
+        LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+        LOG.debug("DEM_subset.shape = %s" % (str(DEM_subset.shape)))
+        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
+        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-        print "min of DEM_subset  = ",np.min(DEM_subset)
-        print "max of DEM_subset  = ",np.max(DEM_subset)
+        LOG.debug("min of DEM_subset  = ",np.min(DEM_subset))
+        LOG.debug("max of DEM_subset  = ",np.max(DEM_subset))
 
         data,dataIdx = _grid2Gran(np.ravel(latitude),
                                   np.ravel(longitude),
@@ -1248,8 +1201,8 @@ def _granulate_DEM(geoDicts,inDir):
 
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
-        print "Shape of first granulated %s data is %s" % ('DEM',np.shape(data))
-        print "Shape of first granulated %s dataIdx is %s" % ('DEM',np.shape(dataIdx))
+        LOG.debug("Shape of first granulated %s data is %s" % ('DEM',np.shape(data)))
+        LOG.debug("Shape of first granulated %s dataIdx is %s" % ('DEM',np.shape(dataIdx)))
 
         # Convert granulated data back to original type...
 
@@ -1260,8 +1213,8 @@ def _granulate_DEM(geoDicts,inDir):
 
         fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        print "min of DEM granule = ",np.min(data)
-        print "max of DEM granule = ",np.max(data)
+        LOG.debug("min of DEM granule = %d",np.min(data))
+        LOG.debug("max of DEM granule = %d",np.max(data))
 
         data = data.filled()
 
@@ -1285,11 +1238,11 @@ def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
 
     startTimeObj = geoDict['ObservedStartTime']
     julianDay = int(startTimeObj.strftime('%j'))
-    print 'Julian day = ',julianDay
+    LOG.debug("Julian day = %d" % (julianDay))
 
     lowerDay = find_le(NDVIdays,julianDay)
     lowerIdx = index(NDVIdays,lowerDay)
-    print "lowerdDay, lowerIdx = ",lowerDay,lowerIdx
+    LOG.debug("lowerdDay, lowerIdx = %d, %d" % (lowerDay,lowerIdx))
 
     if lowerIdx == 22 :
         NDVIday = NDVIdays[22]
@@ -1310,15 +1263,15 @@ def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
 
     NDVI_fileName = path.join(CSPP_ANC_HOME,'NDVI/NDVI.FM.c004.v2.0.WS.00-04.%03d.h5'%(NDVIday))
 
-    print "NDVI file :",NDVI_fileName
+    LOG.debug("NDVI file : %s" % (NDVI_fileName))
 
     NDVIobj = pytables.openFile(NDVI_fileName)
     NDVI_node = NDVIobj.getNode('/NDVI')
 
     dateLineCrossed,ascendingNode,descendingNode = isDatelineCrossed(latCrnList,lonCrnList)
-    print "dateLineCross is %r" % (dateLineCrossed)
-    print "ascendingNode is %r" % (ascendingNode)
-    print "descendingNode is %r\n" % (descendingNode)
+    LOG.debug("dateLineCross is %r" % (dateLineCrossed))
+    LOG.debug("ascendingNode is %r" % (ascendingNode))
+    LOG.debug("descendingNode is %r\n" % (descendingNode))
 
     try :
         NDVI_gridLats = NDVIobj.getNode('/Latitude')[:]
@@ -1376,7 +1329,7 @@ def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
 
     except Exception, err :
 
-        print "EXCEPTION: %s" % (err)
+        LOG.debug("EXCEPTION: %s" % (err))
 
         NDVI_node.close()
         NDVIobj.close()
@@ -1411,13 +1364,13 @@ def _granulate_NDVI(inDir,geoDicts):
     # Get a bunch of information about the geolocation
     latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
 
-    print "\nGranules -->"
-    print "latMin : %r" % (latMinList)
-    print "latMax : %r" % (latMaxList)
-    print "lonMin : %r" % (lonMinList)
-    print "lonMax : %r" % (lonMaxList)
-    print "latCrnList : %r" % (latCrnList)
-    print "lonCrnList : %r\n" % (lonCrnList)
+    LOG.debug("\nGranules -->")
+    LOG.debug("latMin : %r" % (latMinList))
+    LOG.debug("latMax : %r" % (latMaxList))
+    LOG.debug("lonMin : %r" % (lonMinList))
+    LOG.debug("lonMax : %r" % (lonMaxList))
+    LOG.debug("latCrnList : %r" % (latCrnList))
+    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
 
     NDVI_subset,lat_subset,lon_subset,NDVI_fileName = \
             _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList,inDir,geoDicts[0])
@@ -1425,28 +1378,18 @@ def _granulate_NDVI(inDir,geoDicts):
     gridLon,gridLat = np.meshgrid(lon_subset,lat_subset[::-1])
     NDVI_subset = NDVI_subset[::-1,:]
 
-    print "lat_subset = ",lat_subset
-    print "lon_subset = ",lon_subset
-
-    print "gridLat = ",gridLat
-    print "gridLon = ",gridLon
-
-    print np.shape(latitudeList)
-    print np.shape(longitudeList)
-
     for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
 
         N_Granule_ID = geoDict['N_Granule_ID']
 
-        LOG.info("Granulating %s ..." % (masksCollShortNames))
-        print "\nGranulating %s ..." % (masksCollShortNames)
-        print "latitide,longitude shapes: ",latitude.shape , longitude.shape
-        print 'NDVI_subset.shape = %s' % (str(NDVI_subset.shape))
-        print 'gridLat.shape = %s' % (str(gridLat.shape))
-        print 'gridLon.shape = %s' % (str(gridLon.shape))
+        LOG.debug("\nGranulating %s ..." % (masksCollShortNames))
+        LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+        LOG.debug("NDVI_subset.shape = %s" % (str(NDVI_subset.shape)))
+        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
+        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-        print "min of NDVI_subset  = ",np.min(NDVI_subset)
-        print "max of NDVI_subset  = ",np.max(NDVI_subset)
+        LOG.debug("min of NDVI_subset = %r",np.min(NDVI_subset))
+        LOG.debug("max of NDVI_subset = %r",np.max(NDVI_subset))
 
         data,dataIdx = _grid2Gran(np.ravel(latitude),
                                   np.ravel(longitude),
@@ -1456,64 +1399,42 @@ def _granulate_NDVI(inDir,geoDicts):
 
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
-        print "Shape of first granulated %s data is %s" % (masksCollShortNames,np.shape(data))
-        print "Shape of first granulated %s dataIdx is %s" % (masksCollShortNames,np.shape(dataIdx))
+        LOG.debug("Shape of first granulated %s data is %s" % (masksCollShortNames,np.shape(data)))
+        LOG.debug("Shape of first granulated %s dataIdx is %s" % (masksCollShortNames,np.shape(dataIdx)))
 
         # Fill the required pixel trim rows in the granulated NCEP data with 
         # the ONBOARD_PT_FILL value for the correct data type
 
         fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        print "min of NDVI granule = ",np.min(data)
-        print "max of NDVI granule = ",np.max(data)
+        LOG.debug("min of NDVI granule = %d",np.min(data))
+        LOG.debug("max of NDVI granule = %d",np.max(data))
+
         data = data.filled()
 
-        # Create new NCEP ancillary blob, and copy granulated data to it
+        # Create new NDVI ancillary blob, and copy granulated data to it
 
         endian = ancEndian
         xmlName = path.join(ADL_HOME,'xml/VIIRS',GridIP_shortNameToXmlName[masksCollShortNames])
 
         # Create a new URID to be used in making the asc filenames
 
-        ####### FIXME START: This code is now in _getURID() #######################################
-        URID_timeObj = datetime.utcnow()
+        URID_dict = _getURID()
 
-        creationDateStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
-        creationDate_nousecStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.000000")
-
-        print "Date from datetime.utcnow(): %s" % (creationDateStr)
-
-        tv_sec = int(URID_timeObj.strftime("%s"))
-        tv_usec = int(URID_timeObj.strftime("%f"))
-        hostId_ = uuid.getnode()
-        thisAddress = id(URID_timeObj)
-
-        l = tv_sec + tv_usec + hostId_ + thisAddress
-
-        URID = '-'.join( ('{0:08x}'.format(tv_sec)[:8],
-                          '{0:05x}'.format(tv_usec)[:5],
-                          '{0:08x}'.format(hostId_)[:8],
-                          '{0:08x}'.format(l)[:8]) )
-
-        print "URID = %s\n" % (URID)
-        ####### FIXME END: This code is now in _getURID() #######################################
+        URID = URID_dict['URID']
+        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+        creationDateStr = URID_dict['creationDateStr']
 
         # Create a new directory in the input directory for the new ancillary
         # asc and blob files
-        # FIXME : These should get written to the input directory
 
         blobDir = inDir
-
-        #blobDir = path.join(inDir,'newAncBlobs')
-        #if not os.path.exists(blobDir) :
-            #LOG.info("Creating directory %s" % (blobDir))
-            #os.mkdir(blobDir)
 
         ascFileName = path.join(blobDir,URID+'.asc')
         blobName = path.join(blobDir,URID+'.'+masksCollShortNames)
 
-        LOG.info("ascFileName : %s" % (ascFileName))
-        LOG.info("blobName : %s" % (blobName))
+        LOG.debug("ascFileName : %s" % (ascFileName))
+        LOG.debug("blobName : %s" % (blobName))
 
         # Create a new ancillary blob, and copy the data to it.
 
@@ -1527,7 +1448,7 @@ def _granulate_NDVI(inDir,geoDicts):
 
         ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
 
-        print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
+        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
         
         ANC_fileList = [NDVI_fileName]
         for idx in range(len(ANC_fileList)) :
@@ -1540,27 +1461,24 @@ def _granulate_NDVI(inDir,geoDicts):
         # written to the ancillary asc files
 
         geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-        print "\nOpening %s..." % (geoAscFileName)
+        LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
         #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
         RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-        print 'RangeDateTimeStr = ',RangeDateTimeStr
         GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        print 'GRingLatitudeStr = ',GRingLatitudeStr
         GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-        print 'GRingLongitudeStr = ',GRingLongitudeStr
 
         geoAscFile.close()
 
         ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
         ascFile = open(ascFileName,"wt") # create a new text file
 
-        print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
+        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
-        print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
+        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
         for line in ascTemplateFile.readlines():
            line = line.replace("CSPP_URID",URID)
@@ -1577,6 +1495,7 @@ def _granulate_NDVI(inDir,geoDicts):
 
         ascFile.close()
         ascTemplateFile.close()
+
 
 def _getURID() :
     '''
@@ -1704,7 +1623,7 @@ def _setupAuxillaryFiles(inDir):
             auxillarySourceFiles.append(auxillarySourceFile)
 
     for shortName,auxillarySourceFile in zip(auxillaryCollShortNames,auxillarySourceFiles) :
-        print "%s --> %s" %(shortName,auxillarySourceFile)
+        LOG.debug("%s --> %s" %(shortName,auxillarySourceFile))
 
 
 
@@ -1717,6 +1636,8 @@ def _setupAuxillaryFiles(inDir):
         URID_dict = _getURID()
 
         URID = URID_dict['URID']
+        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+        creationDateStr = URID_dict['creationDateStr']
 
         # The names for the new asc and blob files
         ascFileName = path.join(inDir,URID+'.asc')
@@ -1737,9 +1658,9 @@ def _setupAuxillaryFiles(inDir):
 
         for line in ascTemplateFile.readlines():
            line = line.replace("CSPP_URID",URID)
-           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",URID_dict['creationDate_nousecStr'])
+           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
            line = line.replace("CSPP_AUX_BLOB_FULLPATH",blobFileName)
-           line = line.replace("CSPP_CREATIONDATETIME",URID_dict['creationDateStr'])
+           line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
            line = line.replace("CSPP_AUX_SOURCE_FILE",auxillarySourceFile)
            ascFile.write(line) 
 
@@ -1781,13 +1702,13 @@ def _getGRC(inDir,geoDicts):
     # Get a bunch of information about the geolocation
     latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
 
-    print "\nGranules -->"
-    print "latMin : %r" % (latMinList)
-    print "latMax : %r" % (latMaxList)
-    print "lonMin : %r" % (lonMinList)
-    print "lonMax : %r" % (lonMaxList)
-    print "latCrnList : %r" % (latCrnList)
-    print "lonCrnList : %r\n" % (lonCrnList)
+    LOG.debug("\nGranules -->")
+    LOG.debug("latMin : %r" % (latMinList))
+    LOG.debug("latMax : %r" % (latMaxList))
+    LOG.debug("lonMin : %r" % (lonMinList))
+    LOG.debug("lonMax : %r" % (lonMaxList))
+    LOG.debug("latCrnList : %r" % (latCrnList))
+    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
 
     masksCollShortNames = ['VIIRS-MOD-GRC-TC', 'VIIRS-MOD-GRC']
     xmlNames = ['VIIRS_MOD_GRC_TC.xml', 'VIIRS_MOD_GRC.xml']
@@ -1799,14 +1720,15 @@ def _getGRC(inDir,geoDicts):
             N_Granule_ID = geoDict['N_Granule_ID']
             LOG.info("Creating new %s asc file for granule ID %s" % (shortName,N_Granule_ID))
 
-            print "geoDict keys are..."
-            print geoDict.keys()
+            LOG.debug("geoDict keys are... %r" % (geoDict.keys()))
 
             # Create a new URID to be used in making the asc filenames
 
             URID_dict = _getURID()
 
             URID = URID_dict['URID']
+            creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+            creationDateStr = URID_dict['creationDateStr']
 
             blobDir = inDir
 
@@ -1829,13 +1751,13 @@ def _getGRC(inDir,geoDicts):
 
             ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-MOD-GRC_Template.asc")
 
-            print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
+            LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
 
             # Parse the geolocation asc file to get struct information which will be 
             # written to the ancillary asc files
 
             geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-            print "\nOpening %s..." % (geoAscFileName)
+            LOG.debug("\nOpening %s..." % (geoAscFileName))
 
             geoAscFile = open(geoAscFileName,'rt')
 
@@ -1867,18 +1789,18 @@ def _getGRC(inDir,geoDicts):
             ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
             ascFile = open(ascFileName,"wt") # create a new text file
 
-            print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
+            LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
-            print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
+            LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
             for line in ascTemplateFile.readlines():
                line = line.replace("CSPP_URID",URID)
-               line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",URID_dict['creationDate_nousecStr'])
+               line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
                line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
                line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",shortName)
                line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
                line = line.replace("CSPP_BEGINNING_ORBIT_NUMBER",BeginningOrbitNumber)
-               line = line.replace("CSPP_CREATIONDATETIME",URID_dict['creationDateStr'])
+               line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
                line = line.replace("  CSPP_OBSERVED_DATE_TIME",ObservedDateTime)
                line = line.replace("  CSPP_RANGE_DATE_TIME",RangeDateTimeStr)
                line = line.replace("  CSPP_GRINGLATITUDE",GRingLatitudeStr)
@@ -1942,23 +1864,12 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
 
         N_Granule_ID = geoDict['N_Granule_ID']
 
-        LOG.info("Making %s ..." % (masksCollShortNames))
-        print "\nMaking %s ..." % (masksCollShortNames)
-        print 'LWM.shape = %s' % (str(LWM.shape))
-        print 'IGBP.shape = %s' % (str(IGBP.shape))
+        LOG.debug("\nMaking %s ..." % (masksCollShortNames))
 
-        print "min of LWM  = ",np.min(LWM)
-        print "max of LWM  = ",np.max(LWM)
-        print "min of IGBP  = ",np.min(IGBP)
-        print "max of IGBP  = ",np.max(IGBP)
-
-        print "IGBP = "
-        print IGBP[:16,:10]
-        print ""
-
-        print "LWM = "
-        print LWM[:16,:10]
-        print ""
+        LOG.debug("min of LWM  = %d" % (np.min(LWM)))
+        LOG.debug("max of LWM  = %d" % (np.max(LWM)))
+        LOG.debug("min of IGBP = %d" % (np.min(IGBP)))
+        LOG.debug("max of IGBP = %d" % (np.max(IGBP)))
 
         # Construct the IGBP and LWM masks
 
@@ -2003,13 +1914,9 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
 
         fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][QSTLWM.dtype.name]        
         QSTLWM = ma.array(QSTLWM,mask=modTrimMask,fill_value=fillValue)
-        print "min of QSTLWM granule = ",np.min(QSTLWM)
-        print "max of QSTLWM granule = ",np.max(QSTLWM)
+        LOG.debug("min of QSTLWM granule = %d" % (np.min(QSTLWM)))
+        LOG.debug("max of QSTLWM granule = %d" % (np.max(QSTLWM)))
         QSTLWM = QSTLWM.filled()
-
-        print "QSTLWM = "
-        print QSTLWM[:16,:10]
-        print ""
 
         # Create new NCEP ancillary blob, and copy granulated data to it
 
@@ -2018,43 +1925,22 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
 
         # Create a new URID to be used in making the asc filenames
 
-        URID_timeObj = datetime.utcnow()
+        URID_dict = _getURID()
 
-        creationDateStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
-        creationDate_nousecStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.000000")
-
-        print "Date from datetime.utcnow(): %s" % (creationDateStr)
-
-        tv_sec = int(URID_timeObj.strftime("%s"))
-        tv_usec = int(URID_timeObj.strftime("%f"))
-        hostId_ = uuid.getnode()
-        thisAddress = id(URID_timeObj)
-
-        l = tv_sec + tv_usec + hostId_ + thisAddress
-
-        URID = '-'.join( ('{0:08x}'.format(tv_sec)[:8],
-                          '{0:05x}'.format(tv_usec)[:5],
-                          '{0:08x}'.format(hostId_)[:8],
-                          '{0:08x}'.format(l)[:8]) )
-
-        print "URID = %s\n" % (URID)
+        URID = URID_dict['URID']
+        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+        creationDateStr = URID_dict['creationDateStr']
 
         # Create a new directory in the input directory for the new ancillary
         # asc and blob files
-        # FIXME : These should get written to the input directory
 
         blobDir = inDir
-
-        #blobDir = path.join(inDir,'newAncBlobs')
-        #if not os.path.exists(blobDir) :
-            #LOG.info("Creating directory %s" % (blobDir))
-            #os.mkdir(blobDir)
 
         ascFileName = path.join(blobDir,URID+'.asc')
         blobName = path.join(blobDir,URID+'.'+masksCollShortNames)
 
-        LOG.info("ascFileName : %s" % (ascFileName))
-        LOG.info("blobName : %s" % (blobName))
+        LOG.debug("ascFileName : %s" % (ascFileName))
+        LOG.debug("blobName : %s" % (blobName))
 
         # Create a new ancillary blob, and copy the data to it.
         newQSTLWMblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
@@ -2067,7 +1953,7 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
 
         ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
 
-        print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
+        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
         
         ANC_fileList = ['IGBP.EcoMap.v1.0.2004.129.v004.h5','dem30ARC_Global_LandWater.h5']
         for idx in range(len(ANC_fileList)) :
@@ -2080,27 +1966,25 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
         # written to the ancillary asc files
 
         geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-        print "\nOpening %s..." % (geoAscFileName)
+        LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
         #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
         RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-        print 'RangeDateTimeStr = ',RangeDateTimeStr
+
         GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        print 'GRingLatitudeStr = ',GRingLatitudeStr
         GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-        print 'GRingLongitudeStr = ',GRingLongitudeStr
 
         geoAscFile.close()
 
         ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
         ascFile = open(ascFileName,"wt") # create a new text file
 
-        print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
+        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
-        print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
+        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
         for line in ascTemplateFile.readlines():
            line = line.replace("CSPP_URID",URID)
@@ -2120,17 +2004,9 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
 
     return QSTLWM
 
+
 def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
-
-    print "latitude.shape = ",latitude.shape
-    print "longitude.shape = ",longitude.shape
-    print "LSM.shape = ",LSM.shape
-
-    #print "\nlatitude = "
-    #print latitude[:8,:10]
-
-    #print "\nlongitude = "
-    #print longitude[:8,:10]
+    '''Granulates the NISE Snow and Ice files.'''
 
     #latitude = ma.masked_less(latitude,-800.)
     latMin,latMax = np.min(latitude),np.max(latitude)
@@ -2140,10 +2016,10 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
     lonMin,lonMax = np.min(longitude),np.max(longitude)
     lonRange = lonMax-lonMin
 
-    print "\nmin,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-    print "min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
+    LOG.debug("\nmin,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+    LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
-    print "\nGranulating NISE file %s" % (NISE_fileName)
+    LOG.debug("\nGranulating NISE file %s" % (NISE_fileName))
 
     #################
     # Using HDF5
@@ -2158,7 +2034,7 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
     # Using HDF4
     #################
 
-    LOG.info("Opening the NISE file %s" % (NISE_fileName))
+    LOG.debug("Opening the NISE file %s" % (NISE_fileName))
     fileObj = HDF4File(NISE_fileName)
 
     northDsetName = "Northern Hemisphere/Data Fields/Extent"
@@ -2166,24 +2042,19 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
     #northDsetName = "Northern Hemisphere/Data Fields/Age"
     #southDsetName = "Southern Hemisphere/Data Fields/Age"
 
-    LOG.info("Retrieving NISE HDF4 path '%s'" % (northDsetName))
+    LOG.debug("Retrieving NISE HDF4 path '%s'" % (northDsetName))
     nHemi = fileObj.getDataset(northDsetName)
 
-    LOG.info("Retrieving NISE HDF4 path '%s'" % (southDsetName))
+    LOG.debug("Retrieving NISE HDF4 path '%s'" % (southDsetName))
     sHemi = fileObj.getDataset(southDsetName)
 
     #################
 
     xsize, ysize = nHemi.shape    
-    
-    print "\nxsize, ysize = ",xsize, ysize
 
     nHemi = nHemi.flatten()
     sHemi = sHemi.flatten()
     
-    print "\nnHemi.shape = ",nHemi.shape
-    print "sHemi.shape = ",sHemi.shape
-
     pi = np.pi
 
     rg = 6371.228 / 25.067525
@@ -2191,56 +2062,23 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
     r0 = (ysize-1) / 2.0
     s0 = (xsize-1) / 2.0
 
-    print "\nr0 = ",r0
-    print "s0 = ",s0
-
     gridrows, gridcols = latitude.shape
 
-    print "\ngridrows, gridcols = ",gridrows, gridcols
-
-    ##
     posLatMask = ma.masked_less(latitude,0.).mask
     negLatMask = ma.masked_greater_equal(latitude,0.).mask
-    ##
-    #posLatMask = np.zeros(latitude.shape,dtype=bool)
-    #negLatMask = np.ones(latitude.shape,dtype=bool)
-    ##
-
-    print "\nNumber of posLatMask masked values = ",np.sum(posLatMask)
-    print "Number of negLatMask masked values = ",np.sum(negLatMask)
-
-    print "\nLocation of posLatMask masked values = ",np.where(posLatMask==True)
-    print "Location of negLatMask masked values = ",np.where(negLatMask==True)
 
     # For positive latitudes...
     
     phi = np.radians(ma.array(latitude,mask=posLatMask,fill_value=0))
     lam = np.radians(ma.array(longitude,mask=posLatMask,fill_value=0))
 
-    print "\nphi = "
-    print phi[:8,:10]
-
-    print "\nlam = "
-    print lam[:8,:10]
-
     rho =  2. * rg * np.sin((pi / 4.0) - (phi / 2.0))
     r = r0 + rho * np.sin(lam)
     s = s0 + rho * np.cos(lam)          
 
-    print "\nr = "
-    print r[:8,:10]
-
-    print "\ns = "
-    print s[:8,:10]
-
     i_pos = round_(r, 0).astype('int') - 1
     j_pos = round_(s, 0).astype('int') - 1
 
-    print "\ni_pos = ",i_pos
-    print "\nj_pos = ",j_pos
-
-    print "\ni_pos.shape = ",i_pos.shape
-    print "j_pos.shape = ",j_pos.shape
 
     # For negative latitudes...
 
@@ -2254,24 +2092,12 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
     i_neg = round_(r, 0).astype('int') - 1
     j_neg = round_(s, 0).astype('int') - 1
 
-    print "\ni_neg = ",i_neg
-    print "\nj_neg = ",j_neg
-
-    print "\ni_neg.shape = ",i_neg.shape
-    print "j_neg.shape = ",j_neg.shape
-
     ###
     # Combine the +ve and -ve latitudes
     ###
 
     posIdx = np.where(posLatMask==False)
     negIdx = np.where(negLatMask==False)
-
-    print "\nLength of posIdx = ",len(posIdx)
-    print "Length of negIdx = ",len(negIdx)
-
-    print "\nposIdx = ",posIdx[0]
-    print "negIdx = ",negIdx[0]
 
     # convert i_pos and j_pos to an index into the raveled nHemi..
     k_pos = (j_pos * xsize) + i_pos
@@ -2281,23 +2107,8 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
 
     nise_val = 999 * np.ones(latitude.shape,dtype='int')
 
-    print "\nnise_val = "
-    print nise_val[:8,:10]
-
-    print "\nk_pos[posIdx] = "
-    print k_pos[posIdx]
-
-    print "\nk_neg[negIdx] = "
-    print k_neg[negIdx]
-
     nise_val[posIdx] = nHemi[k_pos[posIdx]]
     nise_val[negIdx] = sHemi[k_neg[negIdx]]
-
-    print "\nmin(data) = ",np.min(nise_val)
-    print "max(data) = ",np.max(nise_val)
-
-    print "\nnise_val = "
-    print nise_val[:8,:10]
 
     # From ADL/include/ProEdrViirsCMIPGbl.h ...
 
@@ -2352,26 +2163,6 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
 
     return snowIceMask
 
-    '''
-
-    # Define snow/ice flag
-    if(
-        # Permanent Ice
-        nise_val == 101 || 
-        # Dry Snow
-        nise_val == 103 || 
-        # Wet Snow
-        nise_val == 104	|| 
-        # Transient sea ice > 25% concentration, AND (Land OR Coastal)
-        (nise_val > 25 && nise_val < 101 && 
-            (flags->land_water_flag[idx] == CM_LAND || flags->land_water_flag[idx] == CM_COASTAL)) || 
-        # Transient sea ice > 25% concentration, AND Permanent Ice AND (Sea OR Inland Water)
-        (nise_val > 25 && nise_val < 102 && 
-            (flags->land_water_flag[idx] == CM_SEA_WATER || flags->land_water_flag[idx] == CM_IN_WATER)) )
-    {
-        *(vcmDataType->snow->data[0] + idx) = CM_SNOW;
-    }
-    '''
 
 def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
     '''Granulates the input NISE snow and ice files.'''
@@ -2400,16 +2191,15 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
     # Get a bunch of information about the geolocation
     latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
 
-    print "\nGranules -->"
-    print "latMin : %r" % (latMinList)
-    print "latMax : %r" % (latMaxList)
-    print "lonMin : %r" % (lonMinList)
-    print "lonMax : %r" % (lonMaxList)
-    print "latCrnList : %r" % (latCrnList)
-    print "lonCrnList : %r\n" % (lonCrnList)
+    LOG.debug("\nGranules -->")
+    LOG.debug("latMin : %r" % (latMinList))
+    LOG.debug("latMax : %r" % (latMaxList))
+    LOG.debug("lonMin : %r" % (lonMinList))
+    LOG.debug("lonMax : %r" % (lonMaxList))
+    LOG.debug("latCrnList : %r" % (latCrnList))
+    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
 
-    print "\nNISE files -->"
-    print NISEfiles
+    LOG.debug("\nNISE files --> %r" % (NISEfiles))
 
     # Loop through the geolocation files and granulate...
 
@@ -2418,13 +2208,10 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
         N_Granule_ID = geoDict['N_Granule_ID']
 
         LOG.info("Granulating %s ..." % (masksCollShortNames))
-        print "\nGranulating %s from %s ..." % (masksCollShortNames,NISEfiles[0])
 
         ####################################################
         # Granulate the NISE data using this geolocation...
         ####################################################
-
-        print "NISEfiles = ",NISEfiles
 
         data = _granulate_NISE(latitude,longitude,LSM,NISEfiles[0])
 
@@ -2444,43 +2231,23 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
 
         # Create a new URID to be used in making the asc filenames
 
-        URID_timeObj = datetime.utcnow()
+        URID_dict = _getURID()
 
-        creationDateStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
-        creationDate_nousecStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.000000")
-
-        print "Date from datetime.utcnow(): %s" % (creationDateStr)
-
-        tv_sec = int(URID_timeObj.strftime("%s"))
-        tv_usec = int(URID_timeObj.strftime("%f"))
-        hostId_ = uuid.getnode()
-        thisAddress = id(URID_timeObj)
-
-        l = tv_sec + tv_usec + hostId_ + thisAddress
-
-        URID = '-'.join( ('{0:08x}'.format(tv_sec)[:8],
-                          '{0:05x}'.format(tv_usec)[:5],
-                          '{0:08x}'.format(hostId_)[:8],
-                          '{0:08x}'.format(l)[:8]) )
-
-        print "URID = %s\n" % (URID)
+        URID = URID_dict['URID']
+        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+        creationDateStr = URID_dict['creationDateStr']
 
         # Create a new directory in the input directory for the new ancillary
         # asc and blob files
-        # FIXME : These should get written to the input directory
 
         blobDir = inDir
 
-        #blobDir = path.join(inDir,'newAncBlobs')
-        #if not os.path.exists(blobDir) :
-            #LOG.info("Creating directory %s" % (blobDir))
-            #os.mkdir(blobDir)
 
         ascFileName = path.join(blobDir,URID+'.asc')
         blobName = path.join(blobDir,URID+'.'+masksCollShortNames)
 
-        LOG.info("ascFileName : %s" % (ascFileName))
-        LOG.info("blobName : %s" % (blobName))
+        LOG.debug("ascFileName : %s" % (ascFileName))
+        LOG.debug("blobName : %s" % (blobName))
 
         # Create a new ancillary blob, and copy the data to it.
 
@@ -2494,7 +2261,7 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
 
         ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
 
-        print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
+        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
         
         ANC_fileList = copy.copy(NISEfiles)
         for idx in range(len(ANC_fileList)) :
@@ -2507,27 +2274,25 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
         # written to the ancillary asc files
 
         geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-        print "\nOpening %s..." % (geoAscFileName)
+        LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
         #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
         RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-        print 'RangeDateTimeStr = ',RangeDateTimeStr
+
         GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        print 'GRingLatitudeStr = ',GRingLatitudeStr
         GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-        print 'GRingLongitudeStr = ',GRingLongitudeStr
 
         geoAscFile.close()
 
         ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
         ascFile = open(ascFileName,"wt") # create a new text file
 
-        print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
+        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
-        print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
+        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
         for line in ascTemplateFile.readlines():
            line = line.replace("CSPP_URID",URID)
@@ -2552,9 +2317,6 @@ def _retrieve_grib_files(geoDicts):
     CSPP_HOME = os.getenv('CSPP_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
-
-    print "_retrieve_grib_files ANC_SCRIPTS_PATH : ",ANC_SCRIPTS_PATH
-    print "CSPP_ANC_CACHE_DIR : ",CSPP_ANC_CACHE_DIR
 
     # FIXME : Fix rounding up of the seconds if the decisecond>=9.5 
     gribFiles = []
@@ -2581,7 +2343,6 @@ def _retrieve_grib_files(geoDicts):
 
         try :
             LOG.info('Retrieving NCEP files for %s ...' % (granuleName))
-            print 'Retrieving NCEP files for %s ...' % (granuleName)
             cmdStr = '%s/cspp_retrieve_gdas_gfs.csh %s' % (ANC_SCRIPTS_PATH,granuleName)
             LOG.info('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
@@ -2640,7 +2401,7 @@ def _create_NCEP_gridBlobs(gribFiles):
         gribFile = path.basename(files)
         gribBlob = "%s_blob.le" % (gribFile)
         gribBlob = path.join(gribPath,gribBlob)
-        print "Creating NCEP GRIB blob %s" % (gribBlob)
+        LOG.debug("Creating NCEP GRIB blob %s" % (gribBlob))
 
         if not os.path.exists(gribBlob):
             try :
@@ -2694,7 +2455,7 @@ def _create_NCEP_gridBlobs_alt(gribFiles):
         gribFile = path.basename(files)
         gribBlob = "%s_blob.le" % (gribFile)
         gribBlob = path.join(gribPath,gribBlob)
-        print "Creating NCEP GRIB blob %s" % (gribBlob)
+        LOG.debug("Creating NCEP GRIB blob %s" % (gribBlob))
 
         if not os.path.exists(gribBlob):
             try :
@@ -2784,9 +2545,6 @@ def _retrieve_NAAPS_grib_files(geoDicts):
     ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
     CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
 
-    print "_retrieve_grib_files ANC_SCRIPTS_PATH : ",ANC_SCRIPTS_PATH
-    print "CSPP_ANC_CACHE_DIR : ",CSPP_ANC_CACHE_DIR
-
     # FIXME : Fix rounding up of the seconds if the decisecond>=9.5 
     gribFiles = []
     for geoDict in geoDicts:
@@ -2812,7 +2570,6 @@ def _retrieve_NAAPS_grib_files(geoDicts):
 
         try :
             LOG.info('Retrieving NAAPS files for %s ...' % (granuleName))
-            print 'Retrieving NAAPS files for %s ...' % (granuleName)
             cmdStr = '%s/cspp_retrieve_gdas_gfs.csh %s' % (ANC_SCRIPTS_PATH,granuleName)
             LOG.info('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
@@ -2875,7 +2632,7 @@ def _create_NAAPS_gridBlobs(gribFiles):
         gribFile = path.basename(files)
         gribBlob = "%s_blob.le" % (gribFile)
         gribBlob = path.join(gribPath,gribBlob)
-        print "Creating NAAPS GRIB blob %s" % (gribBlob)
+        LOG.debug("Creating NAAPS GRIB blob %s" % (gribBlob))
 
         if not os.path.exists(gribBlob):
             try :
@@ -2924,7 +2681,7 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
     ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
 
     libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
-    print "libFile = ",libFile
+    LOG.debug("Gridding and granulation library file: %s" % (libFile))
     lib = ctypes.cdll.LoadLibrary(libFile)
     grid2gran = lib.grid2gran
     grid2gran.restype = None
@@ -2985,16 +2742,12 @@ def _getAscLine(fileObj,searchString):
             line = fileObj.readline()
 
             if searchString in line : 
-                #print "We have found %s in line..." % (searchString)
                 dataStr = "%s" % (string.replace(line,'\n',''));
-                #print "dataStr = %s" % (dataStr)
                 break
 
-        #print "We have broken out of search for %s"  % (searchString)
         fileObj.seek(0)
 
     except Exception, err:
-        print "Exception : %s" % (str(err))
         geoAscFile.close()
 
     return dataStr
@@ -3013,9 +2766,7 @@ def _getAscStructs(fileObj,searchString,linesOfContext):
                 dataFound = True
 
             if dataFound :
-                #print "We have found %s in line..." % (searchString)
                 dataStr = "%s" % (string.replace(line,'\n',''));
-                #print "dataStr = %s" % (dataStr)
                 dataList.append(dataStr)
                 data_count += 1
             else :
@@ -3024,11 +2775,9 @@ def _getAscStructs(fileObj,searchString,linesOfContext):
             if (data_count == linesOfContext) :
                 break
 
-        #print "We have broken out of search for %s"  % (searchString)
         fileObj.seek(0)
 
     except Exception, err:
-        print "Exception : %s" % (str(err))
         fileObj.close()
         return -1
 
@@ -3169,18 +2918,19 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
         URID = dicts['URID']
         geo_Collection_ShortName = dicts['N_Collection_Short_Name']
         N_Granule_ID = dicts['N_Granule_ID']
+        ObservedStartTimeObj = dicts['ObservedStartTime']
         geoFiles = glob('%s/%s*' % (inDir,URID))
         geoFiles.sort()
-        LOG.info("%r" % (geoFiles))
 
-        print "\n###########################"
-        print "  Geolocation Information  "
-        print "###########################"
-        print "N_Granule_ID : ", N_Granule_ID
-        print "geoFiles : ", geoFiles
-        print "URID : ", URID
-        print "N_Collection_Short_Name : ", geo_Collection_ShortName
-        print "###########################\n"
+        LOG.debug("\n###########################")
+        LOG.debug("  Geolocation Information  ")
+        LOG.debug("###########################")
+        LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
+        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
+        LOG.debug("URID : %r" % (URID))
+        LOG.debug("geoFiles : %r" % (geoFiles))
+        LOG.debug("###########################\n")
 
         # Do we have terrain corrected geolocation?
 
@@ -3190,12 +2940,12 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
-            print "We have long form geolocation names"
+            LOG.debug("We have long form geolocation names")
         elif (geo_Collection_ShortName=='VIIRS-MOD-GEO' or geo_Collection_ShortName=='VIIRS-MOD-RGEO-TC') :
-            print "We have short form geolocation names"
+            LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname")
+            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
             return -1
 
         # Get the geolocation xml file
@@ -3203,7 +2953,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
         if os.path.exists(geoXmlFile):
-            LOG.info("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
 
         # Open the geolocation blob and get the latitude and longitude
 
@@ -3221,9 +2971,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
         scanMode = geoBlobArrObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
-        print "Bad Scans: ",badScanIdx
-
-        #LOG.debug("%s...\n%r" % (geoFiles[0],geoBlobArrObj._fields))
+        LOG.debug("Bad Scans: %r" % (badScanIdx))
 
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.
@@ -3238,9 +2986,6 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
         if terrainCorrectedGeo :
             terrain = getattr(geoBlobArrObj,'height').astype('float')
 
-        print latitude
-        print longitude
-
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
         latRange = latMax-latMin
@@ -3249,11 +2994,8 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
         lonMin,lonMax = np.min(longitude),np.max(longitude)
         lonRange = lonMax-lonMin
 
-        print "min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-        print "min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
-
-        LOG.info("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-        LOG.info("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+        LOG.debug("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+        LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Determine the latitude and longitude fill masks, so we can restore the 
         # fill values after we have scaled...
@@ -3266,7 +3008,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
         # FIXME :     geolocation short-name is *-GEO-TC (degrees) or
         # FIXME :     *-RGEO_TC (radians).
         if (lonRange < 2.*np.pi) :
-            LOG.info("Geolocation is in radians, convert to degrees...")
+            LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
@@ -3275,11 +3017,8 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.info("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-            LOG.info("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-
-        print "\nNew min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-        print "New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
+            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
 
@@ -3295,18 +3034,15 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
         # written to the ancillary asc files
 
         geoAscFileName = path.join(inDir,URID+".asc")
-        print "\nOpening %s..." % (geoAscFileName)
+        LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
         #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
         RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-        print 'RangeDateTimeStr = ',RangeDateTimeStr
         GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        print 'GRingLatitudeStr = ',GRingLatitudeStr
         GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-        print 'GRingLongitudeStr = ',GRingLongitudeStr
 
         geoAscFile.close()
 
@@ -3317,8 +3053,8 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
         for dSet in masksCollShortNames :
         
-            print "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n"
-            LOG.info("Processing dataset %s for %s" % (NCEP_shortNameToBlobName[dSet],dSet))
+            LOG.debug("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+            LOG.debug("Processing dataset %s for %s" % (NCEP_shortNameToBlobName[dSet],dSet))
 
             if (dSet=='VIIRS-ANC-Surf-Ht-Mod-Gran') and terrainCorrectedGeo :
 
@@ -3334,12 +3070,14 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
                 if (firstGranule) :
 
-                    LOG.info("Granulating %s ..." % (dSet))
-                    print "\nGranulating %s ..." % (dSet)
-                    print "latitide,longitude shapes: ",latitude.shape , longitude.shape
-                    print 'NCEP_anc.shape = %s' % (str(NCEP_anc.shape))
-                    print 'gridLat.shape = %s' % (str(gridLat.shape))
-                    print 'gridLon.shape = %s' % (str(gridLon.shape))
+                    LOG.debug("\nGranulating %s ..." % (dSet))
+                    LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+                    LOG.debug("NCEP_anc.shape = %s" % (str(NCEP_anc.shape)))
+                    LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
+                    LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
+
+                    LOG.debug("min of NCEP_anc  = %r",np.min(NCEP_anc))
+                    LOG.debug("max of NCEP_anc  = %r",np.max(NCEP_anc))
 
                     data,dataIdx = _grid2Gran(np.ravel(latitude),
                                               np.ravel(longitude),
@@ -3350,16 +3088,16 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
                     data = data.reshape(latitude.shape)
                     dataIdx = dataIdx.reshape(latitude.shape)
                     firstGranule = False
-                    print "Shape of first granulated %s data is %s" % (dSet,np.shape(data))
-                    print "Shape of first granulated %s dataIdx is %s" % (dSet,np.shape(dataIdx))
+                    LOG.debug("Shape of first granulated %s data is %s" % (dSet,np.shape(data)))
+                    LOG.debug("Shape of first granulated %s dataIdx is %s" % (dSet,np.shape(dataIdx)))
 
                 else :
 
-                    LOG.info("Granulating %s using existing data indices." % (dSet))
+                    LOG.debug("Granulating %s using existing data indices." % (dSet))
                     NCEP_anc = np.ravel(NCEP_anc)
                     data = np.ravel(NCEP_anc)[np.ravel(dataIdx)]
                     data = data.reshape(latitude.shape)
-                    print "Shape of subsequent granulated %s is %s" % (dSet,np.shape(data))
+                    LOG.debug("Shape of subsequent granulated %s is %s" % (dSet,np.shape(data)))
 
             # Fill the required pixel trim rows in the granulated NCEP data with 
             # the ONBOARD_PT_FILL value for the correct data type
@@ -3375,43 +3113,22 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
             # Create a new URID to be used in making the asc filenames
 
-            URID_timeObj = datetime.utcnow()
+            URID_dict = _getURID()
 
-            creationDateStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
-            creationDate_nousecStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.000000")
-
-            print "Date from datetime.utcnow(): %s" % (creationDateStr)
-
-            tv_sec = int(URID_timeObj.strftime("%s"))
-            tv_usec = int(URID_timeObj.strftime("%f"))
-            hostId_ = uuid.getnode()
-            thisAddress = id(URID_timeObj)
-
-            l = tv_sec + tv_usec + hostId_ + thisAddress
-
-            URID = '-'.join( ('{0:08x}'.format(tv_sec)[:8],
-                              '{0:05x}'.format(tv_usec)[:5],
-                              '{0:08x}'.format(hostId_)[:8],
-                              '{0:08x}'.format(l)[:8]) )
-
-            print "URID = %s\n" % (URID)
+            URID = URID_dict['URID']
+            creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+            creationDateStr = URID_dict['creationDateStr']
 
             # Create a new directory in the input directory for the new ancillary
             # asc and blob files
-            # FIXME : These should get written to the input directory
 
             blobDir = inDir
-
-            #blobDir = path.join(inDir,'newAncBlobs')
-            #if not os.path.exists(blobDir) :
-                #LOG.info("Creating directory %s" % (blobDir))
-                #os.mkdir(blobDir)
 
             ascFileName = path.join(blobDir,URID+'.asc')
             blobName = path.join(blobDir,URID+'.'+dSet)
 
-            LOG.info("ascFileName : %s" % (ascFileName))
-            LOG.info("blobName : %s" % (blobName))
+            LOG.debug("ascFileName : %s" % (ascFileName))
+            LOG.debug("blobName : %s" % (blobName))
 
             # Create a new ancillary blob, and copy the data to it.
             newNCEPblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
@@ -3424,7 +3141,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
             ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
 
-            print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
+            LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
             
             ANC_fileList = gridBlobFiles
             for idx in range(len(ANC_fileList)) :
@@ -3433,17 +3150,17 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
             ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
             ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) for files in ANC_fileList])
 
-            print "RangeDateTimeStr = %s\n" % (RangeDateTimeStr)
-            print "GRingLatitudeStr = \n%s\n" % (GRingLatitudeStr)
-            print "GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr)
+            LOG.debug("RangeDateTimeStr = %s\n" % (RangeDateTimeStr))
+            LOG.debug("GRingLatitudeStr = \n%s\n" % (GRingLatitudeStr))
+            LOG.debug("GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr))
 
 
             ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
             ascFile = open(ascFileName,"wt") # create a new text file
 
-            print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
+            LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
-            print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
+            LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
             for line in ascTemplateFile.readlines():
                line = line.replace("CSPP_URID",URID)
@@ -3618,18 +3335,19 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
         URID = dicts['URID']
         geo_Collection_ShortName = dicts['N_Collection_Short_Name']
         N_Granule_ID = dicts['N_Granule_ID']
+        ObservedStartTimeObj = dicts['ObservedStartTime']
         geoFiles = glob('%s/%s*' % (inDir,URID))
         geoFiles.sort()
-        LOG.info("%r" % (geoFiles))
 
-        print "\n###########################"
-        print "  Geolocation Information  "
-        print "###########################"
-        print "N_Granule_ID : ", N_Granule_ID
-        print "geoFiles : ", geoFiles
-        print "URID : ", URID
-        print "N_Collection_Short_Name : ", geo_Collection_ShortName
-        print "###########################\n"
+        LOG.debug("\n###########################")
+        LOG.debug("  Geolocation Information  ")
+        LOG.debug("###########################")
+        LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
+        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
+        LOG.debug("URID : %r" % (URID))
+        LOG.debug("geoFiles : %r" % (geoFiles))
+        LOG.debug("###########################\n")
 
         # Do we have terrain corrected geolocation?
 
@@ -3639,12 +3357,12 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
 
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
-            print "We have long form geolocation names"
+            LOG.debug("We have long form geolocation names")
         elif (geo_Collection_ShortName=='VIIRS-MOD-GEO' or geo_Collection_ShortName=='VIIRS-MOD-RGEO-TC') :
-            print "We have short form geolocation names"
+            LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname")
+            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
             return -1
 
         # Get the geolocation xml file
@@ -3652,7 +3370,7 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
         if os.path.exists(geoXmlFile):
-            LOG.info("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
 
         # Open the geolocation blob and get the latitude and longitude
 
@@ -3670,9 +3388,7 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
 
         scanMode = geoBlobArrObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
-        print "Bad Scans: ",badScanIdx
-
-        #LOG.debug("%s...\n%r" % (geoFiles[0],geoBlobArrObj._fields))
+        LOG.debug("Bad Scans: %r" % (badScanIdx))
 
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.
@@ -3687,9 +3403,6 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
         if terrainCorrectedGeo :
             terrain = getattr(geoBlobArrObj,'height').astype('float')
 
-        print latitude
-        print longitude
-
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
         latRange = latMax-latMin
@@ -3698,11 +3411,8 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
         lonMin,lonMax = np.min(longitude),np.max(longitude)
         lonRange = lonMax-lonMin
 
-        print "min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-        print "min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
-
-        LOG.info("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-        LOG.info("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+        LOG.debug("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+        LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Determine the latitude and longitude fill masks, so we can restore the 
         # fill values after we have scaled...
@@ -3715,7 +3425,7 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
         # FIXME :     geolocation short-name is *-GEO-TC (degrees) or
         # FIXME :     *-RGEO_TC (radians).
         if (lonRange < 2.*np.pi) :
-            LOG.info("Geolocation is in radians, convert to degrees...")
+            LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
@@ -3724,11 +3434,8 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.info("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-            LOG.info("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-
-        print "\nNew min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-        print "New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
+            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
 
@@ -3744,18 +3451,15 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
         # written to the ancillary asc files
 
         geoAscFileName = path.join(inDir,URID+".asc")
-        print "\nOpening %s..." % (geoAscFileName)
+        LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
         #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
         RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-        print 'RangeDateTimeStr = ',RangeDateTimeStr
         GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        print 'GRingLatitudeStr = ',GRingLatitudeStr
         GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-        print 'GRingLongitudeStr = ',GRingLongitudeStr
 
         geoAscFile.close()
 
@@ -3766,8 +3470,8 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
 
         for dSet in masksCollShortNames :
         
-            print "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n"
-            LOG.info("Processing dataset %s for %s" % (NCEP_shortNameToBlobName[dSet],dSet))
+            LOG.debug("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+            LOG.debug("Processing dataset %s for %s" % (NCEP_shortNameToBlobName[dSet],dSet))
 
             if (dSet=='VIIRS-ANC-Surf-Ht-Mod-Gran') and terrainCorrectedGeo :
 
@@ -3783,12 +3487,14 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
 
                 if (firstGranule) :
 
-                    LOG.info("Granulating %s ..." % (dSet))
-                    print "\nGranulating %s ..." % (dSet)
-                    print "latitide,longitude shapes: ",latitude.shape , longitude.shape
-                    print 'NCEP_anc.shape = %s' % (str(NCEP_anc.shape))
-                    print 'gridLat.shape = %s' % (str(gridLat.shape))
-                    print 'gridLon.shape = %s' % (str(gridLon.shape))
+                    LOG.debug("\nGranulating %s ..." % (dSet))
+                    LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+                    LOG.debug("NCEP_anc.shape = %s" % (str(NCEP_anc.shape)))
+                    LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
+                    LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
+
+                    LOG.debug("min of NCEP_anc  = ",np.min(NCEP_anc))
+                    LOG.debug("max of NCEP_anc  = ",np.max(NCEP_anc))
 
                     data,dataIdx = _grid2Gran(np.ravel(latitude),
                                               np.ravel(longitude),
@@ -3799,16 +3505,16 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
                     data = data.reshape(latitude.shape)
                     dataIdx = dataIdx.reshape(latitude.shape)
                     firstGranule = False
-                    print "Shape of first granulated %s data is %s" % (dSet,np.shape(data))
-                    print "Shape of first granulated %s dataIdx is %s" % (dSet,np.shape(dataIdx))
+                    LOG.debug("Shape of first granulated %s data is %s" % (dSet,np.shape(data)))
+                    LOG.debug("Shape of first granulated %s dataIdx is %s" % (dSet,np.shape(dataIdx)))
 
                 else :
 
-                    LOG.info("Granulating %s using existing data indices." % (dSet))
+                    LOG.debug("Granulating %s using existing data indices." % (dSet))
                     NCEP_anc = np.ravel(NCEP_anc)
                     data = np.ravel(NCEP_anc)[np.ravel(dataIdx)]
                     data = data.reshape(latitude.shape)
-                    print "Shape of subsequent granulated %s is %s" % (dSet,np.shape(data))
+                    LOG.debug("Shape of subsequent granulated %s is %s" % (dSet,np.shape(data)))
 
             # Fill the required pixel trim rows in the granulated NCEP data with 
             # the ONBOARD_PT_FILL value for the correct data type
@@ -3824,43 +3530,22 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
 
             # Create a new URID to be used in making the asc filenames
 
-            URID_timeObj = datetime.utcnow()
+            URID_dict = _getURID()
 
-            creationDateStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
-            creationDate_nousecStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.000000")
-
-            print "Date from datetime.utcnow(): %s" % (creationDateStr)
-
-            tv_sec = int(URID_timeObj.strftime("%s"))
-            tv_usec = int(URID_timeObj.strftime("%f"))
-            hostId_ = uuid.getnode()
-            thisAddress = id(URID_timeObj)
-
-            l = tv_sec + tv_usec + hostId_ + thisAddress
-
-            URID = '-'.join( ('{0:08x}'.format(tv_sec)[:8],
-                              '{0:05x}'.format(tv_usec)[:5],
-                              '{0:08x}'.format(hostId_)[:8],
-                              '{0:08x}'.format(l)[:8]) )
-
-            print "URID = %s\n" % (URID)
+            URID = URID_dict['URID']
+            creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+            creationDateStr = URID_dict['creationDateStr']
 
             # Create a new directory in the input directory for the new ancillary
             # asc and blob files
-            # FIXME : These should get written to the input directory
 
             blobDir = inDir
-
-            #blobDir = path.join(inDir,'newAncBlobs')
-            #if not os.path.exists(blobDir) :
-                #LOG.info("Creating directory %s" % (blobDir))
-                #os.mkdir(blobDir)
 
             ascFileName = path.join(blobDir,URID+'.asc')
             blobName = path.join(blobDir,URID+'.'+dSet)
 
-            LOG.info("ascFileName : %s" % (ascFileName))
-            LOG.info("blobName : %s" % (blobName))
+            LOG.debug("ascFileName : %s" % (ascFileName))
+            LOG.debug("blobName : %s" % (blobName))
 
             # Create a new ancillary blob, and copy the data to it.
             newNCEPblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
@@ -3873,7 +3558,7 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
 
             ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
 
-            print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
+            LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
             
             ANC_fileList = gridBlobFiles
             for idx in range(len(ANC_fileList)) :
@@ -3882,17 +3567,17 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
             ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
             ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) for files in ANC_fileList])
 
-            print "RangeDateTimeStr = %s\n" % (RangeDateTimeStr)
-            print "GRingLatitudeStr = \n%s\n" % (GRingLatitudeStr)
-            print "GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr)
+            LOG.debug("RangeDateTimeStr = %s\n" % (RangeDateTimeStr))
+            LOG.debug("GRingLatitudeStr = \n%s\n" % (GRingLatitudeStr))
+            LOG.debug("GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr))
 
 
             ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
             ascFile = open(ascFileName,"wt") # create a new text file
 
-            print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
+            LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
-            print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
+            LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
             for line in ascTemplateFile.readlines():
                line = line.replace("CSPP_URID",URID)
@@ -3987,18 +3672,19 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
         URID = dicts['URID']
         geo_Collection_ShortName = dicts['N_Collection_Short_Name']
         N_Granule_ID = dicts['N_Granule_ID']
+        ObservedStartTimeObj = dicts['ObservedStartTime']
         geoFiles = glob('%s/%s*' % (inDir,URID))
         geoFiles.sort()
-        LOG.info("%r" % (geoFiles))
 
-        print "\n###########################"
-        print "  Geolocation Information  "
-        print "###########################"
-        print "N_Granule_ID : ", N_Granule_ID
-        print "geoFiles : ", geoFiles
-        print "URID : ", URID
-        print "N_Collection_Short_Name : ", geo_Collection_ShortName
-        print "###########################\n"
+        LOG.debug("\n###########################")
+        LOG.debug("  Geolocation Information  ")
+        LOG.debug("###########################")
+        LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
+        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
+        LOG.debug("URID : %r" % (URID))
+        LOG.debug("geoFiles : %r" % (geoFiles))
+        LOG.debug("###########################\n")
 
         # Do we have terrain corrected geolocation?
 
@@ -4008,12 +3694,12 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
-            print "We have long form geolocation names"
+            LOG.debug("We have long form geolocation names")
         elif (geo_Collection_ShortName=='VIIRS-MOD-GEO' or geo_Collection_ShortName=='VIIRS-MOD-RGEO-TC') :
-            print "We have short form geolocation names"
+            LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname")
+            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
             return -1
 
         # Get the geolocation xml file
@@ -4021,7 +3707,7 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
         if os.path.exists(geoXmlFile):
-            LOG.info("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
 
         # Open the geolocation blob and get the latitude and longitude
 
@@ -4030,13 +3716,16 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
         geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
         geoBlobArrObj = geoBlobObj.as_arrays()
 
+        # If we have the terrain corrected geolocation, get the terrain height
+
+        if terrainCorrectedGeo :
+            terrainHeight = geoBlobArrObj.height[:,:]
+
         # Get scan_mode to find any bad scans
 
         scanMode = geoBlobArrObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
-        print "Bad Scans: ",badScanIdx
-
-        #LOG.debug("%s...\n%r" % (geoFiles[0],geoBlobArrObj._fields))
+        LOG.debug("Bad Scans: %r" % (badScanIdx))
 
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.
@@ -4048,9 +3737,6 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
             latitude = getattr(geoBlobArrObj,'lat').astype('float')
             longitude = getattr(geoBlobArrObj,'lon').astype('float')
         
-        print latitude
-        print longitude
-
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
         latRange = latMax-latMin
@@ -4059,11 +3745,8 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
         lonMin,lonMax = np.min(longitude),np.max(longitude)
         lonRange = lonMax-lonMin
 
-        print "min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-        print "min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
-
-        LOG.info("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-        LOG.info("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+        LOG.debug("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+        LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Determine the latitude and longitude fill masks, so we can restore the 
         # fill values after we have scaled...
@@ -4076,7 +3759,7 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
         # FIXME :     geolocation short-name is *-GEO-TC (degrees) or
         # FIXME :     *-RGEO_TC (radians).
         if (lonRange < 2.*np.pi) :
-            LOG.info("Geolocation is in radians, convert to degrees...")
+            LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
@@ -4085,11 +3768,8 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.info("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-            LOG.info("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-
-        print "\nNew min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange)
-        print "New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange)
+            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
 
@@ -4105,18 +3785,15 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
         # written to the ancillary asc files
 
         geoAscFileName = path.join(inDir,URID+".asc")
-        print "\nOpening %s..." % (geoAscFileName)
+        LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
         #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
         RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-        print 'RangeDateTimeStr = ',RangeDateTimeStr
         GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        print 'GRingLatitudeStr = ',GRingLatitudeStr
         GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-        print 'GRingLongitudeStr = ',GRingLongitudeStr
 
         geoAscFile.close()
 
@@ -4127,8 +3804,8 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
         for dSet in masksCollShortNames :
         
-            print "\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n"
-            LOG.info("Processing dataset %s for %s" % (NAAPS_shortNameToBlobName[dSet],dSet))
+            LOG.debug("\n>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n")
+            LOG.debug("Processing dataset %s for %s" % (NAAPS_shortNameToBlobName[dSet],dSet))
 
             # FIXME : Account for dateline and pole crossings...
 
@@ -4138,12 +3815,14 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
             if (firstGranule) :
 
-                LOG.info("Granulating %s ..." % (dSet))
-                print "\nGranulating %s ..." % (dSet)
-                print "latitide,longitude shapes: ",latitude.shape , longitude.shape
-                print 'NAAPS_anc.shape = %s' % (str(NAAPS_anc.shape))
-                print 'gridLat.shape = %s' % (str(gridLat.shape))
-                print 'gridLon.shape = %s' % (str(gridLon.shape))
+                LOG.debug("\nGranulating %s ..." % (dSet))
+                LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+                LOG.debug("NAAPS_anc.shape = %s" % (str(NAAPS_anc.shape)))
+                LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
+                LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
+
+                LOG.debug("min of NAAPS_anc  = ",np.min(NAAPS_anc))
+                LOG.debug("max of NAAPS_anc  = ",np.max(NAAPS_anc))
 
                 data,dataIdx = _grid2Gran(np.ravel(latitude),
                                           np.ravel(longitude),
@@ -4154,16 +3833,16 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
                 data = data.reshape(latitude.shape)
                 dataIdx = dataIdx.reshape(latitude.shape)
                 firstGranule = False
-                print "Shape of first granulated %s data is %s" % (dSet,np.shape(data))
-                print "Shape of first granulated %s dataIdx is %s" % (dSet,np.shape(dataIdx))
+                LOG.debug("Shape of first granulated %s data is %s" % (dSet,np.shape(data)))
+                LOG.debug("Shape of first granulated %s dataIdx is %s" % (dSet,np.shape(dataIdx)))
 
             else :
 
-                LOG.info("Granulating %s using existing data indices." % (dSet))
+                LOG.debug("Granulating %s using existing data indices." % (dSet))
                 NAAPS_anc = np.ravel(NAAPS_anc)
                 data = np.ravel(NAAPS_anc)[np.ravel(dataIdx)]
                 data = data.reshape(latitude.shape)
-                print "Shape of subsequent granulated %s is %s" % (dSet,np.shape(data))
+                LOG.debug("Shape of subsequent granulated %s is %s" % (dSet,np.shape(data)))
 
             # Fill the required pixel trim rows in the granulated NAAPS data with 
             # the ONBOARD_PT_FILL value for the correct data type
@@ -4179,43 +3858,22 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
             # Create a new URID to be used in making the asc filenames
 
-            URID_timeObj = datetime.utcnow()
+            URID_dict = _getURID()
 
-            creationDateStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
-            creationDate_nousecStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.000000")
-
-            print "Date from datetime.utcnow(): %s" % (creationDateStr)
-
-            tv_sec = int(URID_timeObj.strftime("%s"))
-            tv_usec = int(URID_timeObj.strftime("%f"))
-            hostId_ = uuid.getnode()
-            thisAddress = id(URID_timeObj)
-
-            l = tv_sec + tv_usec + hostId_ + thisAddress
-
-            URID = '-'.join( ('{0:08x}'.format(tv_sec)[:8],
-                              '{0:05x}'.format(tv_usec)[:5],
-                              '{0:08x}'.format(hostId_)[:8],
-                              '{0:08x}'.format(l)[:8]) )
-
-            print "URID = %s\n" % (URID)
+            URID = URID_dict['URID']
+            creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+            creationDateStr = URID_dict['creationDateStr']
 
             # Create a new directory in the input directory for the new ancillary
             # asc and blob files
-            # FIXME : These should get written to the input directory
 
             blobDir = inDir
-
-            #blobDir = path.join(inDir,'newAncBlobs')
-            #if not os.path.exists(blobDir) :
-                #LOG.info("Creating directory %s" % (blobDir))
-                #os.mkdir(blobDir)
 
             ascFileName = path.join(blobDir,URID+'.asc')
             blobName = path.join(blobDir,URID+'.'+dSet)
 
-            LOG.info("ascFileName : %s" % (ascFileName))
-            LOG.info("blobName : %s" % (blobName))
+            LOG.debug("ascFileName : %s" % (ascFileName))
+            LOG.debug("blobName : %s" % (blobName))
 
             # Create a new ancillary blob, and copy the data to it.
             newNAAPSblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
@@ -4228,7 +3886,7 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
             ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
 
-            print "Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName)
+            LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
             
             ANC_fileList = gridBlobFiles
             for idx in range(len(ANC_fileList)) :
@@ -4237,17 +3895,17 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
             ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
             ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) for files in ANC_fileList])
 
-            print "RangeDateTimeStr = %s\n" % (RangeDateTimeStr)
-            print "GRingLatitudeStr = \n%s\n" % (GRingLatitudeStr)
-            print "GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr)
+            LOG.debug("RangeDateTimeStr = %s\n" % (RangeDateTimeStr))
+            LOG.debug("GRingLatitudeStr = \n%s\n" % (GRingLatitudeStr))
+            LOG.debug("GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr))
 
 
             ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
             ascFile = open(ascFileName,"wt") # create a new text file
 
-            print "Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode)
+            LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
-            print "New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode)
+            LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
             for line in ascTemplateFile.readlines():
                line = line.replace("CSPP_URID",URID)
@@ -4486,7 +4144,6 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
             try:
                 pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
                 LOG.debug("%r ran as pid %d" % (cmd, pid))
-                print "%r ran as pid %d" % (cmd, pid)
                 if not check_log_files(work_dir, pid, xml):
                     bad_log_runs.add(granule_id)
 
@@ -4547,32 +4204,32 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         t2 = time()
         LOG.info ( "Controller ran in %f seconds." % (t2-t1))
 
-    print "cmask_ID.values() = \n%r" % (cmask_ID.values())
-    print "set(cmask_ID.values()) = \n%r" % (set(cmask_ID.values()))
-    print "cmask_prior_granules = \n%r" % (cmask_prior_granules)
+    LOG.debug("cmask_ID.values() = \n%r" % (cmask_ID.values()))
+    LOG.debug("set(cmask_ID.values()) = \n%r" % (set(cmask_ID.values())))
+    LOG.debug("cmask_prior_granules = \n%r" % (cmask_prior_granules))
     cmask_granules_made = set(cmask_ID.values()) - cmask_prior_granules
 
-    print "afires_ID.values() = \n%r" % (afires_ID.values())
-    print "set(afires_ID.values()) = \n%r" % (set(afires_ID.values()))
-    print "activeFires_prior_granules = \n%r" % (activeFires_prior_granules)
+    LOG.debug("afires_ID.values() = \n%r" % (afires_ID.values()))
+    LOG.debug("set(afires_ID.values()) = \n%r" % (set(afires_ID.values())))
+    LOG.debug("activeFires_prior_granules = \n%r" % (activeFires_prior_granules))
     activeFires_granules_made = set(afires_ID.values()) - activeFires_prior_granules
 
     # TODO : Enable for VIIRS AOT
-    #print "aotIp_ID.values() = \n%r" % (aotIp_ID.values())
-    #print "set(aotIp_ID.values()) = \n%r" % (set(aotIp_ID.values()))
-    #print "aerosolIP_prior_granules = \n%r" % (aerosolIP_prior_granules)
+    #LOG.debug("aotIp_ID.values() = \n%r" % (aotIp_ID.values()))
+    #LOG.debug("set(aotIp_ID.values()) = \n%r" % (set(aotIp_ID.values())))
+    #LOG.debug("aerosolIP_prior_granules = \n%r" % (aerosolIP_prior_granules))
     #aerosolIP_granules_made = set(aotIp_ID.values()) - aerosolIP_prior_granules
 
     # TODO : Enable for VIIRS AOT
-    #print "aotEdr_ID.values() = \n%r" % (aotEdr_ID.values())
-    #print "set(aotEdr_ID.values()) = \n%r" % (set(aotEdr_ID.values()))
-    #print "aerosolEDR_prior_granules = \n%r" % (aerosolEDR_prior_granules)
+    #LOG.debug("aotEdr_ID.values() = \n%r" % (aotEdr_ID.values()))
+    #LOG.debug("set(aotEdr_ID.values()) = \n%r" % (set(aotEdr_ID.values())))
+    #LOG.debug("aerosolEDR_prior_granules = \n%r" % (aerosolEDR_prior_granules))
     #aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
 
     # TODO : Enable for VIIRS AOT
-    #print "suspMatEdr_ID.values() = \n%r" % (suspMatEdr_ID.values())
-    #print "set(suspMatEdr_ID.values()) = \n%r" % (set(suspMatEdr_ID.values()))
-    #print "suspMatEDR_prior_granules = \n%r" % (suspMatEDR_prior_granules)
+    #LOG.debug("suspMatEdr_ID.values() = \n%r" % (suspMatEdr_ID.values()))
+    #LOG.debug("set(suspMatEdr_ID.values()) = \n%r" % (set(suspMatEdr_ID.values())))
+    #LOG.debug("suspMatEDR_prior_granules = \n%r" % (suspMatEDR_prior_granules))
     #suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
 
 
@@ -4602,77 +4259,30 @@ def _cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
     LOG.info("cleaning up work directory...")
     for fn in glob(os.path.join(work_dir, '????????-?????-????????-????????.*')):
         LOG.debug('removing %s' % fn)
-        print "removing %s" % (fn)
         os.unlink(fn)
 
     LOG.info("Removing task xml files...")
-    print "Removing task xml files... %s ..."%(xml_glob)
     for fn in glob(os.path.join(work_dir, xml_glob)):
         LOG.debug('removing task file %s' % fn)
         os.unlink(fn)
 
     LOG.info("Removing log directories %s ..."%(log_dir_glob))
-    print "Removing log directories %s ..."%(log_dir_glob)
     for dirname in glob(os.path.join(work_dir,log_dir_glob)):
         LOG.debug('removing logs in %s' % dirname)
-        print "\tremoving %s" % (dirname)
         try :
             rmtree(dirname, ignore_errors=False)
         except Exception, err:
             LOG.warn( "%s" % (str(err)))
-            print "%s" % (str(err))
 
     # FIXME : Cannot seem to remove the log directory, complains that the dir is not empty.
     LOG.info("Removing other directories ...")
-    print "Removing other directories ..."
     for dirname in more_dirs:
         fullDirName = os.path.join(work_dir,dirname)
         LOG.debug('removing %s' % fullDirName)
-        print "\tremoving %s" % (fullDirName)
         try :
             rmtree(fullDirName, ignore_errors=False)
         except Exception, err:
             LOG.warn( "%s" % (str(err)))
-            print "%s" % (str(err))
-
-
-def _ldd_verify(exe):
-    "check that a program is ready to run"
-    rc = call(['ldd', exe], stdout=os.tmpfile(), stderr=os.tmpfile())
-    return (rc==0)
-
-
-def _check_env():
-    if 'DPE_SITE_ID' not in os.environ:
-        LOG.warning("DPE_SITE_ID should be set in environment - see https://jpss-adl-wiki.ssec.wisc.edu/mediawiki/index.php/NPP_Product_Domains")
-    if 'DPE_DOMAIN' not in os.environ:
-        LOG.warning("DPE_SITE_ID should be set in environment - see https://jpss-adl-wiki.ssec.wisc.edu/mediawiki/index.php/NPP_Product_Domains")
-    if 'DSTATICDATA' not in os.environ:
-        LOG.warning("DSTATICDATA should be set in environment - used for IET time reference")
-    if 'NPP_GRANULE_ID_BASETIME' not in os.environ:
-        LOG.warning("NPP_GRANULE_ID_BASETIME should be set in environment - launch reference time")
-    from adl_common import ADL_UNPACKER
-    if not _ldd_verify(ADL_UNPACKER):
-        LOG.warning("%r executable is unlikely to run, is LD_LIBRARY_PATH set?" % ADL_UNPACKER)
-    if not _ldd_verify(ADL_VIIRS_MASKS_EDR):
-        LOG.warning("%r executable is unlikely to run, is LD_LIBRARY_PATH set?" % ADL_VIIRS_MASKS_EDR)
-        
-def viirs_edr_luts_and_ancillary(work_dir,granules_to_process) :
-   
-    # and the patterns we're looking for
-    ADL_VIIRS_EDR_ANC_GLOBS =  (
-        '*VIIRS-AF-EDR-AC-Int*','*VIIRS-CM-IP-AC-Int*','*VIIRS-AF-EDR-AC-Int*',
-    )
-      
-    try :            
-        ANCILLARY_SUB_DIR="linked_data"    
-        anc_dir=os.path.join(work_dir,ANCILLARY_SUB_DIR)
-        search_dirs = [ os.getenv('CSPP_SDR_LUTS')  ]          
-                    
-        ancillary_files_neeeded=anc_files_needed(ADL_VIIRS_EDR_ANC_GLOBS, search_dirs, granules_to_process)
-        link_ancillary_to_work_dir(work_dir, ancillary_files_neeeded)
-    except :
-        print "Skip exception"
 
 
 def main():
@@ -4783,19 +4393,27 @@ def main():
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
+    # Set up the logging
+
+    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+    configure_logging(level = levels[min(options.verbosity,3)])
+
+    # Test the logging
+
+    #test_logging()
+    #sys.exit(0)
+
     # Determine the correct input file path and glob
 
     input_dir,inputGlobs = _create_input_file_globs(options.inputFiles)
 
-    print "inputGlobs['GEO'] = %s" % (inputGlobs['GEO'])
-    print "inputGlobs['MOD'] = %s" % (inputGlobs['MOD'])
-    print "inputGlobs['IMG'] = %s" % (inputGlobs['IMG'])
+    # Set the work directory
 
     work_dir = os.path.abspath(options.work_dir)
-    LOG.debug('work directory is %r' % work_dir)
+    LOG.debug('Setting the work directory to %r' % work_dir)
 
-    # Check the environment variables
-    _check_env()
+    # Check the environment variables, and whether we can write to the working directory
+    check_env(work_dir)
     
     # create work directory
     if not os.path.isdir(work_dir):
@@ -4814,23 +4432,6 @@ def main():
         LOG.debug('creating directory %s' % anc_dir)
         os.makedirs(anc_dir)
 
-    # Set up the logging levels
-    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
-    output_logFile = "%s/ViirsEdrMasks_output.log" % (log_dir)
-    print "log file:  %s/ViirsEdrMasks_output.log" % (log_dir)
- 
-    try :
-       logFormat = '(%(levelname)s): %(filename)s ; %(module)s::%(funcName)s ; line %(lineno)d -> %(message)s'
-       logging.basicConfig(format=logFormat, filename=output_logFile, filemode='w', level = levels[options.verbosity])
-    
-    except IndexError :
-       print "ERROR : Invalid verbosity flag. Only -v, -vv, -vvv allowed, exiting..."
-       sys.exit(1)
-
-    verbosity = '-'
-    for v in range(options.verbosity) :
-        verbosity += 'v'
-        
     # Unpack HDF5 VIIRS SDRs in the input directory to the work directory
     unpacking_problems = 0
     if not options.skipSdrUnpack :
@@ -4852,7 +4453,7 @@ def main():
     else :
         LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
 
-    print "Unpacking problems = %d" % (unpacking_problems)
+    LOG.debug("Unpacking problems = %d" % (unpacking_problems))
 
     # Read through ascii metadata and build up information table
     LOG.info('Sifting through metadata to find VIIRS SDR processing candidates')
@@ -4863,13 +4464,13 @@ def main():
         granules_to_process     = sorted(list(sift_metadata_for_viirs_sdr(geoType,crossGran=1,   work_dir=work_dir)))
         
         if granules_to_process :
-            print "\tgranules_to_process() has %d objects..."%(len(granules_to_process))
+            LOG.debug("\tgranules_to_process() has %d objects..."%(len(granules_to_process)))
             LOG.info(', '.join(x['N_Granule_ID'] for x in granules_to_process))
-            print "\tanc_granules_to_process() has %d objects..."%(len(anc_granules_to_process))
+            LOG.debug("\tanc_granules_to_process() has %d objects..."%(len(anc_granules_to_process)))
             LOG.info(', '.join(x['N_Granule_ID'] for x in anc_granules_to_process))
             break
         else :
-            print "\tNo granules for VIIRS geolocation %s..." % (geoType)
+            LOG.warn("\tNo granules for VIIRS geolocation %s..." % (geoType))
 
     if not granules_to_process:
         LOG.error("Error: Found no granules to process!")
@@ -4891,11 +4492,11 @@ def main():
 
     # Get some information about the geolocation files
 
-    print "\nGetting geolocation information..."
+    LOG.debug("\nGetting geolocation information...")
 
-    print "\n%13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime')
+    LOG.debug("\n%13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime'))
     for dicts in granules_to_process :
-        print "%15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime'])
+        LOG.debug("%15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
 
     # Expand any user specifiers in the various paths
 
@@ -4905,13 +4506,12 @@ def main():
     CSPP_ANC_TILE_PATH = os.getenv('CSPP_ANC_TILE_PATH')
     LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH')
     DSTATICDATA = os.getenv('DSTATICDATA')
-    print "\nCSPP_ANC_HOME:      ",CSPP_ANC_HOME
-    print "CSPP_ANC_PATH:      ",CSPP_ANC_PATH
-    print "CSPP_ANC_CACHE_DIR: ",CSPP_ANC_CACHE_DIR
-    print "CSPP_ANC_TILE_PATH: ",CSPP_ANC_TILE_PATH
-    print "LD_LIBRARY_PATH:    ",LD_LIBRARY_PATH
-    print "DSTATICDATA:        ",DSTATICDATA
-    print ""
+    LOG.debug("\nCSPP_ANC_HOME:     %s" % (CSPP_ANC_HOME))
+    LOG.debug("CSPP_ANC_PATH:       %s" % (CSPP_ANC_PATH))
+    LOG.debug("CSPP_ANC_CACHE_DIR:  %s" % (CSPP_ANC_CACHE_DIR))
+    LOG.debug("CSPP_ANC_TILE_PATH:  %s" % (CSPP_ANC_TILE_PATH))
+    LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
+    LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
 
     # Link in auxillary files
 
@@ -4959,7 +4559,6 @@ def main():
                 #return -1
 
             all_dyn_anc = list(gribFiles) + list(niseFiles) # + list(naapsFiles)
-            print all_dyn_anc
             LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
 
 
@@ -4972,23 +4571,23 @@ def main():
         #gridBlobFiles = _create_NCEP_gridBlobs(gribFiles)
         gridBlobFiles = _create_NCEP_gridBlobs_alt(gribFiles)
 
-        print gridBlobFiles
+        LOG.debug("gridBlobFiles: %r" % (gridBlobFiles))
 
         # Granulate the global grid NCEP blob files
 
         granBlobFiles = _granulate_NCEP_gridBlobs(work_dir,anc_granules_to_process,gridBlobFiles)
         #granBlobFiles = _granulate_NCEP_gridBlobs_alt(work_dir,anc_granules_to_process,gridBlobFiles)
 
-        print granBlobFiles
+        LOG.debug("granBlobFiles: %r" % (granBlobFiles))
 
         # Transcode the NAAPS GRIB files into NAAPS global grid blob files
         #gridBlobFiles = _create_NAAPS_gridBlobs(naapsFiles)
         #gridBlobFiles = glob(path.join(work_dir,'*.NAAPS-ANC-Int'))
-        #print gridBlobFiles
+        #LOG.debug("gridBlobFiles: %r" % (gridBlobFiles)
 
         # Granulate the global grid NAAPS blob files
         #granBlobFiles = _granulate_NAAPS_gridBlobs(work_dir,anc_granules_to_process,gridBlobFiles)
-        #print granBlobFiles
+        #LOG.debug("granBlobFiles: %r" % (granBlobFiles)
 
         # Granulate the global DEM file
 
@@ -5024,15 +4623,13 @@ def main():
 
         # build XML configuration files for jobs that can be run
         LOG.debug("Building XML files for %d granules" % len(granules_to_process))
-        #CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
         
-        # Scott's lut method (don't use"
-        #viirs_edr_luts_and_ancillary(work_dir,granules_to_process)
-        
+        # Generate the VIIRS Cloud Mask/Active Fires LW xml files for each N_Granule_ID...
         xml_files_to_process = generate_viirs_masks_edr_xml(work_dir, granules_to_process)
+
         # TODO : Enable for VIIRS AOT
+        # Generate the VIIRS Aerosol Optical Thickness LW xml files for each N_Granule_ID...
         #xml_files_to_process = generate_viirs_aerosol_edr_xml(work_dir, granules_to_process)
-        print xml_files_to_process
 
         LOG.info('%d granules to process: \n%s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process)))
 
@@ -5044,13 +4641,16 @@ def main():
         noncritical_problem = crashed_runs or no_output_runs or geo_problem_runs or bad_log_runs
 
         ## print final disposition message and get return code
-        environment_error=False # TODO: Handle this exception properly.
+        environment_error=False
         rc = get_return_code(unpacking_problems, len(xml_files_to_process), len(no_output_runs), noncritical_problem, environment_error)
 
         ## if no errors or only non-critical errors: clean up
         if rc == 0 and not options.cspp_debug:
-            print "Cleaning up workspace..."
+            LOG.debug("Cleaning up workspace...")
             _cleanup(work_dir, 'edr_viirs_masks*.xml', 'ProEdrViirsMasksController.exe_*', log_dir, anc_dir, perf_dir)
+
+            # TODO : Enable for VIIRS AOT
+            #_cleanup(work_dir, 'edr_viirs_aerosol*.xml', 'ProEdrViirsAerosolController.exe_*', log_dir, anc_dir, perf_dir)
 
         return rc
     

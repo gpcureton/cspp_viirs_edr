@@ -439,30 +439,30 @@ int grid2gran(double *lat,
     int crnrPt,snapCrnrPt;
     int rowInBounds,colInBounds;
 
-    printf("Shape of data is (%ld)\n",nData);
-    printf("Shape of gridData is (%d, %d)\n", nGridRows,nGridCols);
-    printf("TRUE = %d\n", TRUE);
-    printf("FALSE = %d\n", FALSE);
+    /*printf("Shape of data is (%ld)\n",nData);*/
+    /*printf("Shape of gridData is (%d, %d)\n", nGridRows,nGridCols);*/
+    /*printf("TRUE = %d\n", TRUE);*/
+    /*printf("FALSE = %d\n", FALSE);*/
 
     int numShow = 10;
     int i;
-    printf("\nDisplaying lat,lon,data...\n");
-    for (i=0;i<numShow;i++){
-        printf("%6.1f %6.1f %6.1f\n",lat[i],lon[i],data[i]);
-    }
+    /*printf("\nDisplaying lat,lon,data...\n");*/
+    /*for (i=0;i<numShow;i++){*/
+        /*printf("%6.1f %6.1f %6.1f\n",lat[i],lon[i],data[i]);*/
+    /*}*/
 
     // Determine the lat and lon grid spacings
-    printf("nGridRows = %d\n", nGridRows);
-    printf("nGridCols = %d\n", nGridCols);
-    printf("gridLat[nGridCols] = %f\n", gridLat[nGridCols]);
-    printf("gridLat[0] = %f\n", gridLat[0]);
-    printf("gridLon[1] = %f\n", gridLon[1]);
-    printf("gridLon[0] = %f\n", gridLon[0]);
+    /*printf("nGridRows = %d\n", nGridRows);*/
+    /*printf("nGridCols = %d\n", nGridCols);*/
+    /*printf("gridLat[nGridCols] = %f\n", gridLat[nGridCols]);*/
+    /*printf("gridLat[0] = %f\n", gridLat[0]);*/
+    /*printf("gridLon[1] = %f\n", gridLon[1]);*/
+    /*printf("gridLon[0] = %f\n", gridLon[0]);*/
 
     gridLatInc = fabs(gridLat[nGridCols]-gridLat[0]);
     gridLonInc = fabs(gridLon[1]-gridLon[0]);
 
-    printf("gridLatInc,gridLonInc = (%6.1f %6.1f)\n",gridLatInc,gridLonInc);
+    /*printf("gridLatInc,gridLonInc = (%6.1f %6.1f)\n",gridLatInc,gridLonInc);*/
 
     // Loop through non-gridded data points, find matching gridpoint, and assign
     // gridpoint data value to that non-gridded data point.
