@@ -3,42 +3,51 @@
 # Wrapper environment script for VIIRS EDR components from ADL 3.1
 #
 # Environment settings:
-# CSPP_HOME : the location of the CSPP directory
+# CSPP_RT_HOME : the location of the CSPP_RT directory
 #
 # Copyright 2011-2012, University of Wisconsin Regents.
 # Licensed under the GNU GPLv3.
 
-# This script is dependent on cspp_env.sh having been sourced
-if [ -z "$CSPP_HOME" ]; then
-    echo "CSPP_HOME is not set, but is required for CSPP to operate."
+# This script is dependent on CSPP_RT_env.sh having been sourced
+if [ -z "$CSPP_EDR_HOME" ]; then
+    echo "CSPP_EDR_HOME is not set, but is required for CSPP_EDR to operate."
     exit 9
 fi
 
+export CSPP_RT_HOME=${CSPP_EDR_HOME}
+export CSPP_RT_ANC_CACHE_DIR=${CSPP_EDR_ANC_CACHE_DIR}
+# static ancillary data including default algorithm settings
+export CSPP_RT_ANC_HOME=${CSPP_EDR_ANC_HOME}
+# default location of static ancillary tiles, which we use in-place rather than linking into workspace
+export CSPP_RT_ANC_TILE_PATH=${CSPP_EDR_ANC_TILE_PATH}
 # load in commonly-used routines and derived environment
-# sources cspp_env.sh if needed
-source $CSPP_HOME/common/cspp_common.sh
+# sources CSPP_RT_env.sh if needed
+source $CSPP_RT_HOME/common/cspp_common.sh
 
 
-# set up CSPP_ANC_PATH to find VIIRS default configuration
+
+
+
+# set up CSPP_RT_ANC_PATH to find VIIRS default configuration
 # ancillary tile directory is directly referenced in input XML files
 # dynamic ancillary cache is handled by adl_anc_retrieval.py (this last script)
 # is currently used for SDR controllers for the moment. VIIRS EDR controllers
 # are supplied ancillary data by running bash ancillary scripts directly.
-if [ -z "$CSPP_ANC_PATH" ]; then
-    export CSPP_ANC_PATH=$CSPP_HOME/viirs/edr:$CSPP_ANC_HOME/ADL/data/repositories/cache
+if [ -z "$CSPP_RT_ANC_PATH" ]; then
+    export CSPP_RT_ANC_PATH=$CSPP_RT_HOME/anc/static:$CSPP_RT_ANC_HOME/ADL/data/repositories/cache
 else
-    echo "INFO: CSPP_ANC_PATH changed by user to $CSPP_ANC_PATH"
+    echo "INFO: CSPP_RT_ANC_PATH changed by user to $CSPP_RT_ANC_PATH"
 fi
 
 # test that we are reasonably sure we have what we need installed
-test -f "$CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py" \
-    || oops "$CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py not found"
-test -x "$CSPP_HOME/ADL/bin/ProEdrViirsMasksController.exe" \
-    || oops "$CSPP_HOME/ADL/bin/ProEdrViirsMasksController.exe not found"
+test -f "$CSPP_RT_HOME/masks/adl_viirs_edr_masks.py" \
+    || oops "$CSPP_RT_HOME/masks/adl_viirs_edr_masks.py not found"
+test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe" \
+    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe not found"
 test -x "$PY" \
-    || oops "Common CSPP python interpreter $PY not found"
-test -w "$CSPP_ANC_CACHE_DIR" \
-    || warn "CSPP_ANC_CACHE_DIR is not writable"
+    || oops "Common CSPP_RT python interpreter $PY not found"
+test -w "$CSPP_RT_ANC_CACHE_DIR" \
+    || warn "CSPP_RT_ANC_CACHE_DIR is not writable"
 
 help_usage() {
   cat <<EOF
@@ -46,9 +55,9 @@ help_usage() {
 Run the ADL VIIRS EDR.
 
 Usage: 
-    export CSPP_HOME=/path/to/CSPP/dir
-    source \$CSPP_HOME/cspp_env.sh
-    \$CSPP_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
+    export CSPP_RT_HOME=/path/to/CSPP_RT/dir
+    source \$CSPP_RT_HOME/CSPP_RT_env.sh
+    \$CSPP_RT_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
 
 
 Options:
@@ -103,9 +112,9 @@ usage() {
 Run the ADL VIIRS EDR.
 
 Usage: 
-    export CSPP_HOME=/path/to/CSPP/dir
-    source \$CSPP_HOME/cspp_env.sh
-    \$CSPP_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
+    export CSPP_RT_HOME=/path/to/CSPP_RT/dir
+    source \$CSPP_RT_HOME/CSPP_RT_env.sh
+    \$CSPP_RT_HOME/masks/viirs_edr_masks.sh [mandatory args] [options]
 
   -h, --help            Show the mandatory args and options and exit.
 
@@ -253,10 +262,10 @@ fi
 
 GDB=''
 #GDB='gdb --args'
-#$GDB $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
+#$GDB $PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr_masks.py \
 
 
-#echo "$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
+#echo "$PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr_masks.py \
     #$INPUT_FILES_OPT \
     #$WORK_DIR_OPT \
     #$SKIP_SDR_UNPACK_OPT \
@@ -271,7 +280,7 @@ GDB=''
 
 #exit 1
 
-$PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
+$PY $CSPP_RT_HOME/masks/adl_viirs_edr_masks.py \
     $INPUT_FILES_OPT \
     $WORK_DIR_OPT \
     $SKIP_SDR_UNPACK_OPT \
@@ -287,4 +296,4 @@ $PY $CSPP_HOME/viirs/edr/adl_viirs_edr_masks.py \
 #         Packaging          #
 ##############################
 
-#bash $CSPP_HOME/../CSPP_repo/trunk/scripts/edr/CSPP_ViirsEdrMasks_Package.sh  $CSPP_HOME/viirs/edr/viirs_edr_masks.sh ../../sample_data/viirs/edr/input/VIIRS_OPS_unpackTest/HDF5/
+#bash $CSPP_RT_HOME/../CSPP_RT_repo/trunk/scripts/edr/CSPP_RT_ViirsEdrMasks_Package.sh  $CSPP_RT_HOME/viirs/edr/viirs_edr_masks.sh ../../sample_data/viirs/edr/input/VIIRS_OPS_unpackTest/HDF5/

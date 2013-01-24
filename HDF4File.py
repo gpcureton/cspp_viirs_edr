@@ -98,7 +98,7 @@ class HDF4File():
             
             for i in range(0, len(vars)):
                 varname = vars[i]
-                LOG.info("Traversing level %s with varname '%s'",str(i),varname)
+                LOG.info("Traversing level %s with varname '%s'"%(str(i),varname))
                 
                 members = vgroup.tagrefs()
                 LOG.info("%s has members: %r" % (varname,members))

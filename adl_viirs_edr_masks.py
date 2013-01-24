@@ -28,12 +28,12 @@ Details:
     * The unpacker gives each unpacking of a given granule its own.
 
 Preconditions:
-    * Requires ADL_HOME, CSPP_ANC_PATH, CSPP_ANC_CACHE_DIR environment variables are set.
+    * Requires ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR environment variables are set.
     * Requires that any needed LD_LIBRARY_PATH is set.
     * Requires that DSTATICDATA is set.
 
 Optional:
-    * Environment variables CSPP_ANC_PATH, CSPP_ANC_CACHE_DIR, if static ancillary data is not 
+    * Environment variables CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, if static ancillary data is not 
       placed within ADL_HOME.
 
 Minimum commandline:
@@ -102,10 +102,10 @@ import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 
 # ancillary search and unpacker common routines
-# We need [ 'CSPP_HOME', 'ADL_HOME', 'CSPP_ANC_TILE_PATH', 'CSPP_ANC_CACHE_DIR', 'CSPP_ANC_PATH' ] environment 
+# We need [ 'CSPP_RT_HOME', 'ADL_HOME', 'CSPP_RT_ANC_TILE_PATH', 'CSPP_RT_ANC_CACHE_DIR', 'CSPP_RT_ANC_PATH' ] environment 
 # variables to be set...
 from adl_common import sh, anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
-from adl_common import ADL_HOME, CSPP_ANC_PATH, CSPP_ANC_CACHE_DIR, COMMON_SDR_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
 # log file scanning
 import adl_log
@@ -499,7 +499,7 @@ def _skim_viirs_sdr(collectionShortName,work_dir):
         print info
         path = info['BlobPath']
         if not os.path.isfile(path) or os.stat(path).st_size < MINIMUM_SDR_BLOB_SIZE:
-            LOG.info('Ignoring %s, invalid blob. For direct broadcast this can happen at start or end of pass.' % path)
+            LOG.info('Ignoring %s, invalid blob. For direct broadcast this can happen at start or end of pass.' % (path))
         else:
             yield info
 
@@ -531,18 +531,18 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
     seq = {}
     for a,b in zip(granlist[:-1], granlist[1:]):
         if a['N_Granule_ID']==b['N_Granule_ID']:
-            LOG.error('Granule %r has been unpacked to this directory multiple times!' % a['N_Granule_ID'])
+            LOG.error('Granule %r has been unpacked to this directory multiple times!' % (a['N_Granule_ID']))
             return
         if _is_contiguous(a, b, tolerance):
             seq[a['URID']] = a
             seq[b['URID']] = b
         else:
-            LOG.info('contiguous sequence has %d granules' % len(seq))
+            LOG.info('contiguous sequence has %d granules' % (len(seq)))
             yield tuple(sorted(seq.values(), key=start_time_key))
             seq.clear()
     # leftovers! yum!
     if seq:
-        LOG.info('contiguous sequence has %d granules' % len(seq))
+        LOG.info('contiguous sequence has %d granules' % (len(seq)))
         yield tuple(sorted(seq.values(), key=start_time_key))
 
 
@@ -587,7 +587,7 @@ XML_TMPL_VIIRS_MASKS_EDR = """<InfTkConfig>
   <isRestart>FALSE</isRestart>
   <useExtSiWriter>FALSE</useExtSiWriter>
   <debugLogLevel>LOW</debugLogLevel>
-  <debugLevel>DBG_LOW</debugLevel>
+  <debugLevel>DBG_HIGH</debugLevel>
   <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
   <perfPath>${WORK_DIR}/perf</perfPath>
@@ -682,7 +682,7 @@ XML_TMPL_VIIRS_MASKS_EDR_ADL41 = """<InfTkConfig>
      <healthTimeoutPeriod>30</healthTimeoutPeriod>
   </initData>
   <lockinMem>FALSE</lockinMem>
-  <rootDir>${ADL_HOME}/log</rootDir>
+  <rootDir>${WORK_DIR}/log</rootDir>
   <inputPath>${ADL_HOME}/data/input/withMetadata/ProEdrViirsMasksControllerInputs:${WORK_DIR}</inputPath>
   <outputPath>${ADL_HOME}/data/output/withMetadata/ProEdrViirsMasksControllerOutputs</outputPath>
   <dataStartIET>0</dataStartIET>
@@ -710,8 +710,8 @@ def generate_viirs_masks_edr_xml(work_dir, granule_seq):
     to_process = []
     for gran in granule_seq:
         name = gran['N_Granule_ID']
-        fnxml = 'edr_viirs_masks_%s.xml' % name
-        LOG.debug('writing XML file %r' % fnxml)
+        fnxml = 'edr_viirs_masks_%s.xml' % (name)
+        LOG.debug('writing XML file %r' % (fnxml))
         fpxml = file(os.path.join(work_dir, fnxml), 'wt')
         fpxml.write(XML_TMPL_VIIRS_MASKS_EDR % gran)
         to_process.append([name,fnxml])
@@ -723,8 +723,8 @@ def generate_viirs_aerosol_edr_xml(work_dir, granule_seq):
     to_process = []
     for gran in granule_seq:
         name = gran['N_Granule_ID']
-        fnxml = 'edr_viirs_aerosol_%s.xml' % name
-        LOG.debug('writing XML file %r' % fnxml)
+        fnxml = 'edr_viirs_aerosol_%s.xml' % (name)
+        LOG.debug('writing XML file %r' % (fnxml))
         fpxml = file(os.path.join(work_dir, fnxml), 'wt')
         fpxml.write(XML_TMPL_VIIRS_AEROSOL_EDR % gran)
         to_process.append([name,fnxml])
@@ -923,13 +923,13 @@ def _get_geo_Arrays(geoDicts):
 def _subset_IGBP(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
     '''Subsets the IGBP global ecosystem dataset to cover the required geolocation range.'''
 
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
 
     IGBP_dLat = 60.*(1./3600.)
     IGBP_dLon = 60.*(1./3600.)
 
     # Get the subset of NDVI global dataset.
-    IGBP_fileName = path.join(CSPP_ANC_HOME,'IGBP/IGBP.EcoMap.v1.0.2004.129.v004.h5')
+    IGBP_fileName = path.join(CSPP_RT_ANC_HOME,'IGBP/IGBP.EcoMap.v1.0.2004.129.v004.h5')
 
     try :
         IGBPobj = pytables.openFile(IGBP_fileName)
@@ -1035,13 +1035,13 @@ def _granulate_IGBP(geoDicts,inDir):
         N_Granule_ID = geoDict['N_Granule_ID']
 
         LOG.debug("\nGranulating %s ..." % ('IGBP'))
-        LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
         LOG.debug("IGBP_subset.shape = %s" % (str(IGBP_subset.shape)))
         LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
         LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-        LOG.debug("min of IGBP_subset  = ",np.min(IGBP_subset))
-        LOG.debug("max of IGBP_subset  = ",np.max(IGBP_subset))
+        LOG.debug("min of IGBP_subset  = %s"%(np.min(IGBP_subset)))
+        LOG.debug("max of IGBP_subset  = %s"%(np.max(IGBP_subset)))
 
         data,dataIdx = _grid2Gran(np.ravel(latitude),
                                   np.ravel(longitude),
@@ -1063,8 +1063,8 @@ def _granulate_IGBP(geoDicts,inDir):
 
         fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        LOG.debug("min of IGBP granule = %d",np.min(data))
-        LOG.debug("max of IGBP granule = %d",np.max(data))
+        LOG.debug("min of IGBP granule = %d"%(np.min(data)))
+        LOG.debug("max of IGBP granule = %d"%(np.max(data)))
 
         data = data.filled()
 
@@ -1076,7 +1076,7 @@ def _granulate_IGBP(geoDicts,inDir):
 def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
     '''Subsets the global elevation dataset to cover the required geolocation range.'''
 
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
 
     DEM_dLat = 30.*(1./3600.)
     DEM_dLon = 30.*(1./3600.)
@@ -1085,7 +1085,7 @@ def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLis
     DEM_gridLons = np.arange(43200.) * DEM_dLon - 180.
 
     # Get the subset of DEM global dataset.
-    DEM_fileName = path.join(CSPP_ANC_HOME,'LSM/dem30ARC_Global_LandWater_uncompressed.h5')
+    DEM_fileName = path.join(CSPP_RT_ANC_HOME,'LSM/dem30ARC_Global_LandWater_uncompressed.h5')
 
     dateLineCrossed,ascendingNode,descendingNode = isDatelineCrossed(latCrnList,lonCrnList)
     LOG.debug("dateLineCross is %r" % (dateLineCrossed))
@@ -1185,13 +1185,13 @@ def _granulate_DEM(geoDicts,inDir):
         N_Granule_ID = geoDict['N_Granule_ID']
 
         LOG.debug("\nGranulating %s ..." % ('DEM'))
-        LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
         LOG.debug("DEM_subset.shape = %s" % (str(DEM_subset.shape)))
         LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
         LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-        LOG.debug("min of DEM_subset  = ",np.min(DEM_subset))
-        LOG.debug("max of DEM_subset  = ",np.max(DEM_subset))
+        LOG.debug("min of DEM_subset  = %s"%(np.min(DEM_subset)))
+        LOG.debug("max of DEM_subset  = %s"%(np.max(DEM_subset)))
 
         data,dataIdx = _grid2Gran(np.ravel(latitude),
                                   np.ravel(longitude),
@@ -1213,8 +1213,8 @@ def _granulate_DEM(geoDicts,inDir):
 
         fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        LOG.debug("min of DEM granule = %d",np.min(data))
-        LOG.debug("max of DEM granule = %d",np.max(data))
+        LOG.debug("min of DEM granule = %d"%(np.min(data)))
+        LOG.debug("max of DEM granule = %d"%(np.max(data)))
 
         data = data.filled()
 
@@ -1226,7 +1226,7 @@ def _granulate_DEM(geoDicts,inDir):
 def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList,inDir,geoDict):
     '''Subsets the global NDVI dataset to cover the required geolocation range.'''
 
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
 
     NDVI_dLat = 60.*(1./3600.)
     NDVI_dLon = 60.*(1./3600.)
@@ -1261,7 +1261,7 @@ def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
         NDVIday = NDVIdays[lowerIdx]
         NDVIidx = lowerIdx
 
-    NDVI_fileName = path.join(CSPP_ANC_HOME,'NDVI/NDVI.FM.c004.v2.0.WS.00-04.%03d.h5'%(NDVIday))
+    NDVI_fileName = path.join(CSPP_RT_ANC_HOME,'NDVI/NDVI.FM.c004.v2.0.WS.00-04.%03d.h5'%(NDVIday))
 
     LOG.debug("NDVI file : %s" % (NDVI_fileName))
 
@@ -1343,8 +1343,8 @@ def _granulate_NDVI(inDir,geoDicts):
     global ancEndian 
 
     ADL_HOME = os.getenv('ADL_HOME')
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
-    ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
 
@@ -1383,13 +1383,13 @@ def _granulate_NDVI(inDir,geoDicts):
         N_Granule_ID = geoDict['N_Granule_ID']
 
         LOG.debug("\nGranulating %s ..." % (masksCollShortNames))
-        LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
         LOG.debug("NDVI_subset.shape = %s" % (str(NDVI_subset.shape)))
         LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
         LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-        LOG.debug("min of NDVI_subset = %r",np.min(NDVI_subset))
-        LOG.debug("max of NDVI_subset = %r",np.max(NDVI_subset))
+        LOG.debug("min of NDVI_subset = %r"%(np.min(NDVI_subset)))
+        LOG.debug("max of NDVI_subset = %r"%(np.max(NDVI_subset)))
 
         data,dataIdx = _grid2Gran(np.ravel(latitude),
                                   np.ravel(longitude),
@@ -1407,8 +1407,8 @@ def _granulate_NDVI(inDir,geoDicts):
 
         fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        LOG.debug("min of NDVI granule = %d",np.min(data))
-        LOG.debug("max of NDVI granule = %d",np.max(data))
+        LOG.debug("min of NDVI granule = %d"%(np.min(data)))
+        LOG.debug("max of NDVI granule = %d"%(np.max(data)))
 
         data = data.filled()
 
@@ -1538,12 +1538,12 @@ def _setupAuxillaryFiles(inDir):
     in the inDir, and create links to the binary auxillary files in inDir.
     '''
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     ADL_HOME = os.getenv('ADL_HOME')
 
@@ -1613,7 +1613,7 @@ def _setupAuxillaryFiles(inDir):
     charsInUrid = 32+1
 
     for templatePath,blobTempFileName in zip(auxillaryPaths,auxillaryBlobTemplateFile) :
-        blobTempFileName = path.join(CSPP_ANC_HOME,templatePath,blobTempFileName)
+        blobTempFileName = path.join(CSPP_RT_ANC_HOME,templatePath,blobTempFileName)
         if os.path.islink(blobTempFileName) :
             #auxillarySourceFile = string.split(os.path.basename(os.readlink(blobTempFileName)),'.')[1]
             auxillarySourceFile = os.path.basename(os.readlink(blobTempFileName))[charsInUrid:]
@@ -1669,7 +1669,7 @@ def _setupAuxillaryFiles(inDir):
 
         # Create a link between the binary template file and working directory
 
-        blobTempFileName = path.join(CSPP_ANC_HOME,templatePath,blobTempFileName)
+        blobTempFileName = path.join(CSPP_RT_ANC_HOME,templatePath,blobTempFileName)
         LOG.info("Creating the link %s -> %s" %(blobFileName,blobTempFileName))
 
         if not os.path.exists(blobFileName):
@@ -1690,12 +1690,12 @@ def _getGRC(inDir,geoDicts):
     Setup three dummy GRC files with the appropriate asc files
     '''
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     ADL_HOME = os.getenv('ADL_HOME')
 
@@ -1805,7 +1805,7 @@ def _getGRC(inDir,geoDicts):
                line = line.replace("  CSPP_RANGE_DATE_TIME",RangeDateTimeStr)
                line = line.replace("  CSPP_GRINGLATITUDE",GRingLatitudeStr)
                line = line.replace("  CSPP_GRINGLONGITUDE",GRingLongitudeStr)
-               #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
+               #line = line.replace("    CSPP_RT_ANC_SOURCE_FILES",ancFileStr)
 
                line = line.replace("  CSPP_NADIR_LATITUDE_MAX",N_Nadir_Latitude_Max)
                line = line.replace("  CSPP_NADIR_LATITUDE_MIN",N_Nadir_Latitude_Min)
@@ -1841,8 +1841,8 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
     global ancEndian 
 
     ADL_HOME = os.getenv('ADL_HOME')
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
-    ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran'
 
@@ -2169,9 +2169,9 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
 
     global ancEndian 
 
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     ADL_HOME = os.getenv('ADL_HOME')
-    ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'
 
@@ -2314,9 +2314,9 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
 def _retrieve_grib_files(geoDicts):
     ''' Download the GRIB files which cover the dates of the geolocation files.'''
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     # FIXME : Fix rounding up of the seconds if the decisecond>=9.5 
     gribFiles = []
@@ -2390,9 +2390,9 @@ def _create_NCEP_gridBlobs(gribFiles):
 
     blobFiles = []
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
 
@@ -2444,9 +2444,9 @@ def _create_NCEP_gridBlobs_alt(gribFiles):
 
     blobFiles = []
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
 
@@ -2541,9 +2541,9 @@ def _create_NCEP_gridBlobs_alt(gribFiles):
 def _retrieve_NAAPS_grib_files(geoDicts):
     ''' Download the NAAPS GRIB files which cover the dates of the geolocation files.'''
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     # FIXME : Fix rounding up of the seconds if the decisecond>=9.5 
     gribFiles = []
@@ -2619,10 +2619,10 @@ def _create_NAAPS_gridBlobs(gribFiles):
 
     blobFiles = []
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
 
@@ -2677,8 +2677,8 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
     data = np.ones(np.shape(dataLat),dtype=np.float64)* -999.9
     dataIdx  = np.ones(np.shape(dataLat),dtype=np.int64) * -99999
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
 
     libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
     LOG.debug("Gridding and granulation library file: %s" % (libFile))
@@ -2791,14 +2791,14 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
     global ancEndian 
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
 
-    ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
     
     # Collection shortnames of the required NCEP ancillary datasets
     # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
@@ -3071,13 +3071,13 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
                 if (firstGranule) :
 
                     LOG.debug("\nGranulating %s ..." % (dSet))
-                    LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+                    LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
                     LOG.debug("NCEP_anc.shape = %s" % (str(NCEP_anc.shape)))
                     LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
                     LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-                    LOG.debug("min of NCEP_anc  = %r",np.min(NCEP_anc))
-                    LOG.debug("max of NCEP_anc  = %r",np.max(NCEP_anc))
+                    LOG.debug("min of NCEP_anc  = %r"%(np.min(NCEP_anc)))
+                    LOG.debug("max of NCEP_anc  = %r"%(np.max(NCEP_anc)))
 
                     data,dataIdx = _grid2Gran(np.ravel(latitude),
                                               np.ravel(longitude),
@@ -3184,14 +3184,14 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
 
     global ancEndian 
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
 
-    ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
     
     # Collection shortnames of the required NCEP ancillary datasets
     # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
@@ -3488,13 +3488,13 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
                 if (firstGranule) :
 
                     LOG.debug("\nGranulating %s ..." % (dSet))
-                    LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+                    LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
                     LOG.debug("NCEP_anc.shape = %s" % (str(NCEP_anc.shape)))
                     LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
                     LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-                    LOG.debug("min of NCEP_anc  = ",np.min(NCEP_anc))
-                    LOG.debug("max of NCEP_anc  = ",np.max(NCEP_anc))
+                    LOG.debug("min of NCEP_anc  = "%(np.min(NCEP_anc)))
+                    LOG.debug("max of NCEP_anc  = "%(np.max(NCEP_anc)))
 
                     data,dataIdx = _grid2Gran(np.ravel(latitude),
                                               np.ravel(longitude),
@@ -3601,14 +3601,14 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
     global ancEndian 
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
 
-    ADL_ASC_TEMPLATES = path.join(CSPP_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
     
     # Collection shortnames of the required NAAPS ancillary datasets
     # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
@@ -3699,7 +3699,7 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s"% (geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -3816,13 +3816,13 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
             if (firstGranule) :
 
                 LOG.debug("\nGranulating %s ..." % (dSet))
-                LOG.debug("latitide,longitude shapes: %s, %s",str(latitude.shape) , str(longitude.shape))
+                LOG.debug("latitide,longitude shapes: %s, %s" %(str(latitude.shape) , str(longitude.shape)))
                 LOG.debug("NAAPS_anc.shape = %s" % (str(NAAPS_anc.shape)))
                 LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
                 LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-                LOG.debug("min of NAAPS_anc  = ",np.min(NAAPS_anc))
-                LOG.debug("max of NAAPS_anc  = ",np.max(NAAPS_anc))
+                LOG.debug("min of NAAPS_anc  = "%(np.min(NAAPS_anc)))
+                LOG.debug("max of NAAPS_anc  = "%(np.max(NAAPS_anc)))
 
                 data,dataIdx = _grid2Gran(np.ravel(latitude),
                                           np.ravel(longitude),
@@ -3927,9 +3927,9 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
 def _retrieve_NISE_files_and_convert(geoDicts):
     ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     niseFiles = []
 
@@ -3956,7 +3956,7 @@ def _retrieve_NISE_files_and_convert(geoDicts):
             #LOG.debug(procOutput)
             
             for lines in procOutput:
-                if CSPP_ANC_CACHE_DIR in lines :
+                if CSPP_RT_ANC_CACHE_DIR in lines :
                     lines = string.replace(lines,'\n','')
                     niseFiles.append(lines)
 
@@ -3984,7 +3984,7 @@ def _retrieve_NISE_files_and_convert(geoDicts):
 
             try :
                 LOG.info('Converting HDFEOS NISE file\n\t%s\nto HDF5...\n\t%s' % (files,new_niseName))
-                cmdStr = '%s/common/COTS/hdf5/hdf5-1.8.4/bin/h4toh5 %s %s' % (CSPP_HOME,files,new_niseName)
+                cmdStr = '%s/common/COTS/hdf5/hdf5-1.8.4/bin/h4toh5 %s %s' % (CSPP_RT_HOME,files,new_niseName)
                 LOG.info('\t%s' % (cmdStr))
                 args = shlex.split(cmdStr)
                 LOG.debug('\t%s' % (repr(args)))
@@ -4010,9 +4010,9 @@ def _retrieve_NISE_files_and_convert(geoDicts):
 def _retrieve_NISE_files(geoDicts):
     ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
 
-    CSPP_HOME = os.getenv('CSPP_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_HOME,'viirs/edr')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     niseFiles = []
 
@@ -4039,7 +4039,7 @@ def _retrieve_NISE_files(geoDicts):
             #LOG.debug(procOutput)
             
             for lines in procOutput:
-                if CSPP_ANC_CACHE_DIR in lines :
+                if CSPP_RT_ANC_CACHE_DIR in lines :
                     lines = string.replace(lines,'\n','')
                     niseFiles.append(lines)
 
@@ -4073,7 +4073,7 @@ def check_log_files(work_dir, pid, xml):
     n_err=0
     for logFile in glob(logpat):
         LOG.debug( "Checking Log file " +logFile +" for errors.")
-        n_err += adl_log.scan_log_file(COMMON_SDR_LOG_CHECK_TABLE, logFile)
+        n_err += adl_log.scan_log_file(COMMON_LOG_CHECK_TABLE, logFile)
 
     if n_err == 0 :
         LOG.debug(" Log: "+ logFile + " "+ xml + " Completed successfully" )
@@ -4155,18 +4155,18 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
 
             # check new IICMO output granules
             cmask_new_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH, state=cmask_ID)
-            LOG.debug('new IICMO granules after this run: %s' % repr(cmask_new_granules))
+            LOG.debug('new IICMO granules after this run: %s' % (repr(cmask_new_granules)))
             if granule_id not in cmask_new_granules:
-                LOG.warning('no IICMO HDF5 output for %s' % granule_id)
+                LOG.warning('no IICMO HDF5 output for %s' % (granule_id))
                 no_output_runs.add(granule_id)
             else:
                 filename = cmask_new_granules[granule_id]
 
             # check new AVAFO output granules
             afires_new_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH, state=afires_ID)
-            LOG.debug('new AVAFO granules after this run: %s' % repr(afires_new_granules))
+            LOG.debug('new AVAFO granules after this run: %s' % (repr(afires_new_granules)))
             if granule_id not in afires_new_granules:
-                LOG.warning('no AVAFO HDF5 output for %s' % granule_id)
+                LOG.warning('no AVAFO HDF5 output for %s' % (granule_id))
                 no_output_runs.add(granule_id)
             else:
                 filename = afires_new_granules[granule_id]
@@ -4233,20 +4233,20 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     #suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
 
 
-    LOG.info('cmask granules created: %s' % ', '.join(list(cmask_granules_made)))
-    LOG.info('activeFires granules created: %s' % ', '.join(list(activeFires_granules_made)))
+    LOG.info('cmask granules created: %s' %( ', '.join(list(cmask_granules_made))))
+    LOG.info('activeFires granules created: %s' % (', '.join(list(activeFires_granules_made))))
     #LOG.info('aerosolIP granules created: %s' % ', '.join(list(aerosolIP_granules_made)))
     #LOG.info('aerosolEDR granules created: %s' % ', '.join(list(aerosolEDR_granules_made)))
     #LOG.info('suspMatEDR granules created: %s' % ', '.join(list(suspMatEDR_granules_made)))
 
     if no_output_runs:
-        LOG.info('granules that failed to generate output: %s' % ', '.join(no_output_runs))
+        LOG.info('granules that failed to generate output: %s' % (', '.join(no_output_runs)))
     if geo_problem_runs:
         LOG.warning('granules which had no N_Geo_Ref: %s' % ', '.join(geo_problem_runs))
     if crashed_runs:
-        LOG.warning('granules that crashed ADL: %s' % ', '.join(crashed_runs))
+        LOG.warning('granules that crashed ADL: %s' % (', '.join(crashed_runs)))
     if bad_log_runs:
-        LOG.warning('granules that produced logs indicating problems: %s' % ', '.join(bad_log_runs))
+        LOG.warning('granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
     if not cmask_granules_made:
         LOG.warning('no HDF5 SDRs were created')
 
@@ -4258,17 +4258,17 @@ def _cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
 
     LOG.info("cleaning up work directory...")
     for fn in glob(os.path.join(work_dir, '????????-?????-????????-????????.*')):
-        LOG.debug('removing %s' % fn)
+        LOG.debug('removing %s' % (fn))
         os.unlink(fn)
 
     LOG.info("Removing task xml files...")
     for fn in glob(os.path.join(work_dir, xml_glob)):
-        LOG.debug('removing task file %s' % fn)
+        LOG.debug('removing task file %s' % (fn))
         os.unlink(fn)
 
     LOG.info("Removing log directories %s ..."%(log_dir_glob))
     for dirname in glob(os.path.join(work_dir,log_dir_glob)):
-        LOG.debug('removing logs in %s' % dirname)
+        LOG.debug('removing logs in %s' % (dirname))
         try :
             rmtree(dirname, ignore_errors=False)
         except Exception, err:
@@ -4278,7 +4278,7 @@ def _cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
     LOG.info("Removing other directories ...")
     for dirname in more_dirs:
         fullDirName = os.path.join(work_dir,dirname)
-        LOG.debug('removing %s' % fullDirName)
+        LOG.debug('removing %s' % (fullDirName))
         try :
             rmtree(fullDirName, ignore_errors=False)
         except Exception, err:
@@ -4410,26 +4410,26 @@ def main():
     # Set the work directory
 
     work_dir = os.path.abspath(options.work_dir)
-    LOG.debug('Setting the work directory to %r' % work_dir)
+    LOG.debug('Setting the work directory to %r' % (work_dir))
 
     # Check the environment variables, and whether we can write to the working directory
     check_env(work_dir)
     
     # create work directory
     if not os.path.isdir(work_dir):
-        LOG.info('creating directory %s' % work_dir)
+        LOG.info('creating directory %s' % (work_dir))
         os.makedirs(work_dir)
     log_dir = os.path.join(work_dir, 'log')
     if not os.path.isdir(log_dir):
-        LOG.debug('creating directory %s' % log_dir)
+        LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
     perf_dir = os.path.join(work_dir, 'perf')
     if not os.path.isdir(perf_dir):
-        LOG.debug('creating directory %s' % perf_dir)
+        LOG.debug('creating directory %s' % (perf_dir))
         os.makedirs(perf_dir)
     anc_dir = os.path.join(work_dir, 'linked_data')
     if not os.path.isdir(anc_dir):
-        LOG.debug('creating directory %s' % anc_dir)
+        LOG.debug('creating directory %s' % (anc_dir))
         os.makedirs(anc_dir)
 
     # Unpack HDF5 VIIRS SDRs in the input directory to the work directory
@@ -4500,16 +4500,16 @@ def main():
 
     # Expand any user specifiers in the various paths
 
-    CSPP_ANC_HOME = os.getenv('CSPP_ANC_HOME')
-    CSPP_ANC_PATH = os.getenv('CSPP_ANC_PATH')
-    CSPP_ANC_CACHE_DIR = os.getenv('CSPP_ANC_CACHE_DIR')
-    CSPP_ANC_TILE_PATH = os.getenv('CSPP_ANC_TILE_PATH')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    CSPP_RT_ANC_PATH = os.getenv('CSPP_RT_ANC_PATH')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    CSPP_RT_ANC_TILE_PATH = os.getenv('CSPP_RT_ANC_TILE_PATH')
     LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH')
     DSTATICDATA = os.getenv('DSTATICDATA')
-    LOG.debug("\nCSPP_ANC_HOME:     %s" % (CSPP_ANC_HOME))
-    LOG.debug("CSPP_ANC_PATH:       %s" % (CSPP_ANC_PATH))
-    LOG.debug("CSPP_ANC_CACHE_DIR:  %s" % (CSPP_ANC_CACHE_DIR))
-    LOG.debug("CSPP_ANC_TILE_PATH:  %s" % (CSPP_ANC_TILE_PATH))
+    LOG.debug("\nCSPP_RT_ANC_HOME:     %s" % (CSPP_RT_ANC_HOME))
+    LOG.debug("CSPP_RT_ANC_PATH:       %s" % (CSPP_RT_ANC_PATH))
+    LOG.debug("CSPP_RT_ANC_CACHE_DIR:  %s" % (CSPP_RT_ANC_CACHE_DIR))
+    LOG.debug("CSPP_RT_ANC_TILE_PATH:  %s" % (CSPP_RT_ANC_TILE_PATH))
     LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
     LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
 
