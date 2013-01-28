@@ -1542,7 +1542,7 @@ def _setupAuxillaryFiles(inDir):
     CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     ADL_HOME = os.getenv('ADL_HOME')
@@ -1694,7 +1694,7 @@ def _getGRC(inDir,geoDicts):
     CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     ADL_HOME = os.getenv('ADL_HOME')
@@ -2315,7 +2315,7 @@ def _retrieve_grib_files(geoDicts):
     ''' Download the GRIB files which cover the dates of the geolocation files.'''
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     # FIXME : Fix rounding up of the seconds if the decisecond>=9.5 
@@ -2391,7 +2391,7 @@ def _create_NCEP_gridBlobs(gribFiles):
     blobFiles = []
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
@@ -2445,7 +2445,7 @@ def _create_NCEP_gridBlobs_alt(gribFiles):
     blobFiles = []
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     csppPython = os.getenv('PY')
     ADL_HOME = os.getenv('ADL_HOME')
@@ -2542,7 +2542,7 @@ def _retrieve_NAAPS_grib_files(geoDicts):
     ''' Download the NAAPS GRIB files which cover the dates of the geolocation files.'''
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     # FIXME : Fix rounding up of the seconds if the decisecond>=9.5 
@@ -2620,7 +2620,7 @@ def _create_NAAPS_gridBlobs(gribFiles):
     blobFiles = []
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
@@ -2678,7 +2678,7 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
     dataIdx  = np.ones(np.shape(dataLat),dtype=np.int64) * -99999
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
 
     libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
     LOG.debug("Gridding and granulation library file: %s" % (libFile))
@@ -2792,7 +2792,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     global ancEndian 
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
@@ -3185,7 +3185,7 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
     global ancEndian 
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
@@ -3928,7 +3928,7 @@ def _retrieve_NISE_files_and_convert(geoDicts):
     ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     niseFiles = []
@@ -4011,7 +4011,7 @@ def _retrieve_NISE_files(geoDicts):
     ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     niseFiles = []

@@ -34,6 +34,6 @@ export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}/ADL/data/tiles/Terrain-Eco-AN
 
 export PATH=${CSPP_EDR_HOME}/common:$PATH
 export PATH=${CSPP_EDR_HOME}/common/ShellB3/bin:$PATH
-export PATH=${CSPP_EDR_HOME}/masks:$PATH
+export PATH=${CSPP_EDR_HOME}/viirs:$PATH
 
 

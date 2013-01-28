@@ -40,8 +40,8 @@ else
 fi
 
 # test that we are reasonably sure we have what we need installed
-test -f "$CSPP_RT_HOME/masks/adl_viirs_edr_masks.py" \
-    || oops "$CSPP_RT_HOME/masks/adl_viirs_edr_masks.py not found"
+test -f "$CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py" \
+    || oops "$CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py not found"
 test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe" \
     || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe not found"
 test -x "$PY" \
@@ -114,7 +114,7 @@ Run the ADL VIIRS EDR.
 Usage: 
     export CSPP_RT_HOME=/path/to/CSPP_RT/dir
     source \$CSPP_RT_HOME/CSPP_RT_env.sh
-    \$CSPP_RT_HOME/masks/viirs_edr_masks.sh [mandatory args] [options]
+    \$CSPP_RT_HOME/viirs/viirs_edr_masks.sh [mandatory args] [options]
 
   -h, --help            Show the mandatory args and options and exit.
 
@@ -280,7 +280,7 @@ GDB=''
 
 #exit 1
 
-$PY $CSPP_RT_HOME/masks/adl_viirs_edr_masks.py \
+$PY $CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py \
     $INPUT_FILES_OPT \
     $WORK_DIR_OPT \
     $SKIP_SDR_UNPACK_OPT \
