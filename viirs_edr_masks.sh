@@ -33,8 +33,8 @@ source $CSPP_RT_HOME/common/cspp_common.sh
 # dynamic ancillary cache is handled by adl_anc_retrieval.py (this last script)
 # is currently used for SDR controllers for the moment. VIIRS EDR controllers
 # are supplied ancillary data by running bash ancillary scripts directly.
-if [ -z "$CSPP_RT_ANC_PATH" ]; then
-    export CSPP_RT_ANC_PATH=$CSPP_RT_HOME/anc/static:$CSPP_RT_ANC_HOME/ADL/data/repositories/cache
+if [ -z "$CSPP_ANC_PATH" ]; then
+    export CSPP_RT_ANC_PATH=$CSPP_RT_HOME/anc/static
 else
     echo "INFO: CSPP_RT_ANC_PATH changed by user to $CSPP_RT_ANC_PATH"
 fi

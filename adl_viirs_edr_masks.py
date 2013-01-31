@@ -127,8 +127,8 @@ from adl_common import configure_logging
 from adl_common import _test_logging as test_logging
 
 # locations of executables in ADL
-ADL_VIIRS_MASKS_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsMasksController.exe')
-ADL_VIIRS_AEROSOL_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe')
+ADL_VIIRS_MASKS_EDR=os.path.abspath(os.path.join(ADL_HOME, 'bin', 'ProEdrViirsMasksController.exe'))
+ADL_VIIRS_AEROSOL_EDR=os.path.abspath(os.path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe'))
 
 # we're not likely to succeed in processing using geolocation smaller than this many bytes
 MINIMUM_SDR_BLOB_SIZE = 81000000
@@ -145,6 +145,9 @@ AF_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-AF-EDR/VIIRS-AF-EDR_Gran_0/N_Gran
 AOT_IP_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0/N_Granule_ID'
 AOT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-EDR/VIIRS-Aeros-EDR_Gran_0/N_Granule_ID'
 SUSMAT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-SusMat-EDR/VIIRS-SusMat-EDR_Gran_0/N_Granule_ID'
+
+CSPP_RT_ANC_HOME = os.path.abspath(os.getenv('CSPP_RT_ANC_HOME'))
+
 
 
 ###################################################
@@ -672,7 +675,7 @@ XML_TMPL_VIIRS_MASKS_EDR_ADL41 = """<InfTkConfig>
   <debugLevel>DBG_LOW</debugLevel>
   <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
-  <perfPath>${ADL_HOME}/perf</perfPath>
+  <perfPath>${ADL_HOME}/log</perfPath>
   <dbgPath>${ADL_HOME}/log</dbgPath>
   <initData>
      <domain>OPS</domain>
@@ -923,7 +926,7 @@ def _get_geo_Arrays(geoDicts):
 def _subset_IGBP(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
     '''Subsets the IGBP global ecosystem dataset to cover the required geolocation range.'''
 
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
 
     IGBP_dLat = 60.*(1./3600.)
     IGBP_dLon = 60.*(1./3600.)
@@ -1076,7 +1079,7 @@ def _granulate_IGBP(geoDicts,inDir):
 def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
     '''Subsets the global elevation dataset to cover the required geolocation range.'''
 
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
 
     DEM_dLat = 30.*(1./3600.)
     DEM_dLon = 30.*(1./3600.)
@@ -1226,7 +1229,7 @@ def _granulate_DEM(geoDicts,inDir):
 def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList,inDir,geoDict):
     '''Subsets the global NDVI dataset to cover the required geolocation range.'''
 
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
 
     NDVI_dLat = 60.*(1./3600.)
     NDVI_dLon = 60.*(1./3600.)
@@ -1342,8 +1345,8 @@ def _granulate_NDVI(inDir,geoDicts):
 
     global ancEndian 
 
-    ADL_HOME = os.getenv('ADL_HOME')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
@@ -1539,13 +1542,13 @@ def _setupAuxillaryFiles(inDir):
     '''
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
-    ADL_HOME = os.getenv('ADL_HOME')
+    
 
     #auxillaryCollShortNames = ['VIIRS-CM-IP-AC-Int','VIIRS-AF-EDR-AC-Int','VIIRS-Aeros-EDR-AC-Int','NAAPS-ANC-Int','AOT-ANC','VIIRS-AOT-LUT','VIIRS-AOT-Sunglint-LUT','VIIRS-AF-EDR-DQTT','VIIRS-Aeros-EDR-DQTT','VIIRS-SusMat-EDR-DQTT']
     #auxillaryAscTemplateFile = ['VIIRS-CM-IP-AC-Template.asc','VIIRS-AF-EDR-AC-Template.asc','VIIRS-Aeros-EDR-AC-Template.asc','NAAPS-ANC-Inc-Template.asc','AOT-ANC-Template.asc',']
@@ -1691,13 +1694,13 @@ def _getGRC(inDir,geoDicts):
     '''
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
-    ADL_HOME = os.getenv('ADL_HOME')
+    
 
     # Get a bunch of information about the geolocation
     latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
@@ -1840,8 +1843,8 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
 
     global ancEndian 
 
-    ADL_HOME = os.getenv('ADL_HOME')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran'
@@ -2169,8 +2172,8 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
 
     global ancEndian 
 
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
-    ADL_HOME = os.getenv('ADL_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'
@@ -2394,7 +2397,7 @@ def _create_NCEP_gridBlobs(gribFiles):
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     csppPython = os.getenv('PY')
-    ADL_HOME = os.getenv('ADL_HOME')
+    
 
     for files in gribFiles :
         gribPath = path.dirname(files)
@@ -2448,7 +2451,7 @@ def _create_NCEP_gridBlobs_alt(gribFiles):
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     csppPython = os.getenv('PY')
-    ADL_HOME = os.getenv('ADL_HOME')
+    
 
     for files in gribFiles :
         gribPath = path.dirname(files)
@@ -2622,9 +2625,9 @@ def _create_NAAPS_gridBlobs(gribFiles):
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
-    ADL_HOME = os.getenv('ADL_HOME')
+    
 
     '''
     for files in gribFiles :
@@ -2794,9 +2797,9 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
-    ADL_HOME = os.getenv('ADL_HOME')
+    
 
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
     
@@ -3187,9 +3190,9 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
-    ADL_HOME = os.getenv('ADL_HOME')
+    
 
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
     
@@ -3604,9 +3607,9 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
-    ADL_HOME = os.getenv('ADL_HOME')
+    
 
     ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
     
@@ -4500,7 +4503,7 @@ def main():
 
     # Expand any user specifiers in the various paths
 
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     CSPP_RT_ANC_PATH = os.getenv('CSPP_RT_ANC_PATH')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     CSPP_RT_ANC_TILE_PATH = os.getenv('CSPP_RT_ANC_TILE_PATH')
@@ -4634,7 +4637,7 @@ def main():
         LOG.info('%d granules to process: \n%s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process)))
 
         LOG.info("Running VIIRS EDR Masks on XML files")
-        crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = run_xml_files(work_dir, xml_files_to_process, setup_only = False, WORK_DIR = work_dir, LINKED_ANCILLARY = work_dir)
+        crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = run_xml_files(work_dir, xml_files_to_process, setup_only = False, WORK_DIR = work_dir, LINKED_ANCILLARY = work_dir, ADL_HOME=ADL_HOME)
 
         ## considered a noncritical problem if there were any crashed runs, runs that produced no output,
         ## runs where Geo failed, or runs where ADL logs indicated a problem
