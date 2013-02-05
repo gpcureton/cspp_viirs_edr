@@ -4409,7 +4409,15 @@ def main():
     # Determine the correct input file path and glob
 
     input_dir,inputGlobs = _create_input_file_globs(options.inputFiles)
+    #########################################################################################
+    # Determine the correct input file path and glob
 
+  
+
+    if inputGlobs['GEO'] is None or inputGlobs['MOD'] is None or inputGlobs['IMG'] is None :
+        LOG.error("No input files found, aborting...")
+        sys.exit(1)
+    #########################################################################################
     # Set the work directory
 
     work_dir = os.path.abspath(options.work_dir)
