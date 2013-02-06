@@ -2,11 +2,11 @@
 # Gridding and granulation Ctypes compilation #
 ###############################################
 
-#  file_Date = $Date: 2011-06-27 20:17:51 +0000 (Mon, 27 Jun 2011) $
-#  file_Revision = $Revision: 237 $
-#  file_Author = $Author: geoffc $
-#  file_HeadURL = $HeadURL: https://svn.ssec.wisc.edu/repos/geoffc/C/griddingAndGranulation/README $
-#  file_Id = $Id: README 237 2011-06-27 20:17:51Z geoffc $
+#  file_Date = $Date$
+#  file_Revision = $Revision$
+#  file_Author = $Author$
+#  file_HeadURL = $HeadURL$
+#  file_Id = $Id$
 
 # Statically linked
 gcc -c -fPIC griddingAndGranulation.c

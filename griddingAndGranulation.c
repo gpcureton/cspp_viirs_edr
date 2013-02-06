@@ -1,8 +1,8 @@
-/*  file_Date = $Date: 2012-06-21 17:14:58 +0000 (Thu, 21 Jun 2012) $
- *  file_Revision = $Revision: 292 $
- *  file_Author = $Author: geoffc $
- *  file_HeadURL = $HeadURL: https://svn.ssec.wisc.edu/repos/geoffc/C/griddingAndGranulation/griddingAndGranulation.c $
- *  file_Id = $Id: griddingAndGranulation.c 292 2012-06-21 17:14:58Z geoffc $
+/*  file_Date = $Date$
+ *  file_Revision = $Revision$
+ *  file_Author = $Author$
+ *  file_HeadURL = $HeadURL$
+ *  file_Id = $Id$
  *
  *  ________________________
  *  griddingAndGranulation.c

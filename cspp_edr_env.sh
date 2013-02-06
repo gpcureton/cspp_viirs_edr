@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: cspp_env.sh 857 2012-07-25 13:32:09Z scottm $
+# $Id$
 # Environment script for CSPP / ADL 3.1.
 
 
