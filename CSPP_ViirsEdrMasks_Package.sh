@@ -1,11 +1,19 @@
-#######################
-# University of Wisconsin Madison,  Space Science Engineering Center (SSEC)
-#file_Date = '$Date$'
-#file_Revision = '$Revision$'
-#file_Author = '$Author$'
-#file_HeadURL = '$HeadURL$'
-#file_Id = '$Id$'
-#######################
+#!/bin/bash
+#
+# University of Wisconsin - Madison,  Space Science Engineering Center (SSEC)
+# file_Date = '$Date$'
+# file_Revision = '$Revision$'
+# file_Author = '$Author$'
+# file_HeadURL = '$HeadURL$'
+# file_Id = '$Id$'
+#
+#
+#
+# Example command line...
+#
+# sh $CSPP_HOME/../CSPP_repo/trunk/scripts/edr/CSPP_ViirsEdrMasks_Package.sh $CSPP_HOME/viirs/edr/viirs_edr_masks.sh "--input_files=../../sample_data/viirs/edr/input/ScottTest/HDF5/unpackTest/ --work_directory=./  -vvv"
+#
+#
 
 trace_cmd()
 {
@@ -15,7 +23,6 @@ trace_cmd()
     rm -rf ${CSPP_HOME}/cache/*
     echo "strace -o ${TRACE} -f bash $CMD $PARMS"
     strace -o ${TRACE} -f bash $CMD $PARMS
-
 }
 
 get_opens_and_xml_and_exe()
@@ -47,8 +54,6 @@ combine_lib_and_xml_and_exe()
     cat exe.txt  > combinedfileList.txt
     cat xml.txt  >> combinedfileList.txt
     cat $ALLOPENS  >> combinedfileList.txt
-    #cat filterOutput.txt >> fileList.txt
-
 }
 
 remove_unwanted_paths()
@@ -56,7 +61,6 @@ remove_unwanted_paths()
     echo "Removing all system related paths, and other unwanted paths..."
 
     # remove system stuff 
-    #cat $ALLOPENS \
     cat combinedfileList.txt \
         | grep -v "/dev" \
         | grep -v "/etc" \
@@ -114,6 +118,15 @@ add_misc_files()
     echo "${CSPP_HOME}/viirs/edr/viirs_aerosol_products.py" >> filesExist.txt
     echo "${CSPP_HOME}/viirs/edr/viirs_cloud_mask.py" >> filesExist.txt
     echo "${CSPP_HOME}/viirs/edr/viirs_cloud_products.py" >> filesExist.txt
+
+    for libs in $(find /usr/lib64/ -maxdepth 1 -name 'libgfortran.so*' -print | sort | uniq );
+    do
+        cp -v $libs ${CSPP_HOME}/common/local/lib64/
+    done
+    for libs in $(find ${CSPP_HOME}/common/local/lib64/ -maxdepth 1 -name 'libgfortran.so*' -print | sort | uniq );
+    do
+        echo $libs >> filesExist.txt
+    done
 }
 
 prepare_txt()
@@ -145,13 +158,26 @@ prepare_txt()
         | grep -v -e "/var/*" \
         | grep -v -e "\.history" \
         | sort | uniq > $FILELIST
-
-        #| sed s#${REPO_HOME}/trunk/scripts/edr#$leave/viirs/edr# \
-        #| sed s#${REPO_HOME}/trunk/scripts/edr#$leave/common# \
 }
 
 
-create_viirs_edr_masks_tarball()
+create_viirs_edr_list()
+{
+    # Create a list of VIIRS and ADL files
+
+    rm -f $FILELIST
+
+    get_opens_and_xml_and_exe
+    combine_lib_and_xml_and_exe
+    remove_unwanted_paths
+    check_if_files_exist
+    add_python
+    add_misc_files
+    prepare_txt
+
+}
+
+create_viirs_edr_tarball()
 {
 
     # Create a tarball containing the parts of ADL required to run the 
@@ -178,26 +204,81 @@ create_viirs_edr_masks_tarball()
     chmod gu+rw $CSPP_PACKAGES/packing_lists/${FILELIST%.txt}.lst
 }
 
-create_static_data_list()
+create_viirs_edr_auxillary_data_list()
+{
+    # Create a list of the auxillary data directories
+
+    rm -f $AUXILLARY_FILELIST
+
+    echo "Creating new auxillary packing list: "$AUXILLARY_FILELIST
+
+    leave=$(basename ${CSPP_HOME})
+
+    echo "${CSPP_HOME}/static/asc_templates/"$'\n'\
+         "${CSPP_HOME}/static/NAAPS-ANC-Int/"$'\n'\
+         "${CSPP_HOME}/static/ViirsEdrMasks_Aux/"$'\n'\
+         "${CSPP_HOME}/static/VIIRS-MOD-GRC/" \
+         | sort | uniq | sed s/^\ // | sed s#${CSPP_HOME}#${leave}# >> $AUXILLARY_FILELIST
+
+}
+
+create_viirs_edr_auxillary_data_tarball()
+{
+
+    # Create a tarball containing the auxillary data required to run the 
+    # ProEdrViirsMasks constroller, and the asc and blob file templates used
+    # generate custom versions of these files with the correct metadata.
+    #
+    # FUTURE : These auxillary files will be merged with the VIIRS EDR package
+    #          file. Any updates to the auxillary files will be in the form of 
+    #          a patch.
+    echo 
+    if [ ! -e package ] ;
+    then
+        mkdir package
+    fi
+
+    mv -f $AUXILLARY_FILELIST package
+
+    cd ${CSPP_HOME}
+    cd ..
+    tar -cvz -T ${WORK_DIR}/package/$AUXILLARY_FILELIST -f ${CNAME}-auxillary.tar.gz
+    
+    echo "Copying "${CNAME}"-auxillary.tar.gz to "$CSPP_PACKAGES"/CSPP_VIIRS_EDR"
+    cp -vf ${CNAME}-auxillary.tar.gz $CSPP_PACKAGES/CSPP_VIIRS_EDR
+
+    echo "Copying "${WORK_DIR}"/package/"$AUXILLARY_FILELIST" to "$CSPP_PACKAGES"/packing_lists/"${AUXILLARY_FILELIST%.txt}".lst"
+    cp -vf ${WORK_DIR}/package/$AUXILLARY_FILELIST $CSPP_PACKAGES/packing_lists/${AUXILLARY_FILELIST%.txt}.lst
+
+    chmod gu+rw $CSPP_PACKAGES/packing_lists/${AUXILLARY_FILELIST%.txt}.lst
+}
+
+create_viirs_edr_static_data_list()
 {
     # Create a list of the static data directories
 
     rm -f $STATIC_FILELIST
 
+    echo "Creating new static packing list: "$STATIC_FILELIST
+
     leave=$(basename ${CSPP_HOME})
 
-    echo "${CSPP_HOME}/static/asc_templates/"$'\n'\
-         "${CSPP_HOME}/static/IGBP/"$'\n'\
+    echo "${CSPP_HOME}/static/IGBP/"$'\n'\
          "${CSPP_HOME}/static/LSM/"$'\n'\
-         "${CSPP_HOME}/static/NAAPS-ANC-Int/"$'\n'\
-         "${CSPP_HOME}/static/NDVI/"$'\n'\
-         "${CSPP_HOME}/static/ViirsEdrMasks_Aux/"$'\n'\
-         "${CSPP_HOME}/static/VIIRS-MOD-GRC/" \
+         "${CSPP_HOME}/static/NDVI/" \
          | sort | uniq | sed s/^\ // | sed s#${CSPP_HOME}#${leave}# >> $STATIC_FILELIST
+
+    for dirs in "${CSPP_HOME}/static/IGBP/" \
+                "${CSPP_HOME}/static/LSM/" \
+                "${CSPP_HOME}/static/NDVI/";
+    do
+        find $dirs| sort | uniq | sed s/^\ // | sed s#${CSPP_HOME}#${leave}# >> $STATIC_FILELIST
+    done
 
 }
 
-create_viirs_edr_masks_static_tarball()
+
+create_viirs_edr_static_data_tarball()
 {
 
     # Create a tarball containing the static data required to run the 
@@ -225,24 +306,19 @@ create_viirs_edr_masks_static_tarball()
 }
 
 
-echo "Run command from CSPP work dir"
 if [ -z "$1" ]; then
   cat <<EOF
+Packaging for CSPP: VIIRS EDR
+
 Usage:
-  export DPE_DOMAIN=mydomain
-  export DPE_SITE_ID=myorg
+
   export CSPP_HOME=/path/to/CSPP
-#  export CSPP_ANC_PATH=/path/to/ADLData/ADL/data/tiles/Terrain-Eco-ANC-Tile/withMetadata:/path/to/ADLData/ADL/data/repositories/cache
-  \$CSPP_HOME/atms/sdr/atms_sdr.sh -W work-directory atms-rdr-1.h5 atms-rdr-2.h5 atms-rdr-3.h5 ...
-  
+  source \$CSPP_HOME/cspp_env.sh
+  cd /path/to/work_directory
+  sh \$CSPP_HOME/../CSPP_repo/trunk/scripts/edr/CSPP_ViirsEdrMasks_Package.sh \$CSPP_HOME/viirs/edr/viirs_edr_masks.sh "--input_files=/path/to/GMTCO*.h5 --work_directory=./"
+
   This command runs the CSPP command using strace.  It then uses the strace ouput to direct tar in creating a relocatible tar file.
   The resulting tar file is copied to jpss-cloud.
-  This has been tested with the VIIRS SDR.  It may work unchanged for other packages.
-  
-
-Example:
-  CSPP_ViirsEdrMasks_Package.sh viirs_edr_masks.sh \$HOME/sample_data/viirs/edr/input/VIIRS_OPS_unpackTest
-
 EOF
   exit 3
 fi
@@ -260,10 +336,15 @@ main ()
     add_python
     add_misc_files
     prepare_txt
-    #create_static_data_list
-    
-    create_viirs_edr_masks_tarball
-    #create_viirs_edr_masks_static_tarball
+
+    create_viirs_edr_list
+    create_viirs_edr_tarball
+
+    #create_viirs_edr_auxillary_data_list
+    #create_viirs_edr_auxillary_data_tarball
+
+    #create_viirs_edr_static_data_list
+    #create_viirs_edr_static_data_tarball
 }
 
 CMD=$1
@@ -289,6 +370,7 @@ echo "Strace command..."$'\n\t'$CMD $PARMS $TRACE
 export ALLOPENS=opens.txt
 export FILELIST=$CNAME-packing_list.txt
 export STATIC_FILELIST=$CNAME-static_packing_list.txt
+export AUXILLARY_FILELIST=$CNAME-auxillary_packing_list.txt
 
 # Directory where packing lists will be put on jpss-cloud
 export CSPP_PACKAGES="/data/geoffc/CSPP_VIIRS_EDR/distribution"

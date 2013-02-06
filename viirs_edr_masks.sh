@@ -33,8 +33,8 @@ source $CSPP_RT_HOME/common/cspp_common.sh
 # dynamic ancillary cache is handled by adl_anc_retrieval.py (this last script)
 # is currently used for SDR controllers for the moment. VIIRS EDR controllers
 # are supplied ancillary data by running bash ancillary scripts directly.
-if [ -z "$CSPP_ANC_PATH" ]; then
-    export CSPP_RT_ANC_PATH=$CSPP_RT_HOME/anc/static
+if [ -z "$CSPP_RT_ANC_PATH" ]; then
+    export CSPP_RT_ANC_PATH=$CSPP_RT_HOME/anc/static #:$CSPP_RT_ANC_HOME/ADL/data/repositories/cache
 else
     echo "INFO: CSPP_RT_ANC_PATH changed by user to $CSPP_RT_ANC_PATH"
 fi
@@ -55,9 +55,9 @@ help_usage() {
 Run the ADL VIIRS EDR.
 
 Usage: 
-    export CSPP_RT_HOME=/path/to/CSPP_RT/dir
-    source \$CSPP_RT_HOME/CSPP_RT_env.sh
-    \$CSPP_RT_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
+    export CSPP_EDR_HOME=/path/to/CSPP_EDR/dir
+    source \$CSPP_EDR_HOME/cspp_edr_env.sh
+    \$CSPP_EDR_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
 
 
 Options:
@@ -112,9 +112,9 @@ usage() {
 Run the ADL VIIRS EDR.
 
 Usage: 
-    export CSPP_RT_HOME=/path/to/CSPP_RT/dir
-    source \$CSPP_RT_HOME/CSPP_RT_env.sh
-    \$CSPP_RT_HOME/viirs/viirs_edr_masks.sh [mandatory args] [options]
+    export CSPP_EDR_HOME=/path/to/CSPP_EDR/dir
+    source \$CSPP_EDR_HOME/cspp_edr_env.sh
+    \$CSPP_EDR_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
 
   -h, --help            Show the mandatory args and options and exit.
 

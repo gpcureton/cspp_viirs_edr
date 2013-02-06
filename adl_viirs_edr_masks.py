@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-adl_viirs_edr_masks.py
+adl_viirs_edr.py
 
-Purpose: Run the VIIRS EDR Masks Controller using ADL 3.1. 
+Purpose: Run one or more of the VIIRS EDR Controllers using ADL.
 
 Input:
     * One or more HDF5 VIIRS SDR input files, aggregated or single-granule.
@@ -25,7 +25,6 @@ Details:
       they are all contiguous.
     * It is ambiguous to provide several copies of the same granule in the work 
       directory; this will result in an error abort.
-    * The unpacker gives each unpacking of a given granule its own.
 
 Preconditions:
     * Requires ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR environment variables are set.
@@ -1240,8 +1239,10 @@ def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
                          161, 177, 193, 209, 225, 241, 257, 273, 289, 305, 321, 337, 353])
 
     startTimeObj = geoDict['ObservedStartTime']
+    LOG.debug("'ObservedStartTime' = %r" % (startTimeObj))
+
     julianDay = int(startTimeObj.strftime('%j'))
-    LOG.debug("Julian day = %d" % (julianDay))
+    LOG.info("Julian day = %d" % (julianDay))
 
     lowerDay = find_le(NDVIdays,julianDay)
     lowerIdx = index(NDVIdays,lowerDay)
@@ -1266,7 +1267,7 @@ def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
 
     NDVI_fileName = path.join(CSPP_RT_ANC_HOME,'NDVI/NDVI.FM.c004.v2.0.WS.00-04.%03d.h5'%(NDVIday))
 
-    LOG.debug("NDVI file : %s" % (NDVI_fileName))
+    LOG.info("NDVI file : %s" % (NDVI_fileName))
 
     NDVIobj = pytables.openFile(NDVI_fileName)
     NDVI_node = NDVIobj.getNode('/NDVI')
@@ -1345,9 +1346,11 @@ def _granulate_NDVI(inDir,geoDicts):
 
     global ancEndian 
 
-    
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
-    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    ADL_HOME = os.getenv('ADL_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
 
@@ -1546,9 +1549,16 @@ def _setupAuxillaryFiles(inDir):
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     
+
+    print "CSPP_RT_HOME =          %r" % (CSPP_RT_HOME)
+    print "CSPP_RT_ANC_HOME =      %r" % (CSPP_RT_ANC_HOME)
+    print "CSPP_RT_ANC_CACHE_DIR = %r" % (CSPP_RT_ANC_CACHE_DIR)
+    print "ANC_SCRIPTS_PATH =      %r" % (ANC_SCRIPTS_PATH)
+    print "ADL_ASC_TEMPLATES =     %r" % (ADL_ASC_TEMPLATES)
+    print "ADL_HOME =              %r" % (ADL_HOME)
 
     #auxillaryCollShortNames = ['VIIRS-CM-IP-AC-Int','VIIRS-AF-EDR-AC-Int','VIIRS-Aeros-EDR-AC-Int','NAAPS-ANC-Int','AOT-ANC','VIIRS-AOT-LUT','VIIRS-AOT-Sunglint-LUT','VIIRS-AF-EDR-DQTT','VIIRS-Aeros-EDR-DQTT','VIIRS-SusMat-EDR-DQTT']
     #auxillaryAscTemplateFile = ['VIIRS-CM-IP-AC-Template.asc','VIIRS-AF-EDR-AC-Template.asc','VIIRS-Aeros-EDR-AC-Template.asc','NAAPS-ANC-Inc-Template.asc','AOT-ANC-Template.asc',']
@@ -1599,16 +1609,16 @@ def _setupAuxillaryFiles(inDir):
                                  'template.VIIRS-AOT-Sunglint-LUT',
                                  'template.VIIRS-SusMat-EDR-DQTT-Int']
 
-    auxillaryPaths = ['ViirsEdrMasks_Aux',
-                      'ViirsEdrMasks_Aux',
-                      'ViirsEdrMasks_Aux',
-                      'ViirsEdrMasks_Aux',
-                      'ViirsEdrMasks_Aux',
+    auxillaryPaths = ['luts/viirs',
+                      'luts/viirs',
+                      'luts/viirs',
+                      'luts/viirs',
+                      'luts/viirs',
                       'NAAPS-ANC-Int',
-                      'ViirsEdrMasks_Aux',
-                      'ViirsEdrMasks_Aux',
-                      'ViirsEdrMasks_Aux',
-                      'ViirsEdrMasks_Aux']
+                      'luts/viirs',
+                      'luts/viirs',
+                      'luts/viirs',
+                      'luts/viirs']
 
 
     auxillarySourceFiles = []
@@ -1616,18 +1626,20 @@ def _setupAuxillaryFiles(inDir):
     charsInUrid = 32+1
 
     for templatePath,blobTempFileName in zip(auxillaryPaths,auxillaryBlobTemplateFile) :
-        blobTempFileName = path.join(CSPP_RT_ANC_HOME,templatePath,blobTempFileName)
+        blobTempFileName = path.join(CSPP_RT_ANC_CACHE_DIR,templatePath,blobTempFileName)
         if os.path.islink(blobTempFileName) :
+            LOG.info("%s is a link..." %(blobTempFileName))
             #auxillarySourceFile = string.split(os.path.basename(os.readlink(blobTempFileName)),'.')[1]
             auxillarySourceFile = os.path.basename(os.readlink(blobTempFileName))[charsInUrid:]
+            LOG.info("auxillarySourceFile : %s" %(auxillarySourceFile))
             auxillarySourceFiles.append(auxillarySourceFile)
         else :
+            LOG.info("%s is a file..." %(blobTempFileName))
             auxillarySourceFile = os.path.basename(blobTempFileName)
             auxillarySourceFiles.append(auxillarySourceFile)
 
     for shortName,auxillarySourceFile in zip(auxillaryCollShortNames,auxillarySourceFiles) :
-        LOG.debug("%s --> %s" %(shortName,auxillarySourceFile))
-
+        LOG.info("%s --> %s" %(shortName,auxillarySourceFile))
 
 
     for shortName,ascTempFileName,blobTempFileName,templatePath,auxillarySourceFile in zip(auxillaryCollShortNames,auxillaryAscTemplateFile,auxillaryBlobTemplateFile,auxillaryPaths,auxillarySourceFiles):
@@ -1662,7 +1674,7 @@ def _setupAuxillaryFiles(inDir):
         for line in ascTemplateFile.readlines():
            line = line.replace("CSPP_URID",URID)
            line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
-           line = line.replace("CSPP_AUX_BLOB_FULLPATH",blobFileName)
+           line = line.replace("CSPP_AUX_BLOB_FULLPATH",path.basename(blobFileName))
            line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
            line = line.replace("CSPP_AUX_SOURCE_FILE",auxillarySourceFile)
            ascFile.write(line) 
@@ -1672,7 +1684,10 @@ def _setupAuxillaryFiles(inDir):
 
         # Create a link between the binary template file and working directory
 
-        blobTempFileName = path.join(CSPP_RT_ANC_HOME,templatePath,blobTempFileName)
+        LOG.info("CSPP_RT_ANC_CACHE_DIR -> %s" %(CSPP_RT_ANC_CACHE_DIR))
+        LOG.info("templatePath -> %s" %(templatePath))
+        LOG.info("blobTempFileName -> %s" %(blobTempFileName))
+        blobTempFileName = path.join(CSPP_RT_ANC_CACHE_DIR,templatePath,blobTempFileName)
         LOG.info("Creating the link %s -> %s" %(blobFileName,blobTempFileName))
 
         if not os.path.exists(blobFileName):
@@ -1698,7 +1713,7 @@ def _getGRC(inDir,geoDicts):
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     
 
@@ -1843,9 +1858,11 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
 
     global ancEndian 
 
-    
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
-    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    ADL_HOME = os.getenv('ADL_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran'
 
@@ -2172,9 +2189,11 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
 
     global ancEndian 
 
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
-    
-    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+    ADL_HOME = os.getenv('ADL_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     masksCollShortNames = 'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'
 
@@ -2388,7 +2407,7 @@ def _retrieve_grib_files(geoDicts):
     return gribFiles
 
 
-def _create_NCEP_gridBlobs(gribFiles):
+def _create_NCEP_gridBlobs_obsolete(gribFiles):
     '''Converts NCEP GRIB files into NCEP blobs'''
 
     blobFiles = []
@@ -2440,7 +2459,7 @@ def _create_NCEP_gridBlobs(gribFiles):
     return blobFiles
 
 
-def _create_NCEP_gridBlobs_alt(gribFiles):
+def _create_NCEP_gridBlobs(gribFiles):
     '''Converts NCEP GRIB files into NCEP blobs'''
 
     from copy import deepcopy
@@ -2801,7 +2820,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     csppPython = os.getenv('PY')
     
 
-    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
     
     # Collection shortnames of the required NCEP ancillary datasets
     # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
@@ -3182,7 +3201,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
             ascTemplateFile.close()
 
 
-def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
+def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     '''Granulates the input gridded blob files into the required NCEP granulated datasets.'''
 
     global ancEndian 
@@ -3194,7 +3213,8 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
     csppPython = os.getenv('PY')
     
 
-    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    #ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
     
     # Collection shortnames of the required NCEP ancillary datasets
     # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
@@ -3496,8 +3516,8 @@ def _granulate_NCEP_gridBlobs_alt(inDir,geoDicts, gridBlobFiles):
                     LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
                     LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-                    LOG.debug("min of NCEP_anc  = "%(np.min(NCEP_anc)))
-                    LOG.debug("max of NCEP_anc  = "%(np.max(NCEP_anc)))
+                    LOG.debug("min of NCEP_anc  = %r"%(np.min(NCEP_anc)))
+                    LOG.debug("max of NCEP_anc  = %r"%(np.max(NCEP_anc)))
 
                     data,dataIdx = _grid2Gran(np.ravel(latitude),
                                               np.ravel(longitude),
@@ -3611,7 +3631,8 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
     csppPython = os.getenv('PY')
     
 
-    ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    #ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
     
     # Collection shortnames of the required NAAPS ancillary datasets
     # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
@@ -4401,23 +4422,13 @@ def main():
     levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
     configure_logging(level = levels[min(options.verbosity,3)])
 
-    # Test the logging
-
-    #test_logging()
-    #sys.exit(0)
-
     # Determine the correct input file path and glob
 
     input_dir,inputGlobs = _create_input_file_globs(options.inputFiles)
-    #########################################################################################
-    # Determine the correct input file path and glob
-
-  
-
     if inputGlobs['GEO'] is None or inputGlobs['MOD'] is None or inputGlobs['IMG'] is None :
-        LOG.error("No input files found, aborting...")
+        LOG.error("No input files found matching %s, aborting..."%(path.basename(options.inputFiles)))
         sys.exit(1)
-    #########################################################################################
+
     # Set the work directory
 
     work_dir = os.path.abspath(options.work_dir)
@@ -4579,15 +4590,15 @@ def main():
 
         # Transcode the NCEP GRIB files into NCEP global grid blob files
 
-        #gridBlobFiles = _create_NCEP_gridBlobs(gribFiles)
-        gridBlobFiles = _create_NCEP_gridBlobs_alt(gribFiles)
+        gridBlobFiles = _create_NCEP_gridBlobs(gribFiles)
 
         LOG.debug("gridBlobFiles: %r" % (gridBlobFiles))
 
         # Granulate the global grid NCEP blob files
 
         granBlobFiles = _granulate_NCEP_gridBlobs(work_dir,anc_granules_to_process,gridBlobFiles)
-        #granBlobFiles = _granulate_NCEP_gridBlobs_alt(work_dir,anc_granules_to_process,gridBlobFiles)
+        # This method adds Wind direction, Surface Pressure and Total Column Ozone.
+        #granBlobFiles = _granulate_NCEP_gridBlobs_aot(work_dir,anc_granules_to_process,gridBlobFiles)
 
         LOG.debug("granBlobFiles: %r" % (granBlobFiles))
 

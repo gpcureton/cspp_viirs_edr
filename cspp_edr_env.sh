@@ -5,7 +5,7 @@
 
 test -n "$CSPP_EDR_HOME" || echo "CSPP_EDR_HOME is not set. Please set this environment variable to the install location of CSPP software packages. (When installed, \$CSPP_EDR_HOME/ADL is a directory.)"
 
-test -d "$CSPP_EDR_HOME/common/ADL" || echo "CSPP_EDR_HOME does not appear to be set properly. See cspp_env.sh"
+test -d "$CSPP_EDR_HOME/common/ADL" || echo "CSPP_EDR_HOME does not appear to be set properly. See cspp_edr_env.sh"
 
 # revision string for this CSPP release, which we set if we have reasonable expectation that environment is correct
 test -d "$CSPP_EDR_HOME/common/ADL" && export CSPP_REV="20120215"
@@ -26,7 +26,7 @@ export CSPP_EDR_LUTS=${CSPP_EDR_ANC_CACHE_DIR}/luts
 export CSPP_EDR_ANC_HOME=${CSPP_EDR_HOME}/anc/static
 
 # default location of static ancillary tiles, which we use in-place rather than linking into workspace
-export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}
+#export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}/ADL/data/tiles/Terrain-Eco-ANC-Tile/withMetadata
 
 #
 # user path environment settings, making it easy to invoke wrapper scripts
