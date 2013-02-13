@@ -42,26 +42,37 @@ class HDF4File():
             'vgroup':   HDF.HC.DFTAG_VG
             }
 
+    """
+    Initialise the HDF4 class object for this file, exposing the 
+    SD file object, and attribute and dataset dictionaries.
+    """
     def __init__(self,filename):
         self.filename = filename
+        
+        self.fileObj = SD.SD(self.filename, SD.SDC.READ)        
+        self.attrDict = self.fileObj.attributes()
+        self.datasetDict = self.fileObj.datasets()
 
-    def readData(self, varName):
-        inFile = SD.SD(self.filename, SD.SDC.READ)
-        return inFile.select(varName).get()
+    """
+    Perform a direct read of a dataset and return it.
+    """
+    def read_data(self, varName):
+        return self.fileObj.select(varName).get()
   
 
     """
     Quick fix for large datasets that we don't want to use 'get' with right away.
     """
-    def readLargeData(self, varName):
-        inFile = SD.SD(self.filename, SD.SDC.READ)
-        return inFile.select(varName)
+    def get_dataset_obj(self, varName):
+        return self.fileObj.select(varName)
 
 
-    def readAttribute(self, varName, attrName):
-        inFile = SD.SD(self.filename, SD.SDC.READ)
+    """
+    Read the named attribute from the supplied object.
+    """
+    def read_attribute(self, obj, attrName):
     
-        inAttrs = inFile.select(varName).attributes()
+        inAttrs = obj.attributes()
     
         if attrName in inAttrs:
             return inAttrs[attrName]
@@ -70,7 +81,7 @@ class HDF4File():
     
   
     # Small wrapper for getSDS
-    def getDataset(self, varName):
+    def get_dataset(self, varName):
         return self._getSDS(varName).get()
     
     
@@ -85,7 +96,8 @@ class HDF4File():
         hdf = HDF.HDF(self.filename)
       
         # Initialize the SD, V and VS interfaces on the file.
-        sd = SD.SD(self.filename)
+        #sd = SD.SD(self.filename)
+        sd = self.fileObj
         vs = hdf.vstart()
         v  = hdf.vgstart()
       
