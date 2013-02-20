@@ -126,8 +126,8 @@ from adl_common import configure_logging
 from adl_common import _test_logging as test_logging
 
 # locations of executables in ADL
-ADL_VIIRS_MASKS_EDR=os.path.abspath(os.path.join(ADL_HOME, 'bin', 'ProEdrViirsMasksController.exe'))
-ADL_VIIRS_AEROSOL_EDR=os.path.abspath(os.path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe'))
+ADL_VIIRS_MASKS_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsMasksController.exe'))
+ADL_VIIRS_AEROSOL_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe'))
 
 # we're not likely to succeed in processing using geolocation smaller than this many bytes
 MINIMUM_SDR_BLOB_SIZE = 81000000
@@ -145,7 +145,7 @@ AOT_IP_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aero
 AOT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-EDR/VIIRS-Aeros-EDR_Gran_0/N_Granule_ID'
 SUSMAT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-SusMat-EDR/VIIRS-SusMat-EDR_Gran_0/N_Granule_ID'
 
-CSPP_RT_ANC_HOME = os.path.abspath(os.getenv('CSPP_RT_ANC_HOME'))
+CSPP_RT_ANC_HOME = path.abspath(os.getenv('CSPP_RT_ANC_HOME'))
 
 
 
@@ -446,13 +446,13 @@ def _create_input_file_globs(inputFiles):
     '''
     Determine the correct input file path and globs
     '''
-    input_path = os.path.abspath(inputFiles)
-    if os.path.isdir(input_path) :
+    input_path = path.abspath(inputFiles)
+    if path.isdir(input_path) :
         input_dir = input_path
         input_files = None
     else :
-        input_dir = os.path.dirname(input_path)
-        input_files = os.path.basename(input_path)
+        input_dir = path.dirname(input_path)
+        input_files = path.basename(input_path)
 
     LOG.debug("input_path = %s" %(input_path))
     LOG.debug("input_dir = %s" %(input_dir))
@@ -476,7 +476,7 @@ def _create_input_file_globs(inputFiles):
         inputGlobs['IMG'] = "SVI*%s.h5" %(fileGlob)
         for fileType in ['GEO','MOD','IMG']:
             inputGlobs[fileType] = string.replace(inputGlobs[fileType],"**","*")
-    elif os.path.isfile(input_path) :
+    elif path.isfile(input_path) :
         fileGlob = string.rstrip(string.lstrip(string.split(input_files,"b")[0],charsToKill),charsToKill)
         LOG.debug("fileGlob = %s" %(fileGlob))
         inputGlobs['GEO'] = "GMTCO%s*.h5" %(fileGlob)
@@ -500,7 +500,7 @@ def _skim_viirs_sdr(collectionShortName,work_dir):
     for info in skim_dir(work_dir, N_Collection_Short_Name=collectionShortName):
         print info
         path = info['BlobPath']
-        if not os.path.isfile(path) or os.stat(path).st_size < MINIMUM_SDR_BLOB_SIZE:
+        if not path.isfile(path) or os.stat(path).st_size < MINIMUM_SDR_BLOB_SIZE:
             LOG.info('Ignoring %s, invalid blob. For direct broadcast this can happen at start or end of pass.' % (path))
         else:
             yield info
@@ -556,14 +556,13 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
     """
     LOG.debug('Collecting information for VIIRS SDRs')
 
-    work_dir = os.path.abspath(work_dir)
+    work_dir = path.abspath(work_dir)
 
     geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)))
 
     if len(geoGroupList)==0:
-        LOG.warn('No VIIRS geolocation files were found for collection shortname %s!'%(collectionShortName))
+        return
 
-    LOG.debug('Sifting VIIRS SDR data for processing opportunities')
     for group in _contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)):
         ##- for VIIRS, we can process everything but the first and last granule
         ##- for CrIS, use [4:-4]
@@ -714,7 +713,7 @@ def generate_viirs_masks_edr_xml(work_dir, granule_seq):
         name = gran['N_Granule_ID']
         fnxml = 'edr_viirs_masks_%s.xml' % (name)
         LOG.debug('writing XML file %r' % (fnxml))
-        fpxml = file(os.path.join(work_dir, fnxml), 'wt')
+        fpxml = file(path.join(work_dir, fnxml), 'wt')
         fpxml.write(XML_TMPL_VIIRS_MASKS_EDR % gran)
         to_process.append([name,fnxml])
     return to_process
@@ -727,7 +726,7 @@ def generate_viirs_aerosol_edr_xml(work_dir, granule_seq):
         name = gran['N_Granule_ID']
         fnxml = 'edr_viirs_aerosol_%s.xml' % (name)
         LOG.debug('writing XML file %r' % (fnxml))
-        fpxml = file(os.path.join(work_dir, fnxml), 'wt')
+        fpxml = file(path.join(work_dir, fnxml), 'wt')
         fpxml.write(XML_TMPL_VIIRS_AEROSOL_EDR % gran)
         to_process.append([name,fnxml])
     return to_process
@@ -826,7 +825,7 @@ def _get_geo_Arrays(geoDicts):
 
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(adlHome,'xml/VIIRS',geoXmlFile)
-        if os.path.exists(geoXmlFile):
+        if path.exists(geoXmlFile):
             LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
 
         # Open the geolocation blob and get the latitude and longitude
@@ -924,8 +923,6 @@ def _get_geo_Arrays(geoDicts):
 
 def _subset_IGBP(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
     '''Subsets the IGBP global ecosystem dataset to cover the required geolocation range.'''
-
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
 
     IGBP_dLat = 60.*(1./3600.)
     IGBP_dLon = 60.*(1./3600.)
@@ -1075,10 +1072,267 @@ def _granulate_IGBP(geoDicts,inDir):
     return IGBP_list
 
 
-def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
+
+def _subset_DEM_alt(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
     '''Subsets the global elevation dataset to cover the required geolocation range.'''
 
+    pass
+
+    '''
     #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
+
+    DEM_dLat = 30.*(1./3600.)
+    DEM_dLon = 30.*(1./3600.)
+
+    # Digital Elevation Model: Land Sea Mask & Terrain Height
+
+    DEM_fileNames = ["dem30ARC_W180N90.hdf","dem30ARC_W60N90.hdf","dem30ARC_E60N90.hdf",
+                        "dem30ARC_W180N0.hdf", "dem30ARC_W60N0.hdf", "dem30ARC_E60N0.hdf"];
+    DEM_startLat = [90.,90.,90.,0.,0.,0.];
+    DEM_endLat = [0.,0.,0.,-90.,-90.,-90.];
+    DEM_startLon = [-180.,-60.,60.,-180.,-60.,60.];
+    DEM_endLon = [-60.,60.,180.,-60.,60.,180.];
+
+    DEM_neededTiles = np.zeros(6,dtype=np.bool)
+    #DEM_pixel2Tile[npts];
+    #cnrIdx,tileIdx;
+    #DEM_nrows,DEM_ncols;
+    #DEM_npts;
+
+    DEM_nrows = 10800;
+    DEM_ncols = 14400;
+    DEM_npts = DEM_nrows * DEM_ncols;
+
+    # Determine which of the DEM files are needed. This is done by 
+    # moving along the boundary of the granule, determining which tile
+    # is needed for each pixel...
+
+    # Assign the appropriate tile to each pixel
+    print "Assign the appropriate tile to each pixel\n"
+    for scan in range(nViirsScans):
+        for detector in range(ndets):
+            for col in range(ncols):
+                idx = scan*ndets*ncols + detector*ncols + col;
+                for tileIdx in range(6):
+                    if ((lat[idx]<=DEM_startLat[tileIdx]) and (lat[idx]>DEM_endLat[tileIdx])
+                     and (lon[idx]>=DEM_startLon[tileIdx]) and (lon[idx]<DEM_endLon[tileIdx])):
+                    
+                        DEM_pixel2Tile[idx] = tileIdx;	
+                        DEM_neededTiles[tileIdx] = 1; 
+
+
+    printf("\nThe needed tiles are : ");
+    for tileIdx in range(6): print " %d " %(DEM_neededTiles[tileIdx])
+    print "\n"
+
+    # Open DEM files and read in contents
+
+    int DEM_fileID[6], LSM_dsetIDx[6], LSM_dsetID[6],TerrHgt_dsetIDx[6], TerrHgt_dsetID[6];
+    int start[2], edge[2];
+    int h4status;
+
+    # Open the file and get the file id
+    for tileIdx in range(6):
+        DEM_fileID[tileIdx] = -1;
+        if (DEM_neededTiles[tileIdx]){
+            full_filename = "%s/%s/%s" %(sfc_dir_name,"LSM",DEM_fileNames[tileIdx])
+            print "\nOpening LSM file %s\n" %(full_filename)
+            DEM_fileID[tileIdx] = SDstart(full_filename, DFACC_READ);
+            if (DEM_fileID[tileIdx] == FAIL) {
+                fprintf(stderr,"%sInvalid HDF file, %s\n",EXE_PROMPT,DEM_fileNames[tileIdx]);
+                exit (EXIT_FAILURE);
+            }
+        }
+    }
+
+    LSM_dsetName = "LandWater"
+    TerrHgt_dsetName = "Elevation"
+
+    # Get the index of the dataset in the file from the dataset name.
+    for (tileIdx=0;tileIdx<6;tileIdx++){
+        LSM_dsetIDx[tileIdx] = -1;
+        if (DEM_fileID[tileIdx] != -1){
+            LSM_dsetIDx[tileIdx] = SDnametoindex(DEM_fileID[tileIdx],LSM_dsetName);
+            TerrHgt_dsetIDx[tileIdx] = SDnametoindex(DEM_fileID[tileIdx],TerrHgt_dsetName);
+        }
+    }
+
+    // Connect to dataset and get the dataset id
+    for (tileIdx=0;tileIdx<6;tileIdx++){
+        LSM_dsetID[tileIdx] = -1;
+        TerrHgt_dsetID[tileIdx] = -1;
+        if ((LSM_dsetIDx[tileIdx] != -1) && (TerrHgt_dsetIDx[tileIdx] != -1)){
+            printf("\nConnecting to datasets in DEM file %s\n",DEM_fileNames[tileIdx]);
+            LSM_dsetID[tileIdx] = SDselect(DEM_fileID[tileIdx],LSM_dsetIDx[tileIdx]);
+            TerrHgt_dsetID[tileIdx] = SDselect(DEM_fileID[tileIdx],TerrHgt_dsetIDx[tileIdx]);
+            if (LSM_dsetID[tileIdx] == FAIL) {
+                fprintf(stderr,"%s%s-cannot select specified SDS, =%s\n",EXE_PROMPT,rout,LSM_dsetName);
+                exit(EXIT_FAILURE);
+            }
+            if (TerrHgt_dsetID[tileIdx] == FAIL) {
+                fprintf(stderr,"%s%s-cannot select specified SDS, =%s\n",EXE_PROMPT,rout,TerrHgt_dsetName);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+    // Reserve memory for DEM array of tile pointers, and initialise these
+    // pointers
+
+    int idx_free;
+
+    int8 **LSM;
+    if ((LSM = (int8 **) malloc(6 * sizeof(int8 *)))==NULL)
+        error_allo(rout,"LSM");
+
+    int16 **TerrHgt;
+    if ((TerrHgt = (int16 **) malloc(6 * sizeof(int16 *)))==NULL)
+        error_allo(rout,"TerrHgt");
+
+    for (tileIdx=0;tileIdx<6;tileIdx++){
+        LSM[tileIdx] = 0;
+        TerrHgt[tileIdx] = 0;
+        if (DEM_neededTiles[tileIdx]){
+            if((LSM[tileIdx] = (int8 *) malloc(DEM_npts * sizeof(int8)))==NULL)
+                printf("\nFailed to allocate memory for LSM tile %d\n",tileIdx);
+            if((TerrHgt[tileIdx] = (int16 *) malloc(DEM_npts * sizeof(int16)))==NULL)
+                printf("\nFailed to allocate memory for TerrHgt tile %d\n",tileIdx);
+        }
+    }
+
+    // Offset to start reading dataset
+    start[0] = 0;
+    start[1] = 0;
+    // Number of elements in each dimension to read
+    edge[0] = DEM_nrows;
+    edge[1] = DEM_ncols;
+
+    for (tileIdx=0;tileIdx<6;tileIdx++){
+        if (LSM_dsetID[tileIdx] != -1){
+            printf("\tReading in dataset from DEM file %s\n",DEM_fileNames[tileIdx]);
+            printf("\tDataset ID for file is %s is %d\n",DEM_fileNames[tileIdx],LSM_dsetID[tileIdx]);
+            h4status = SDreaddata(LSM_dsetID[tileIdx],start,NULL,edge,LSM[tileIdx]);
+            h4status = SDreaddata(TerrHgt_dsetID[tileIdx],start,NULL,edge,TerrHgt[tileIdx]);
+            if (h4status == FAIL) {
+                fprintf(stderr,"%s%s-cannot read specified SDS %s, freeing memory.\n",EXE_PROMPT,rout,LSM_dsetName);
+                for (idx_free=0;idx_free<6;idx_free++){
+                    if (LSM[idx_free] != NULL)
+                        printf("\nTile %d is to be freed\n",idx_free);
+                        free(LSM[idx_free]);
+                        free(TerrHgt[idx_free]);
+                }
+                free(LSM);
+                free(TerrHgt);
+                exit(EXIT_FAILURE);
+            }else{
+                printf("\tSuccessfully read in tile %d DEM file %s\n\n",tileIdx,DEM_fileNames[tileIdx]);
+            }
+        }
+    }   
+
+    //
+    // Granulate the LSM and TerrHgt datasets
+    //
+
+    printf("Granulating the LSM and TerrHgt datasets...\n");
+
+    long gridRow, gridCol, gridIdx;
+    float DEM_dlat, DEM_dlon;
+
+    // Allocate memory for the LSM
+    if ((landmask = (unsigned char *) malloc(npts*sizeof(unsigned char))) == NULL)
+        error_allo(rout,"landmask");
+    // Allocate memory for the TerrHgt
+    if ((zsfc = (float *) malloc(npts*sizeof(float))) == NULL)
+        error_allo(rout,"zsfc");
+
+    // Grid increments in degrees
+    DEM_dlat = 0.5/60.;
+    DEM_dlon = 0.5/60.;
+
+    // Determine the grid cell for each pixel, and assign the LSM for that cell to the 
+    // corrsponding pixel.
+    /* TODO : Check if we need to make any tweaks to account for 
+       TODO : dataline crossings and hight latitude granules */
+
+    for (idx=0; idx<npts; idx++) {
+        if (DEM_pixel2Tile[idx] != -1){ 	
+            tileIdx = DEM_pixel2Tile[idx];
+
+            gridRow = max(0,min(DEM_nrows-1, (long) (fabs(lat[idx]-DEM_startLat[tileIdx])/DEM_dlat)));
+            gridCol = max(0,min(DEM_ncols-1, (long) (fabs(lon[idx]-DEM_startLon[tileIdx])/DEM_dlon)));
+
+            gridIdx = (DEM_ncols*gridRow) + gridCol;
+
+            landmask[idx] = LSM[tileIdx][gridIdx];
+            zsfc[idx] = (float) TerrHgt[tileIdx][gridIdx];
+        }else{
+            landmask[idx] = UINT8_FILL_TEST;
+            zsfc[idx] = FLOAT32_FILL_TEST;
+        }
+    }
+    printf("   success\n");
+
+    // End access to dataset
+    for (tileIdx=0;tileIdx<6;tileIdx++){
+        if (LSM_dsetID[tileIdx] != -1){
+            printf("\nEnding access to dataset in LSM file %s\n",DEM_fileNames[tileIdx]);
+            h4status = SDendaccess(LSM_dsetID[tileIdx]);
+            h4status = SDendaccess(TerrHgt_dsetID[tileIdx]);
+            if (h4status == FAIL) {
+                fprintf(stderr,"%s%s-cannot end access to specified SDS, =%s\n",EXE_PROMPT,rout,LSM_dsetName);
+                for (idx_free=0;idx_free<6;idx_free++){
+                    if (LSM[idx_free] != NULL){
+                        printf("\nTile %d is to be freed\n",idx_free);
+                        free(LSM[idx_free]);
+                        free(TerrHgt[idx_free]);
+                    }
+                }
+                free(LSM);
+                free(TerrHgt);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+    // Close file(s)
+    for (tileIdx=0;tileIdx<6;tileIdx++){
+        if (DEM_fileID[tileIdx] != -1){
+            printf("\nClosing DEM file %s\n",DEM_fileNames[tileIdx]);
+            h4status = SDend(DEM_fileID[tileIdx]);
+            if (h4status == FAIL) {
+                fprintf(stderr,"%s%s-cannot close %s\n",EXE_PROMPT,rout,DEM_fileNames[tileIdx]);
+                for (idx_free=0;idx_free<6;idx_free++){
+                    if (LSM[idx_free] != NULL)
+                        printf("\nTile %d is to be freed\n",idx_free);
+                        free(LSM[idx_free]);
+                        free(TerrHgt[idx_free]);
+                }
+                free(LSM);
+                free(TerrHgt);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
+
+    // Free memory from LSM and TerrHgt
+
+    for (idx_free=0;idx_free<6;idx_free++){
+        if (LSM[idx_free] != NULL)
+            printf("\nTile %d is to be freed\n",idx_free);
+            free(LSM[idx_free]);
+            free(TerrHgt[idx_free]);
+    }
+    free(LSM);
+    free(TerrHgt);
+
+    printf("\nEnding granulation of DEM\n\n");
+
+    return DEM_subset.astype('uint8'),lat_subset,lon_subset,DEM_fileName
+    '''
+
+def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
+    '''Subsets the global elevation dataset to cover the required geolocation range.'''
 
     DEM_dLat = 30.*(1./3600.)
     DEM_dLon = 30.*(1./3600.)
@@ -1228,8 +1482,6 @@ def _granulate_DEM(geoDicts,inDir):
 def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList,inDir,geoDict):
     '''Subsets the global NDVI dataset to cover the required geolocation range.'''
 
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
-
     NDVI_dLat = 60.*(1./3600.)
     NDVI_dLon = 60.*(1./3600.)
 
@@ -1242,7 +1494,7 @@ def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
     LOG.debug("'ObservedStartTime' = %r" % (startTimeObj))
 
     julianDay = int(startTimeObj.strftime('%j'))
-    LOG.info("Julian day = %d" % (julianDay))
+    LOG.debug("Julian day = %d" % (julianDay))
 
     lowerDay = find_le(NDVIdays,julianDay)
     lowerIdx = index(NDVIdays,lowerDay)
@@ -1267,7 +1519,7 @@ def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnLi
 
     NDVI_fileName = path.join(CSPP_RT_ANC_HOME,'NDVI/NDVI.FM.c004.v2.0.WS.00-04.%03d.h5'%(NDVIday))
 
-    LOG.info("NDVI file : %s" % (NDVI_fileName))
+    LOG.info("For Julian day %d, using NDVI file %s" % (julianDay,NDVI_fileName))
 
     NDVIobj = pytables.openFile(NDVI_fileName)
     NDVI_node = NDVIobj.getNode('/NDVI')
@@ -1347,7 +1599,6 @@ def _granulate_NDVI(inDir,geoDicts):
     global ancEndian 
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     ADL_HOME = os.getenv('ADL_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
@@ -1388,7 +1639,7 @@ def _granulate_NDVI(inDir,geoDicts):
 
         N_Granule_ID = geoDict['N_Granule_ID']
 
-        LOG.debug("\nGranulating %s ..." % (masksCollShortNames))
+        LOG.info("Granulating %s ..." % (masksCollShortNames))
         LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
         LOG.debug("NDVI_subset.shape = %s" % (str(NDVI_subset.shape)))
         LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
@@ -1397,11 +1648,15 @@ def _granulate_NDVI(inDir,geoDicts):
         LOG.debug("min of NDVI_subset = %r"%(np.min(NDVI_subset)))
         LOG.debug("max of NDVI_subset = %r"%(np.max(NDVI_subset)))
 
+        t1 = time()
         data,dataIdx = _grid2Gran(np.ravel(latitude),
                                   np.ravel(longitude),
                                   NDVI_subset.astype(np.float64),
                                   gridLat.astype(np.float64),
                                   gridLon.astype(np.float64))
+        t2 = time()
+        elapsedTime = t2-t1
+        LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
 
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
@@ -1479,8 +1734,12 @@ def _granulate_NDVI(inDir,geoDicts):
 
         geoAscFile.close()
 
-        ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-        ascFile = open(ascFileName,"wt") # create a new text file
+        try:
+            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+            ascFile = open(ascFileName,"wt") # create a new text file
+        except Exception, err :
+            LOG.error("%s, aborting." % (err))
+            sys.exit(1)
 
         LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
@@ -1545,20 +1804,16 @@ def _setupAuxillaryFiles(inDir):
     '''
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-    
-
-    print "CSPP_RT_HOME =          %r" % (CSPP_RT_HOME)
-    print "CSPP_RT_ANC_HOME =      %r" % (CSPP_RT_ANC_HOME)
-    print "CSPP_RT_ANC_CACHE_DIR = %r" % (CSPP_RT_ANC_CACHE_DIR)
-    print "ANC_SCRIPTS_PATH =      %r" % (ANC_SCRIPTS_PATH)
-    print "ADL_ASC_TEMPLATES =     %r" % (ADL_ASC_TEMPLATES)
-    print "ADL_HOME =              %r" % (ADL_HOME)
+    #print "CSPP_RT_HOME =          %r" % (CSPP_RT_HOME)
+    #print "CSPP_RT_ANC_CACHE_DIR = %r" % (CSPP_RT_ANC_CACHE_DIR)
+    #print "ANC_SCRIPTS_PATH =      %r" % (ANC_SCRIPTS_PATH)
+    #print "ADL_ASC_TEMPLATES =     %r" % (ADL_ASC_TEMPLATES)
+    #print "ADL_HOME =              %r" % (ADL_HOME)
 
     #auxillaryCollShortNames = ['VIIRS-CM-IP-AC-Int','VIIRS-AF-EDR-AC-Int','VIIRS-Aeros-EDR-AC-Int','NAAPS-ANC-Int','AOT-ANC','VIIRS-AOT-LUT','VIIRS-AOT-Sunglint-LUT','VIIRS-AF-EDR-DQTT','VIIRS-Aeros-EDR-DQTT','VIIRS-SusMat-EDR-DQTT']
     #auxillaryAscTemplateFile = ['VIIRS-CM-IP-AC-Template.asc','VIIRS-AF-EDR-AC-Template.asc','VIIRS-Aeros-EDR-AC-Template.asc','NAAPS-ANC-Inc-Template.asc','AOT-ANC-Template.asc',']
@@ -1627,24 +1882,23 @@ def _setupAuxillaryFiles(inDir):
 
     for templatePath,blobTempFileName in zip(auxillaryPaths,auxillaryBlobTemplateFile) :
         blobTempFileName = path.join(CSPP_RT_ANC_CACHE_DIR,templatePath,blobTempFileName)
-        if os.path.islink(blobTempFileName) :
-            LOG.info("%s is a link..." %(blobTempFileName))
-            #auxillarySourceFile = string.split(os.path.basename(os.readlink(blobTempFileName)),'.')[1]
-            auxillarySourceFile = os.path.basename(os.readlink(blobTempFileName))[charsInUrid:]
-            LOG.info("auxillarySourceFile : %s" %(auxillarySourceFile))
+        if path.islink(blobTempFileName) :
+            LOG.info("%s is a link, resolving auxillary filename..." %(blobTempFileName))
+            auxillarySourceFile = path.basename(os.readlink(blobTempFileName))[charsInUrid:]
             auxillarySourceFiles.append(auxillarySourceFile)
         else :
-            LOG.info("%s is a file..." %(blobTempFileName))
-            auxillarySourceFile = os.path.basename(blobTempFileName)
+            auxillarySourceFile = path.basename(blobTempFileName)
             auxillarySourceFiles.append(auxillarySourceFile)
+
+        LOG.info("Auxillary filename : %s" %(auxillarySourceFile))
 
     for shortName,auxillarySourceFile in zip(auxillaryCollShortNames,auxillarySourceFiles) :
         LOG.info("%s --> %s" %(shortName,auxillarySourceFile))
 
 
-    for shortName,ascTempFileName,blobTempFileName,templatePath,auxillarySourceFile in zip(auxillaryCollShortNames,auxillaryAscTemplateFile,auxillaryBlobTemplateFile,auxillaryPaths,auxillarySourceFiles):
+    for shortName,ascTemplateFileName,blobTempFileName,templatePath,auxillarySourceFile in zip(auxillaryCollShortNames,auxillaryAscTemplateFile,auxillaryBlobTemplateFile,auxillaryPaths,auxillarySourceFiles):
 
-        LOG.info("Creating new %s asc file from template %s" % (shortName,ascTempFileName))
+        #LOG.info("Creating new %s asc file from template %s" % (shortName,ascTemplateFileName))
 
         # Create a new URID to be used in making the asc filenames
 
@@ -1660,16 +1914,21 @@ def _setupAuxillaryFiles(inDir):
 
         # Make a new asc file from the template, and substitute for the various tags
 
-        ascTempFileName = path.join(ADL_ASC_TEMPLATES,ascTempFileName)
+        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,ascTemplateFileName)
 
-        LOG.info("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTempFileName))
+        LOG.info("Creating new asc file %s from template %s" % \
+                (path.basename(ascFileName),path.basename(ascTemplateFileName)))
 
-        ascTemplateFile = open(ascTempFileName,"rt") # Open template file for reading
-        ascFile = open(ascFileName,"wt") # create a new text file
+        try:
+            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+            ascFile = open(ascFileName,"wt") # create a new text file
+        except Exception, err :
+            LOG.error("%s, aborting." % (err))
+            sys.exit(1)
 
-        LOG.info("Template file %s is %r with mode %s" %(ascTempFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
+        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
-        LOG.info("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
+        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
         for line in ascTemplateFile.readlines():
            line = line.replace("CSPP_URID",URID)
@@ -1684,17 +1943,15 @@ def _setupAuxillaryFiles(inDir):
 
         # Create a link between the binary template file and working directory
 
-        LOG.info("CSPP_RT_ANC_CACHE_DIR -> %s" %(CSPP_RT_ANC_CACHE_DIR))
-        LOG.info("templatePath -> %s" %(templatePath))
-        LOG.info("blobTempFileName -> %s" %(blobTempFileName))
         blobTempFileName = path.join(CSPP_RT_ANC_CACHE_DIR,templatePath,blobTempFileName)
         LOG.info("Creating the link %s -> %s" %(blobFileName,blobTempFileName))
 
-        if not os.path.exists(blobFileName):
+        if not path.exists(blobFileName):
             LOG.debug('%r -> %r' % (blobFileName, blobTempFileName))
             os.symlink(blobTempFileName, blobFileName)
         else:
             LOG.info('%r already exists; continuing' % blobFileName)
+
         try:
             LOG.debug('testing %r' % blobFileName)
             s = os.stat(blobFileName)
@@ -1709,13 +1966,10 @@ def _getGRC(inDir,geoDicts):
     '''
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
-
-    
 
     # Get a bunch of information about the geolocation
     latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
@@ -1753,8 +2007,8 @@ def _getGRC(inDir,geoDicts):
             ascFileName = path.join(blobDir,URID+'.asc')
             blobName = path.join(blobDir,URID+'.'+shortName)
 
-            LOG.info("ascFileName : %s" % (ascFileName))
-            LOG.info("blobName : %s" % (blobName))
+            LOG.debug("ascFileName : %s" % (ascFileName))
+            LOG.debug("blobName : %s" % (blobName))
 
             # Create new VIIRS-MOD-GRC blob
 
@@ -1804,8 +2058,12 @@ def _getGRC(inDir,geoDicts):
 
             geoAscFile.close()
 
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
+            try:
+                ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+                ascFile = open(ascFileName,"wt") # create a new text file
+            except Exception, err :
+                LOG.error("%s, aborting." % (err))
+                sys.exit(1)
 
             LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
@@ -1859,7 +2117,6 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
     global ancEndian 
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     ADL_HOME = os.getenv('ADL_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
@@ -1999,8 +2256,12 @@ def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
 
         geoAscFile.close()
 
-        ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-        ascFile = open(ascFileName,"wt") # create a new text file
+        try:
+            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+            ascFile = open(ascFileName,"wt") # create a new text file
+        except Exception, err :
+            LOG.error("%s, aborting." % (err))
+            sys.exit(1)
 
         LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
@@ -2063,10 +2324,10 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
     #southDsetName = "Southern Hemisphere/Data Fields/Age"
 
     LOG.debug("Retrieving NISE HDF4 path '%s'" % (northDsetName))
-    nHemi = fileObj.getDataset(northDsetName)
+    nHemi = fileObj.get_dataset(northDsetName)
 
     LOG.debug("Retrieving NISE HDF4 path '%s'" % (southDsetName))
-    sHemi = fileObj.getDataset(southDsetName)
+    sHemi = fileObj.get_dataset(southDsetName)
 
     #################
 
@@ -2190,7 +2451,6 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
     global ancEndian 
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     ADL_HOME = os.getenv('ADL_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
@@ -2235,7 +2495,13 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
         # Granulate the NISE data using this geolocation...
         ####################################################
 
+        t1 = time()
+
         data = _granulate_NISE(latitude,longitude,LSM,NISEfiles[0])
+
+        t2 = time()
+        elapsedTime = t2-t1
+        LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
 
         # Fill the required pixel trim rows in the granulated NCEP data with 
         # the ONBOARD_PT_FILL value for the correct data type
@@ -2309,8 +2575,12 @@ def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
 
         geoAscFile.close()
 
-        ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-        ascFile = open(ascFileName,"wt") # create a new text file
+        try:
+            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+            ascFile = open(ascFileName,"wt") # create a new text file
+        except Exception, err :
+            LOG.error("%s, aborting." % (err))
+            sys.exit(1)
 
         LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
@@ -2340,10 +2610,9 @@ def _retrieve_grib_files(geoDicts):
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
-    # FIXME : Fix rounding up of the seconds if the decisecond>=9.5 
     gribFiles = []
+
     for geoDict in geoDicts:
-        #timeObj = geoDict['StartTime']
         timeObj = geoDict['ObservedStartTime']
         dateStamp = timeObj.strftime("%Y%m%d")
         seconds = repr(int(round(timeObj.second + float(timeObj.microsecond)/1000000.)))
@@ -2351,7 +2620,6 @@ def _retrieve_grib_files(geoDicts):
         deciSeconds = repr(0 if deciSeconds > 9 else deciSeconds)
         startTimeStamp = "%s%s" % (timeObj.strftime("%H%M%S"),deciSeconds)
 
-        #timeObj = geoDict['EndTime']
         timeObj = geoDict['ObservedEndTime']
         seconds = repr(int(round(timeObj.second + float(timeObj.microsecond)/1000000.)))
         deciSeconds = int(round(float(timeObj.microsecond)/100000.))
@@ -2366,9 +2634,8 @@ def _retrieve_grib_files(geoDicts):
         try :
             LOG.info('Retrieving NCEP files for %s ...' % (granuleName))
             cmdStr = '%s/cspp_retrieve_gdas_gfs.csh %s' % (ANC_SCRIPTS_PATH,granuleName)
-            LOG.info('\t%s' % (cmdStr))
+            LOG.debug('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
-            LOG.debug('\t%s' % (repr(args)))
 
             procRetVal = 0
             procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -2396,13 +2663,12 @@ def _retrieve_grib_files(geoDicts):
         except Exception, err:
             LOG.warn( "%s" % (str(err)))
 
-    # Get a unique list of grib files that were fetched
-    gribFiles.sort()
-    gribFiles = dict(map(lambda i: (i,1),gribFiles)).keys()
+    # Uniqify the list of GRIB files
+    gribFiles = list(set(gribFiles))
     gribFiles.sort()
 
     for gribFile in gribFiles :
-        LOG.info('Retrieved gribfile: %r' % (gribFile))
+        LOG.info('Retrieved GRIB file: %r' % (gribFile))
 
     return gribFiles
 
@@ -2425,7 +2691,7 @@ def _create_NCEP_gridBlobs_obsolete(gribFiles):
         gribBlob = path.join(gribPath,gribBlob)
         LOG.debug("Creating NCEP GRIB blob %s" % (gribBlob))
 
-        if not os.path.exists(gribBlob):
+        if not path.exists(gribBlob):
             try :
                 LOG.info('Transcoding %s to %s ...' % (files,gribBlob))
                 NCEPscript = '%s/NCEPtoBlob.py' % (ANC_SCRIPTS_PATH)
@@ -2477,11 +2743,12 @@ def _create_NCEP_gridBlobs(gribFiles):
         gribFile = path.basename(files)
         gribBlob = "%s_blob.le" % (gribFile)
         gribBlob = path.join(gribPath,gribBlob)
-        LOG.debug("Creating NCEP GRIB blob %s" % (gribBlob))
 
-        if not os.path.exists(gribBlob):
+        if not path.exists(gribBlob):
             try :
-                LOG.info('Transcoding %s to %s ...' % (files,gribBlob))
+                LOG.info('Transcoding %s to %s ...' % \
+                        (path.basename(files),path.basename(gribBlob)))
+
                 NCEPxml = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
 
                 # Create the grib object and populate with the grib file data
@@ -2547,16 +2814,15 @@ def _create_NCEP_gridBlobs(gribFiles):
                     LOG.error('Transcoding of ancillary files failed for %s.' % (files))
                     sys.exit(procRetVal)
                 else :
-                    LOG.info('Finished creating NCEP GRIB blob %s' % (gribBlob))
+                    LOG.debug('Finished creating NCEP GRIB blob %s' % (gribBlob))
                     blobFiles.append(gribBlob)
 
             except Exception, err:
                 LOG.warn( "%s" % (str(err)))
         else :
-            LOG.info('Gridded NCEP blob files %s exists, skipping.' % (gribBlob))
+            LOG.info('NCEP global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
             blobFiles.append(gribBlob)
 
-    LOG.info('Returning NCEP GRIB blob file names %r' % (blobFiles))
     return blobFiles
 
 
@@ -2644,7 +2910,6 @@ def _create_NAAPS_gridBlobs(gribFiles):
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
     
 
@@ -2656,7 +2921,7 @@ def _create_NAAPS_gridBlobs(gribFiles):
         gribBlob = path.join(gribPath,gribBlob)
         LOG.debug("Creating NAAPS GRIB blob %s" % (gribBlob))
 
-        if not os.path.exists(gribBlob):
+        if not path.exists(gribBlob):
             try :
                 LOG.info('Transcoding %s to %s ...' % (files,gribBlob))
                 NAAPSxml = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
@@ -2705,7 +2970,7 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
     libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
     LOG.debug("Gridding and granulation library file: %s" % (libFile))
     lib = ctypes.cdll.LoadLibrary(libFile)
-    grid2gran = lib.grid2gran
+    grid2gran = lib.grid2gran_nearest
     grid2gran.restype = None
     grid2gran.argtypes = [
             ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
@@ -2719,8 +2984,6 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
             ctypes.c_int32,
             ctypes.c_int32
             ]
-
-    t1 = time()
 
     '''
     int snapGrid_ctypes(double *lat, 
@@ -2736,7 +2999,7 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
                     )
     '''
 
-    LOG.info("Calling C routine grid2gran()...")
+    LOG.debug("Calling C routine grid2gran()...")
 
     retVal = grid2gran(dataLat,
                        dataLon,
@@ -2749,11 +3012,8 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
                        gridRows,
                        gridCols)
 
-    LOG.info("Returning from C routine grid2gran()")
+    LOG.debug("Returning from C routine grid2gran()")
 
-    t2 = time()
-    elapsedTime = t2-t1
-    LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,nData))
 
     return data,dataIdx
 
@@ -2773,6 +3033,70 @@ def _getAscLine(fileObj,searchString):
         geoAscFile.close()
 
     return dataStr
+
+
+def _grid2Gran_weightedAvg(dataLat, dataLon, gridData, gridLat, gridLon):
+    '''Granulates a gridded dataset using an input geolocation'''
+
+    nData = np.int64(dataLat.size)
+    gridRows = np.int32(gridLat.shape[0])
+    gridCols = np.int32(gridLat.shape[1])
+
+    data = np.ones(np.shape(dataLat),dtype=np.float64)* -999.9
+    dataIdx  = np.ones(np.shape(dataLat),dtype=np.int64) * -99999
+
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+
+    libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
+    LOG.debug("Gridding and granulation library file: %s" % (libFile))
+    lib = ctypes.cdll.LoadLibrary(libFile)
+    grid2gran_weightedAvg = lib.grid2gran_weightedAvg
+    grid2gran_weightedAvg.restype = None
+    grid2gran_weightedAvg.argtypes = [
+            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+            ctypes.c_int64,
+            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_int64,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+            ctypes.c_int32,
+            ctypes.c_int32
+            ]
+
+    '''
+    int snapGrid_ctypes(double *lat, 
+                    double *lon, 
+                    double *data, 
+                    long nData, 
+                    double *gridLat,
+                    double *gridLon,
+                    double *gridData,
+                    long *gridDataIdx,
+                    int nGridRows,
+                    int nGridCols
+                    )
+    '''
+
+    LOG.debug("Calling C routine grid2gran_weightedAvg()...")
+
+    retVal = grid2gran_weightedAvg(dataLat,
+                       dataLon,
+                       data,
+                       nData,
+                       gridLat,
+                       gridLon,
+                       gridData,
+                       dataIdx,
+                       gridRows,
+                       gridCols)
+
+    LOG.debug("Returning from C routine grid2gran_weightedAvg()")
+
+    return data,dataIdx
+
 
 def _getAscStructs(fileObj,searchString,linesOfContext):
 
@@ -2816,7 +3140,6 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
     
 
@@ -2881,8 +3204,8 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     # FIXME : Should be using two NCEP blob files, and averaging
     gridBlobFile = gridBlobFiles[0]
 
-    if os.path.exists(ncepXmlFile):
-        LOG.info("We are using for %s: %s,%s" %('NCEP-ANC-Int',ncepXmlFile,gridBlobFile))
+    if path.exists(ncepXmlFile):
+        LOG.debug("We are using for %s: %s,%s" %('NCEP-ANC-Int',ncepXmlFile,gridBlobFile))
     
     endian = ancEndian
 
@@ -2899,13 +3222,13 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Preci-Wtr-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Preci-Wtr-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Preci-Wtr-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Preci-Wtr-Mod-Gran'])))
 
     # 2m Surface temperature
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Temp-Surf2M-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Temp-Surf2M-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Temp-Surf2M-Mod-Gran'])))
 
     # Omnidirectional wind speed
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Wind-Speed-Mod-Gran'][0]
@@ -2914,7 +3237,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     vWind = getattr(ncepBlobArrObj,blobDsetName).astype('float')
     windSpeed = np.sqrt(uWind*uWind + vWind*vWind)
     NCEP_globalGridData['VIIRS-ANC-Wind-Speed-Mod-Gran'] = windSpeed
-    LOG.info("Shape of dataset %s is %s" % ('windSpeed',np.shape(NCEP_globalGridData['VIIRS-ANC-Wind-Speed-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % ('windSpeed',np.shape(NCEP_globalGridData['VIIRS-ANC-Wind-Speed-Mod-Gran'])))
 
     # Terrain height
     # FIXME : VIIRS-ANC-Surf-Ht-Mod-Gran is supposed to come from the Terrain-Eco-ANC-Tile 
@@ -2925,7 +3248,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Surf-Ht-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Surf-Ht-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Surf-Ht-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Surf-Ht-Mod-Gran'])))
 
     # Contruct a default 0.5 degree grid...
 
@@ -2974,7 +3297,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
-        if os.path.exists(geoXmlFile):
+        if path.exists(geoXmlFile):
             LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
 
         # Open the geolocation blob and get the latitude and longitude
@@ -3092,7 +3415,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
                 if (firstGranule) :
 
-                    LOG.debug("\nGranulating %s ..." % (dSet))
+                    LOG.info("Granulating %s ..." % (dSet))
                     LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
                     LOG.debug("NCEP_anc.shape = %s" % (str(NCEP_anc.shape)))
                     LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
@@ -3101,11 +3424,16 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
                     LOG.debug("min of NCEP_anc  = %r"%(np.min(NCEP_anc)))
                     LOG.debug("max of NCEP_anc  = %r"%(np.max(NCEP_anc)))
 
+                    t1 = time()
+                    #data,dataIdx = _grid2Gran_weightedAvg(np.ravel(latitude),
                     data,dataIdx = _grid2Gran(np.ravel(latitude),
                                               np.ravel(longitude),
                                               NCEP_anc.astype(np.float64),
                                               gridLat,
                                               gridLon)
+                    t2 = time()
+                    elapsedTime = t2-t1
+                    LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
 
                     data = data.reshape(latitude.shape)
                     dataIdx = dataIdx.reshape(latitude.shape)
@@ -3115,10 +3443,16 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
                 else :
 
-                    LOG.debug("Granulating %s using existing data indices." % (dSet))
+                    LOG.info("Granulating %s using existing data indices." % (dSet))
+                    
+                    t1 = time()
                     NCEP_anc = np.ravel(NCEP_anc)
                     data = np.ravel(NCEP_anc)[np.ravel(dataIdx)]
                     data = data.reshape(latitude.shape)
+                    
+                    t2 = time()
+                    elapsedTime = t2-t1
+                    LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
                     LOG.debug("Shape of subsequent granulated %s is %s" % (dSet,np.shape(data)))
 
             # Fill the required pixel trim rows in the granulated NCEP data with 
@@ -3176,9 +3510,12 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
             LOG.debug("GRingLatitudeStr = \n%s\n" % (GRingLatitudeStr))
             LOG.debug("GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr))
 
-
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
+            try:
+                ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+                ascFile = open(ascFileName,"wt") # create a new text file
+            except Exception, err :
+                LOG.error("%s, aborting." % (err))
+                sys.exit(1)
 
             LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
@@ -3209,11 +3546,9 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
     
 
-    #ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
     
     # Collection shortnames of the required NCEP ancillary datasets
@@ -3278,8 +3613,8 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     # FIXME : Should be using two NCEP blob files, and averaging
     gridBlobFile = gridBlobFiles[0]
 
-    if os.path.exists(ncepXmlFile):
-        LOG.info("We are using for %s: %s,%s" %('NCEP-ANC-Int',ncepXmlFile,gridBlobFile))
+    if path.exists(ncepXmlFile):
+        LOG.debug("We are using for %s: %s,%s" %('NCEP-ANC-Int',ncepXmlFile,gridBlobFile))
     
     endian = ancEndian
 
@@ -3296,13 +3631,13 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Preci-Wtr-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Preci-Wtr-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Preci-Wtr-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Preci-Wtr-Mod-Gran'])))
 
     # 2m Surface temperature
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Temp-Surf2M-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Temp-Surf2M-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Temp-Surf2M-Mod-Gran'])))
 
     # Omnidirectional wind speed
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Wind-Speed-Mod-Gran'][0]
@@ -3311,7 +3646,7 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     vWind = getattr(ncepBlobArrObj,blobDsetName).astype('float')
     windSpeed = np.sqrt(uWind*uWind + vWind*vWind)
     NCEP_globalGridData['VIIRS-ANC-Wind-Speed-Mod-Gran'] = windSpeed
-    LOG.info("Shape of dataset %s is %s" % ('windSpeed',np.shape(NCEP_globalGridData['VIIRS-ANC-Wind-Speed-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % ('windSpeed',np.shape(NCEP_globalGridData['VIIRS-ANC-Wind-Speed-Mod-Gran'])))
 
     # Wind direction
     windDirection_rad  = np.pi/2. - np.arctan2(vWind, uWind)
@@ -3319,7 +3654,7 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     windDirection_rad[negWindDirIdx] = windDirection_rad[negWindDirIdx] + 2.*np.pi
     windDirection = np.degrees(windDirection_rad)
     NCEP_globalGridData['VIIRS-ANC-Wind-Direction-Mod-Gran'] = windDirection
-    LOG.info("Shape of dataset %s is %s" % ('windSpeed',np.shape(NCEP_globalGridData['VIIRS-ANC-Wind-Direction-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % ('windSpeed',np.shape(NCEP_globalGridData['VIIRS-ANC-Wind-Direction-Mod-Gran'])))
 
     # Terrain height
     # FIXME : VIIRS-ANC-Surf-Ht-Mod-Gran is supposed to come from the Terrain-Eco-ANC-Tile 
@@ -3330,20 +3665,20 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Surf-Ht-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Surf-Ht-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Surf-Ht-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Surf-Ht-Mod-Gran'])))
 
     # Surface Pressure
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Press-Surf-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Press-Surf-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Press-Surf-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Press-Surf-Mod-Gran'])))
     # TODO : Terrain correction of surface pressure in ADL/ANC/VIIRS/SurfPres/src/ProAncViirsGranulateSurfPres.cpp
 
     # Total Column Ozone
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Tot-Col-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Tot-Col-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Tot-Col-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Tot-Col-Mod-Gran'])))
 
     # Contruct a default 0.5 degree grid...
 
@@ -3392,7 +3727,7 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
 
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
-        if os.path.exists(geoXmlFile):
+        if path.exists(geoXmlFile):
             LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
 
         # Open the geolocation blob and get the latitude and longitude
@@ -3595,8 +3930,12 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
             LOG.debug("GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr))
 
 
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
+            try:
+                ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+                ascFile = open(ascFileName,"wt") # create a new text file
+            except Exception, err :
+                LOG.error("%s, aborting." % (err))
+                sys.exit(1)
 
             LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
@@ -3627,11 +3966,8 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'masks')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     csppPython = os.getenv('PY')
     
-
-    #ADL_ASC_TEMPLATES = path.join(CSPP_RT_ANC_HOME,'asc_templates')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
     
     # Collection shortnames of the required NAAPS ancillary datasets
@@ -3662,8 +3998,8 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
     # FIXME : Should be using two NAAPS blob files, and averaging
     gridBlobFile = gridBlobFiles[0]
 
-    if os.path.exists(naapsXmlFile):
-        LOG.info("We are using for %s: %s,%s" %('NAAPS-ANC-Int',naapsXmlFile,gridBlobFile))
+    if path.exists(naapsXmlFile):
+        LOG.debug("We are using for %s: %s,%s" %('NAAPS-ANC-Int',naapsXmlFile,gridBlobFile))
     
     endian = ancEndian
 
@@ -3680,7 +4016,7 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
     blobDsetName = NAAPS_shortNameToBlobName['VIIRS-ANC-Optical-Depth-Mod-Gran']
     NAAPS_globalGridData['VIIRS-ANC-Optical-Depth-Mod-Gran'] = \
             getattr(naapsBlobArrObj,blobDsetName).astype('float')
-    LOG.info("Shape of dataset %s is %s" % (blobDsetName,np.shape(NAAPS_globalGridData['VIIRS-ANC-Optical-Depth-Mod-Gran'])))
+    LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NAAPS_globalGridData['VIIRS-ANC-Optical-Depth-Mod-Gran'])))
 
 
     # Contruct a default 0.5 degree grid...
@@ -3730,7 +4066,7 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
-        if os.path.exists(geoXmlFile):
+        if path.exists(geoXmlFile):
             LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
 
         # Open the geolocation blob and get the latitude and longitude
@@ -3924,8 +4260,12 @@ def _granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
             LOG.debug("GRingLongitudeStr = \n%s\n" % (GRingLongitudeStr))
 
 
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
+            try:
+                ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+                ascFile = open(ascFileName,"wt") # create a new text file
+            except Exception, err :
+                LOG.error("%s, aborting." % (err))
+                sys.exit(1)
 
             LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
 
@@ -4004,12 +4344,12 @@ def _retrieve_NISE_files_and_convert(geoDicts):
         new_niseName = string.replace(niseName,'HDFEOS','h5')
         new_niseName = path.join(niseDir,new_niseName)
 
-        if not os.path.exists(new_niseName):
+        if not path.exists(new_niseName):
 
             try :
-                LOG.info('Converting HDFEOS NISE file\n\t%s\nto HDF5...\n\t%s' % (files,new_niseName))
+                LOG.debug('Converting HDFEOS NISE file\n\t%s\nto HDF5...\n\t%s' % (files,new_niseName))
                 cmdStr = '%s/common/COTS/hdf5/hdf5-1.8.4/bin/h4toh5 %s %s' % (CSPP_RT_HOME,files,new_niseName)
-                LOG.info('\t%s' % (cmdStr))
+                LOG.debug('\t%s' % (cmdStr))
                 args = shlex.split(cmdStr)
                 LOG.debug('\t%s' % (repr(args)))
 
@@ -4047,9 +4387,8 @@ def _retrieve_NISE_files(geoDicts):
         try :
             LOG.info('Retrieving NISE files for %s ...' % (dateStamp))
             cmdStr = '%s/get_anc_cspp_nise.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
-            LOG.info('\t%s' % (cmdStr))
+            LOG.debug('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
-            LOG.debug('\t%s' % (repr(args)))
 
             procRetVal = 0
             procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -4079,6 +4418,9 @@ def _retrieve_NISE_files(geoDicts):
     niseFiles = list(set(niseFiles))
     niseFiles.sort()
 
+    for niseFile in niseFiles :
+        LOG.info('Retrieved NISE file: %r' % (niseFile))
+
     return niseFiles
 
 
@@ -4092,7 +4434,7 @@ def check_log_files(work_dir, pid, xml):
     Display log message and hint if problem occurred
     """
     # retrieve exe name and log path from lw file
-    logpat = os.path.join(work_dir, "log", "*%d*.log" % pid)
+    logpat = path.join(work_dir, "log", "*%d*.log" % pid)
 
     n_err=0
     for logFile in glob(logpat):
@@ -4118,20 +4460,22 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     first = True
 
     # obtain pre-existing granule list
-    modGeoTCPattern = os.path.join(work_dir, 'GMTCO*.h5')
-    cmaskPattern = os.path.join(work_dir, 'IICMO*.h5')
-    activeFiresPattern = os.path.join(work_dir, 'AVAFO*.h5')
+    modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
+    cmaskPattern = path.join(work_dir, 'IICMO*.h5')
+    activeFiresPattern = path.join(work_dir, 'AVAFO*.h5')
     # TODO : Enable for VIIRS AOT
-    #aotIpPattern = os.path.join(work_dir, 'IVAOT*.h5')
-    #aotEdrPattern = os.path.join(work_dir, 'VAOOO*.h5')
-    #suspMatEdrPattern = os.path.join(work_dir, 'VSUMO*.h5')
+    #aotIpPattern = path.join(work_dir, 'IVAOT*.h5')
+    #aotEdrPattern = path.join(work_dir, 'VAOOO*.h5')
+    #suspMatEdrPattern = path.join(work_dir, 'VSUMO*.h5')
 
     # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
     # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
     
     # Get the N_GranuleID and filename of existing cmask files in the work_dir ? ...
     cmask_prior_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH)
+    LOG.debug('Existing IICMO granules... %s' % (repr(cmask_prior_granules)))
     cmask_prior_granules = set(cmask_prior_granules.keys())
+    LOG.debug(' Set of existing IICMO granules... %s' % (repr(cmask_prior_granules)))
 
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Active fires files
     activeFires_prior_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH)
@@ -4228,14 +4572,14 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         t2 = time()
         LOG.info ( "Controller ran in %f seconds." % (t2-t1))
 
-    LOG.debug("cmask_ID.values() = \n%r" % (cmask_ID.values()))
-    LOG.debug("set(cmask_ID.values()) = \n%r" % (set(cmask_ID.values())))
-    LOG.debug("cmask_prior_granules = \n%r" % (cmask_prior_granules))
+    LOG.debug("cmask_ID.values() = %r" % (cmask_ID.values()))
+    LOG.debug("set(cmask_ID.values()) = %r" % (set(cmask_ID.values())))
+    LOG.debug("cmask_prior_granules = %r" % (cmask_prior_granules))
     cmask_granules_made = set(cmask_ID.values()) - cmask_prior_granules
 
-    LOG.debug("afires_ID.values() = \n%r" % (afires_ID.values()))
-    LOG.debug("set(afires_ID.values()) = \n%r" % (set(afires_ID.values())))
-    LOG.debug("activeFires_prior_granules = \n%r" % (activeFires_prior_granules))
+    LOG.debug("afires_ID.values() = %r" % (afires_ID.values()))
+    LOG.debug("set(afires_ID.values()) = %r" % (set(afires_ID.values())))
+    LOG.debug("activeFires_prior_granules = %r" % (activeFires_prior_granules))
     activeFires_granules_made = set(afires_ID.values()) - activeFires_prior_granules
 
     # TODO : Enable for VIIRS AOT
@@ -4281,17 +4625,17 @@ def _cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
     """upon successful run, clean out work directory"""
 
     LOG.info("cleaning up work directory...")
-    for fn in glob(os.path.join(work_dir, '????????-?????-????????-????????.*')):
+    for fn in glob(path.join(work_dir, '????????-?????-????????-????????.*')):
         LOG.debug('removing %s' % (fn))
         os.unlink(fn)
 
     LOG.info("Removing task xml files...")
-    for fn in glob(os.path.join(work_dir, xml_glob)):
+    for fn in glob(path.join(work_dir, xml_glob)):
         LOG.debug('removing task file %s' % (fn))
         os.unlink(fn)
 
     LOG.info("Removing log directories %s ..."%(log_dir_glob))
-    for dirname in glob(os.path.join(work_dir,log_dir_glob)):
+    for dirname in glob(path.join(work_dir,log_dir_glob)):
         LOG.debug('removing logs in %s' % (dirname))
         try :
             rmtree(dirname, ignore_errors=False)
@@ -4301,7 +4645,7 @@ def _cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
     # FIXME : Cannot seem to remove the log directory, complains that the dir is not empty.
     LOG.info("Removing other directories ...")
     for dirname in more_dirs:
-        fullDirName = os.path.join(work_dir,dirname)
+        fullDirName = path.join(work_dir,dirname)
         LOG.debug('removing %s' % (fullDirName))
         try :
             rmtree(fullDirName, ignore_errors=False)
@@ -4431,26 +4775,26 @@ def main():
 
     # Set the work directory
 
-    work_dir = os.path.abspath(options.work_dir)
+    work_dir = path.abspath(options.work_dir)
     LOG.debug('Setting the work directory to %r' % (work_dir))
 
     # Check the environment variables, and whether we can write to the working directory
     check_env(work_dir)
     
     # create work directory
-    if not os.path.isdir(work_dir):
+    if not path.isdir(work_dir):
         LOG.info('creating directory %s' % (work_dir))
         os.makedirs(work_dir)
-    log_dir = os.path.join(work_dir, 'log')
-    if not os.path.isdir(log_dir):
+    log_dir = path.join(work_dir, 'log')
+    if not path.isdir(log_dir):
         LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
-    perf_dir = os.path.join(work_dir, 'perf')
-    if not os.path.isdir(perf_dir):
+    perf_dir = path.join(work_dir, 'perf')
+    if not path.isdir(perf_dir):
         LOG.debug('creating directory %s' % (perf_dir))
         os.makedirs(perf_dir)
-    anc_dir = os.path.join(work_dir, 'linked_data')
-    if not os.path.isdir(anc_dir):
+    anc_dir = path.join(work_dir, 'linked_data')
+    if not path.isdir(anc_dir):
         LOG.debug('creating directory %s' % (anc_dir))
         os.makedirs(anc_dir)
 
@@ -4480,22 +4824,34 @@ def main():
     # Read through ascii metadata and build up information table
     LOG.info('Sifting through metadata to find VIIRS SDR processing candidates')
     geolocationShortNames = ['VIIRS-MOD-RGEO-TC','VIIRS-MOD-RGEO','VIIRS-MOD-GEO-TC','VIIRS-MOD-GEO']
+    anc_granules_to_process = None
+    granules_to_process = None
+
     for geoType in geolocationShortNames :
-        LOG.info("Searching for VIIRS geolocation %s..." % (geoType))
+        LOG.info("Searching for VIIRS geolocation %s for ancillary granule IDs..." % (geoType))
         anc_granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType,crossGran=None,work_dir=work_dir)))
-        granules_to_process     = sorted(list(sift_metadata_for_viirs_sdr(geoType,crossGran=1,   work_dir=work_dir)))
+
+        if anc_granules_to_process :
+            LOG.info("Searching for VIIRS geolocation %s for product granule IDs..." % (geoType))
+            granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType,crossGran=1,   work_dir=work_dir)))
         
         if granules_to_process :
-            LOG.debug("\tgranules_to_process() has %d objects..."%(len(granules_to_process)))
-            LOG.info(', '.join(x['N_Granule_ID'] for x in granules_to_process))
-            LOG.debug("\tanc_granules_to_process() has %d objects..."%(len(anc_granules_to_process)))
-            LOG.info(', '.join(x['N_Granule_ID'] for x in anc_granules_to_process))
             break
         else :
-            LOG.warn("\tNo granules for VIIRS geolocation %s..." % (geoType))
+            LOG.info("\tNo granules for VIIRS geolocation %s" % (geoType))
 
-    if not granules_to_process:
-        LOG.error("Error: Found no granules to process!")
+    LOG.info('Finished sifting through metadata to find VIIRS SDR processing candidates')
+
+    if granules_to_process :
+        granIdKey = lambda x: (x['N_Granule_ID'])
+
+        ancGransID = ', '.join(x['N_Granule_ID'] for x in sorted(anc_granules_to_process,key=granIdKey))
+        LOG.info("Ancillary granule IDs: %s"%(ancGransID))
+
+        prodGransID = ', '.join(x['N_Granule_ID'] for x in sorted(granules_to_process,key=granIdKey))
+        LOG.info("Product granule IDs: %s"%(', '.join(x['N_Granule_ID'] for x in granules_to_process)))
+    else :
+        LOG.error("Found no granules to process!")
         num_xml_files_to_process = 0
         num_no_output_runs = 0
         noncritical_problem = False
@@ -4522,14 +4878,13 @@ def main():
 
     # Expand any user specifiers in the various paths
 
-    #CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
     CSPP_RT_ANC_PATH = os.getenv('CSPP_RT_ANC_PATH')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     CSPP_RT_ANC_TILE_PATH = os.getenv('CSPP_RT_ANC_TILE_PATH')
     LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH')
     DSTATICDATA = os.getenv('DSTATICDATA')
-    LOG.debug("\nCSPP_RT_ANC_HOME:     %s" % (CSPP_RT_ANC_HOME))
-    LOG.debug("CSPP_RT_ANC_PATH:       %s" % (CSPP_RT_ANC_PATH))
+
+    LOG.debug("\nCSPP_RT_ANC_PATH:       %s" % (CSPP_RT_ANC_PATH))
     LOG.debug("CSPP_RT_ANC_CACHE_DIR:  %s" % (CSPP_RT_ANC_CACHE_DIR))
     LOG.debug("CSPP_RT_ANC_TILE_PATH:  %s" % (CSPP_RT_ANC_TILE_PATH))
     LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
@@ -4632,7 +4987,7 @@ def main():
         _granulate_NDVI(work_dir,anc_granules_to_process)
 
         t2 = time()
-        LOG.info ( "Generation of VIIRS Masks ancillary data took %f seconds." % (t2-t1))
+        LOG.info( "Generation of VIIRS Masks ancillary data took %f seconds." % (t2-t1))
 
     else :
 
@@ -4653,7 +5008,7 @@ def main():
         # Generate the VIIRS Aerosol Optical Thickness LW xml files for each N_Granule_ID...
         #xml_files_to_process = generate_viirs_aerosol_edr_xml(work_dir, granules_to_process)
 
-        LOG.info('%d granules to process: \n%s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process)))
+        LOG.info('%d granules to process: %s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process)))
 
         LOG.info("Running VIIRS EDR Masks on XML files")
         crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = run_xml_files(work_dir, xml_files_to_process, setup_only = False, WORK_DIR = work_dir, LINKED_ANCILLARY = work_dir, ADL_HOME=ADL_HOME)

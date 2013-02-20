@@ -102,38 +102,38 @@ class HDF4File():
         v  = hdf.vgstart()
       
         vars = string.split(varPath, "/")
-        LOG.info("vars : %r" %(vars))
+        LOG.debug("vars : %r" %(vars))
       
         if len(vars) > 0:
-            LOG.info("Specifying '%s' as root group." % vars[0])
+            LOG.debug("Specifying '%s' as root group." % vars[0])
             vgroup = v.attach(vars[0])
             
             for i in range(0, len(vars)):
                 varname = vars[i]
-                LOG.info("Traversing level %s with varname '%s'"%(str(i),varname))
+                LOG.debug("Traversing level %s with varname '%s'"%(str(i),varname))
                 
                 members = vgroup.tagrefs()
-                LOG.info("%s has members: %r" % (varname,members))
+                LOG.debug("%s has members: %r" % (varname,members))
 
                 for tag, ref in members:
-                    LOG.info("\ttag,ref = (%r,%r)" %(tag,ref))
+                    LOG.debug("\ttag,ref = (%r,%r)" %(tag,ref))
                 
                     # Vdata tag
                     if tag == HDF.HC.DFTAG_VH:
-                        LOG.info("\tWe have a vdata tag (DFTAG_VH)")
+                        LOG.debug("\tWe have a vdata tag (DFTAG_VH)")
                         vd = vs.attach(ref)
                         nrecs, intmode, fields, size, name = vd.inquire()
-                        LOG.info("\tvdata: %s %s,%s" % (name,tag,ref))
-                        LOG.info("\tfields: %s" %(fields))
-                        LOG.info("\tnrecs: %d" %(nrecs))
+                        LOG.debug("\tvdata: %s %s,%s" % (name,tag,ref))
+                        LOG.debug("\tfields: %s" %(fields))
+                        LOG.debug("\tnrecs: %d" %(nrecs))
                         vd.detach()
                    
                     # SDS tag
                     elif tag == HDF.HC.DFTAG_NDG:
-                        LOG.info("\tWe have a dataset tag (DFTAG_NDG)")
+                        LOG.debug("\tWe have a dataset tag (DFTAG_NDG)")
                         sds = sd.select(sd.reftoindex(ref))
                         name, rank, dims, type, nattrs = sds.info()
-                        LOG.info("\tWe have dataset %s" %(name))
+                        LOG.debug("\tWe have dataset %s" %(name))
                         if name == varname:
                             # Check that if we reach our desired name, that it is the 
                             # last one (and hence likely to be a dataset rather than a group).
@@ -146,7 +146,7 @@ class HDF4File():
                    
                     # VG tag
                     elif tag == HDF.HC.DFTAG_VG:
-                        LOG.info("\tWe have a vgroup tag (DFTAG_VG)")
+                        LOG.debug("\tWe have a vgroup tag (DFTAG_VG)")
                         vg0 = v.attach(ref)
                         if vg0._name == varname:
                             vgroup.detach()

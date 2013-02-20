@@ -235,7 +235,6 @@ class NCEPclass(object):
     def __init__(self,gribFile=None,isListing=False):
         if gribFile is not None :
             gribFile = path.abspath(path.expanduser(gribFile))
-            print "The grib file is %s" % (gribFile)
 
             # Setup some class attributes
             self.gribFile = gribFile
@@ -253,7 +252,7 @@ class NCEPclass(object):
             returnObj = not isListing
 
             if not returnObj :
-                print "Auditing %s\n" % (gribFile)
+                LOG.info("Auditing %s\n" % (gribFile))
 
             self.__NCEPaudit(gribFile,returnObj=returnObj,levelInhPa=None)
 
@@ -350,8 +349,8 @@ class NCEPclass(object):
             else :
                 level = NCEPclass.ancLevel[msgKey]
 
-            print "Ingesting(%s) : %s for typeOfLevel %s..." % (msgKey,repr(name),repr(typeOfLevel))
-            print "... for level %s\n" % (repr(level))
+            LOG.debug("Ingesting(%s) : %s for typeOfLevel %s...\n... for level %s\n" % \
+                    (msgKey,repr(name),repr(typeOfLevel),repr(level)))
             gfs_Msg[msgKey] = gribFileObj.select(name=name,typeOfLevel=typeOfLevel,level=level)
 
             # The one or more messages that conform to the choice of name, typeOfLevel and level
@@ -378,27 +377,22 @@ class NCEPclass(object):
                 self.dLon =  msgList[msgListIdx]['iDirectionIncrementInDegrees']
                 self.Latitude, self.Longitude = msgList[msgListIdx].latlons()
 
-                #print "There are %d messages in \"%s\" \"%s\" (%s) - %s - %s - %s - %s - %s" \
-                    #% (len(msgList), name, parameterName, shortName, 
-                            #parameterUnits, units, typeOfLevel, level, pressureUnits 
-                      #)
-
-                print "There are %d messages for %s with...\n\tname = \"%s\"\n\tparameterName = \"%s\"\n\tshortName = %s\n\tparameterUnits = %s\n\tunits = %s\n\ttypeOfLevel = %s\n\tpressureUnits = %s\n\tlevel = %s" \
+                LOG.debug("There are %d messages for %s with...\n\tname = \"%s\"\n\tparameterName = \"%s\"\n\tshortName = %s\n\tparameterUnits = %s\n\tunits = %s\n\ttypeOfLevel = %s\n\tpressureUnits = %s\n\tlevel = %s" \
                     % (len(msgList), msgKey, name, parameterName, shortName, 
                             parameterUnits, units, typeOfLevel, pressureUnits, level
-                      )
+                      ))
 
                 # TODO : If we just want a list we should stop here...
                 if not returnObj :
                     pass
-                    #print "Auditing %s\n" % (gribFile)
+                    #LOG.info("Auditing %s\n" % (gribFile))
                 else :
 
                     # Determine the level index, name and height of the dataset
                     if (msgList[msgListIdx]['typeOfLevel'] == 'isobaricInhPa') :
                         level = level[(26-numMessages):] if (numMessages>1) else level
 
-                        print "level = ",level
+                        LOG.debug("level = %r" % (level))
                         self.NCEPmessages[msgKey] = self.getNCEPlevelMessage(self,name,parameterName,shortName,units,parameterUnits,typeOfLevel,level,pressureUnits)
                         
                     else :
@@ -406,7 +400,7 @@ class NCEPclass(object):
                         self.NCEPmessages[msgKey] = self.getNCEPmessage(self,name,parameterName,shortName,units,parameterUnits,typeOfLevel,level,pressureUnits)
 
                         if (typeOfLevel == 'heightAboveGround') :
-                            print "msgList: ",msgList
+                            LOG.debug("msgList: " % (msgList))
                             height = str(msgList[msgListIdx]['level'])+'m'
                         elif (typeOfLevel == 'surface' or \
                               typeOfLevel == 'tropopause' or \
@@ -420,11 +414,11 @@ class NCEPclass(object):
                         self.NCEPmessages[msgKey].height = height
 
             else :
-                print "There are %d messages for %s" % (len(msgList),msgKey)
+                LOG.debug("There are %d messages for %s" % (len(msgList),msgKey))
 
             del(msgList)
 
-            print "\n###########################\n"
+            LOG.debug("\n###########################\n")
 
         gribFileObj.close()
 
@@ -442,7 +436,7 @@ class NCEPclass(object):
         newBlobObj = adl.create(xmlFile,newNCEPblob,endian=adl.LITTLE_ENDIAN,overwrite=True)
 
         for msgKey in gribObj.gfsMsgKeys :
-            print "\nCopying NCEP[%s] to blob...\n" % (msgKey)
+            LOG.debug("\nCopying NCEP[%s] to blob...\n" % (msgKey))
             msgObj = gribObj.NCEPmessages[msgKey]
             blobArr = getattr(newBlobArrObj, msgKey)
 
@@ -454,17 +448,17 @@ class NCEPclass(object):
                             blobArr[levelIdx][row][:] = gribObj.NCEPmessages[msgKey].messageLevelData[levelStrIdx].data[gribObj.Nlats-row-1,:]
 
                     except Exception, err:
-                        print "ERROR: %s" % (str(err))
-                        print "There was a problem assigning layer %s of %s" % (level,msgKey)
+                        LOG.error("%s" % (str(err)))
+                        LOG.error("There was a problem assigning layer %s of %s" % (level,msgKey))
             else :
                 try :
                     for row in np.arange(gribObj.Nlats):
                         blobArr[row][:] = gribObj.NCEPmessages[msgKey].data[gribObj.Nlats-row-1,:]
-                    print "Shape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr)))
+                    LOG.debug("Shape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr))))
 
                 except Exception, err:
-                    print "ERROR: %s" % (str(err))
-                    print "There was a problem assigning %s" % (msgKey)
+                    LOG.error("%s" % (str(err)))
+                    LOG.error("There was a problem assigning %s" % (msgKey))
 
     def NCEPgribToBlob_interp(gribObj,xmlFile,newNCEPblob,endian=adl.LITTLE_ENDIAN):
         '''
@@ -489,7 +483,7 @@ class NCEPclass(object):
         newBlobObj = adl.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
 
         for msgKey in gribObj.gfsMsgKeys :
-            print "\nCopying NCEP[%s] to blob...\n" % (msgKey)
+            LOG.debug("\nCopying NCEP[%s] to blob...\n" % (msgKey))
             msgObj = gribObj.NCEPmessages[msgKey]
             blobArr = getattr(newBlobArrObj, msgKey)
 
@@ -508,8 +502,8 @@ class NCEPclass(object):
                                 blobArr[levelIdx][row][:] = gribObj.NCEPmessages[msgKey].messageLevelData[levelStrIdx].data[gribObj.blob_Nlats-row-1,:]
 
                     except Exception, err:
-                        print "ERROR: %s" % (str(err))
-                        print "There was a problem assigning layer %s of %s" % (level,msgKey)
+                        LOG.error("%s" % (str(err)))
+                        LOG.error("There was a problem assigning layer %s of %s" % (level,msgKey))
                 pass
             else :
                 try :
@@ -524,10 +518,10 @@ class NCEPclass(object):
                             blobArr[row][:] = gribObj.NCEPmessages[msgKey].data[gribObj.blob_Nlats-row-1,:]
 
                 except Exception, err:
-                    print "ERROR: %s" % (str(err))
-                    print "There was a problem assigning %s" % (msgKey)
+                    LOG.error("%s" % (str(err)))
+                    LOG.error("There was a problem assigning %s" % (msgKey))
 
-            print "\tShape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr)))
+            LOG.debug("\tShape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr))))
 
     def NCEPgribToBlob_interpNew(gribObj,xmlFile,newNCEPblob,endian=adl.LITTLE_ENDIAN,reverseLat=False):
         '''
@@ -559,7 +553,7 @@ class NCEPclass(object):
         newBlobArrObj = newBlobObj.as_arrays()
 
         for msgKey in gribObj.gfsMsgKeys :
-            print "\nCopying NCEP[%s] to blob..." % (msgKey)
+            LOG.debug("\nCopying NCEP[%s] to blob...\n" % (msgKey))
             msgObj = gribObj.NCEPmessages[msgKey]
             blobArr = getattr(newBlobArrObj, msgKey)
 
@@ -576,8 +570,8 @@ class NCEPclass(object):
                             blobArr[levelIdx,:,:] = gribObj.NCEPmessages[msgKey].messageLevelData[levelStrIdx].data[::latDir,:]
 
                     except Exception, err:
-                        print "ERROR: %s" % (str(err))
-                        print "There was a problem assigning layer %s of %s" % (level,msgKey)
+                        LOG.error("%s" % (str(err)))
+                        LOG.error("There was a problem assigning layer %s of %s" % (level,msgKey))
                         return -1
 
             else :
@@ -591,13 +585,12 @@ class NCEPclass(object):
                         blobArr[:,:] = gribObj.NCEPmessages[msgKey].data[::latDir,:]
 
                 except Exception, err:
-                    print "ERROR: %s" % (str(err))
-                    print "There was a problem assigning %s" % (msgKey)
+                    LOG.error("%s" % (str(err)))
+                    LOG.error("There was a problem assigning %s" % (msgKey))
                     return -1
 
-            print "\tShape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr)))
+            LOG.debug("\tShape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr))))
 
-        print "Finished creating NCEP GRIB blob %s" % (newNCEPblob)
         return 0
 
 ###################################################
