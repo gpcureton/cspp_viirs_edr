@@ -3098,6 +3098,69 @@ def _grid2Gran_weightedAvg(dataLat, dataLon, gridData, gridLat, gridLon):
     return data,dataIdx
 
 
+def _grid2Gran_bilinearInterp(dataLat, dataLon, gridData, gridLat, gridLon):
+    '''Granulates a gridded dataset using an input geolocation'''
+
+    nData = np.int64(dataLat.size)
+    gridRows = np.int32(gridLat.shape[0])
+    gridCols = np.int32(gridLat.shape[1])
+
+    data = np.ones(np.shape(dataLat),dtype=np.float64)* -999.9
+    dataIdx  = np.ones(np.shape(dataLat),dtype=np.int64) * -99999
+
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+
+    libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
+    LOG.debug("Gridding and granulation library file: %s" % (libFile))
+    lib = ctypes.cdll.LoadLibrary(libFile)
+    grid2gran_bilinearInterp = lib.grid2gran_bilinearInterp
+    grid2gran_bilinearInterp.restype = None
+    grid2gran_bilinearInterp.argtypes = [
+            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+            ctypes.c_int64,
+            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+            ndpointer(ctypes.c_int64,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+            ctypes.c_int32,
+            ctypes.c_int32
+            ]
+
+    '''
+    int snapGrid_ctypes(double *lat, 
+                    double *lon, 
+                    double *data, 
+                    long nData, 
+                    double *gridLat,
+                    double *gridLon,
+                    double *gridData,
+                    long *gridDataIdx,
+                    int nGridRows,
+                    int nGridCols
+                    )
+    '''
+
+    LOG.debug("Calling C routine grid2gran_bilinearInterp()...")
+
+    retVal = grid2gran_bilinearInterp(dataLat,
+                       dataLon,
+                       data,
+                       nData,
+                       gridLat,
+                       gridLon,
+                       gridData,
+                       dataIdx,
+                       gridRows,
+                       gridCols)
+
+    LOG.debug("Returning from C routine grid2gran_bilinearInterp()")
+
+    return data,dataIdx
+
+
 def _getAscStructs(fileObj,searchString,linesOfContext):
 
     dataList = []
@@ -3425,8 +3488,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
                     LOG.debug("max of NCEP_anc  = %r"%(np.max(NCEP_anc)))
 
                     t1 = time()
-                    #data,dataIdx = _grid2Gran_weightedAvg(np.ravel(latitude),
-                    data,dataIdx = _grid2Gran(np.ravel(latitude),
+                    data,dataIdx = _grid2Gran_bilinearInterp(np.ravel(latitude),
                                               np.ravel(longitude),
                                               NCEP_anc.astype(np.float64),
                                               gridLat,
@@ -3437,7 +3499,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
 
                     data = data.reshape(latitude.shape)
                     dataIdx = dataIdx.reshape(latitude.shape)
-                    firstGranule = False
+                    #firstGranule = False
                     LOG.debug("Shape of first granulated %s data is %s" % (dSet,np.shape(data)))
                     LOG.debug("Shape of first granulated %s dataIdx is %s" % (dSet,np.shape(dataIdx)))
 
