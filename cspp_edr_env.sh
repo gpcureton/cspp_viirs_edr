@@ -26,7 +26,7 @@ export CSPP_EDR_LUTS=${CSPP_EDR_ANC_CACHE_DIR}/luts
 export CSPP_EDR_ANC_HOME=${CSPP_EDR_HOME}/anc/static
 
 # default location of static ancillary tiles, which we use in-place rather than linking into workspace
-export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}/ADL/data/tiles/Terrain-Eco-ANC-Tile/withMetadata
+export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}
 
 #
 # user path environment settings, making it easy to invoke wrapper scripts
