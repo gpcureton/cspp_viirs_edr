@@ -2755,16 +2755,27 @@ def _create_NCEP_gridBlobs(gribFiles):
                 NCEPobj = NCEPclass(gribFile=files)
 
                 # Convert surface pressure from Pa to mb or hPa ...
+                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+                # Ref: applyScalingFactor(currentBuffer, GRID_SIZE, 0.01);
                 NCEPobj.NCEPmessages['surfacePressure'].data /= 100.
 
                 # Convert total column ozone from DU or kg m**-2 to Atm.cm ...
+                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+                # Code: const float DOBSON_TO_ATMSCM_SCALING_FACTOR = .001;
+                # Code: applyScalingFactor(currentBuffer, GRID_SIZE,DOBSON_TO_ATMSCM_SCALING_FACTOR);
                 NCEPobj.NCEPmessages['totalColumnOzone'].data /= 1000.
 
                 # Convert total precipitable water kg m^{-2} to cm ...
+                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+                # Code: applyScalingFactor(currentBuffer, GRID_SIZE, .10);
                 NCEPobj.NCEPmessages['totalPrecipitableWater'].data /= 10.
 
                 # Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}
+                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+                # Code: void IngMsdNCEP_Converter::applyWaterVaporMixingRatio()
+                # Code: destination[i] = 1000 * (destination[i]/ (1-destination[i]));
                 moistureObj = NCEPobj.NCEPmessages['waterVaporMixingRatioLayers'].messageLevelData
+
                 temperatureObj = NCEPobj.NCEPmessages['temperatureLayers'].messageLevelData
 
                 # Compute the 100mb mixing ratio in g/kg
@@ -3017,6 +3028,7 @@ def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
 
     return data,dataIdx
 
+
 def _getAscLine(fileObj,searchString):
     dataStr = ''
     try :
@@ -3030,7 +3042,42 @@ def _getAscLine(fileObj,searchString):
         fileObj.seek(0)
 
     except Exception, err:
-        geoAscFile.close()
+        fileObj.close()
+
+    return dataStr
+
+
+def _getAscStructs(fileObj,searchString,linesOfContext):
+
+    dataList = []
+    data_count = 0
+    dataFound = False
+
+    try :
+        while True :
+            line = fileObj.readline()
+
+            if searchString in line : 
+                dataFound = True
+
+            if dataFound :
+                dataStr = "%s" % (string.replace(line,'\n',''));
+                dataList.append(dataStr)
+                data_count += 1
+            else :
+                pass
+
+            if (data_count == linesOfContext) :
+                break
+
+        fileObj.seek(0)
+
+    except Exception, err:
+        fileObj.close()
+        return -1
+
+    dataStr=''
+    dataStr = "%s" % ("\n").join(['%s' % (str(lines)) for lines in dataList])
 
     return dataStr
 
@@ -3161,39 +3208,6 @@ def _grid2Gran_bilinearInterp(dataLat, dataLon, gridData, gridLat, gridLon):
     return data,dataIdx
 
 
-def _getAscStructs(fileObj,searchString,linesOfContext):
-
-    dataList = []
-    data_count = 0
-    dataFound = False
-
-    try :
-        while True :
-            line = fileObj.readline()
-
-            if searchString in line : 
-                dataFound = True
-
-            if dataFound :
-                dataStr = "%s" % (string.replace(line,'\n',''));
-                dataList.append(dataStr)
-                data_count += 1
-            else :
-                pass
-
-            if (data_count == linesOfContext) :
-                break
-
-        fileObj.seek(0)
-
-    except Exception, err:
-        fileObj.close()
-        return -1
-
-    dataStr=''
-    dataStr = "%s" % ("\n").join(['%s' % (str(lines)) for lines in dataList])
-
-    return dataStr
 
 def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     '''Granulates the input gridded blob files into the required NCEP granulated datasets.'''
@@ -3242,7 +3256,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     NCEP_shortNameToBlobName['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = 'surfaceTemperature'
     NCEP_shortNameToBlobName['VIIRS-ANC-Wind-Speed-Mod-Gran'] = ['uComponentOfWind', 'vComponentOfWind']
     NCEP_shortNameToBlobName['VIIRS-ANC-Surf-Ht-Mod-Gran'] = 'surfaceGeopotentialHeight'
-
+    NCEP_shortNameToBlobName['VIIRS-ANC-Wind-Direction-Mod-Gran'] = 'windDirection'
     NCEP_shortNameToBlobName['VIIRS-ANC-Press-Surf-Mod-Gran'] = 'surfacePressure'
     NCEP_shortNameToBlobName['VIIRS-ANC-Tot-Col-Mod-Gran'] = 'totalColumnOzone'
 
@@ -3251,7 +3265,7 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
     NCEP_shortNameToXmlName['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = 'VIIRS_ANC_TEMP_SURF2M_MOD_GRAN.xml'
     NCEP_shortNameToXmlName['VIIRS-ANC-Wind-Speed-Mod-Gran'] = 'VIIRS_ANC_WIND_SPEED_MOD_GRAN.xml'
     NCEP_shortNameToXmlName['VIIRS-ANC-Surf-Ht-Mod-Gran'] = 'VIIRS_ANC_SURF_HT_MOD_GRAN.xml'
-
+    NCEP_shortNameToXmlName['VIIRS-ANC-Wind-Direction-Mod-Gran'] = 'VIIRS_ANC_WIND_DIRECTION_MOD_GRAN.xml'
     NCEP_shortNameToXmlName['VIIRS-ANC-Press-Surf-Mod-Gran'] = 'VIIRS_ANC_PRESS_SURF_MOD_GRAN.xml'
     NCEP_shortNameToXmlName['VIIRS-ANC-Tot-Col-Mod-Gran'] = 'VIIRS_ANC_TOT_COL_MOD_GRAN.xml'
 
@@ -3600,6 +3614,90 @@ def _granulate_NCEP_gridBlobs(inDir,geoDicts, gridBlobFiles):
             ascTemplateFile.close()
 
 
+def _granulate_NCEP_gridBlobs_NEW(inDir,geoDicts, gridBlobFiles):
+    '''Granulates the input gridded blob files into the required NCEP granulated datasets.'''
+
+    import ANC
+    import Algorithms
+    global ancEndian 
+
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    csppPython = os.getenv('PY')
+    
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
+
+    # Ordered list of required algorithms (to be passed in)
+    algList = ['VCM']
+    #algList = ['VCM','AOT']
+    
+    # Collection shortnames of the required NCEP ancillary datasets
+    # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
+
+    # Create a list of algorithm module "pointers"
+    algorithms = []
+    for alg in algList :
+        algName = Algorithms.modules[alg]
+        algorithms.append(getattr(Algorithms,algName))
+
+    # Obtain the required ANC collection shortnames for each algorithm
+    collectionShortNames = []
+    for alg in algorithms :
+        for shortName in alg.ANC_collectionShortNames :
+            LOG.info("Adding %s to the list of required collection short names..." \
+                    %(shortName))
+            collectionShortNames.append(shortName)
+
+    # Remove duplicate shortNames
+    collectionShortNames = list(set(collectionShortNames))
+    LOG.info("collectionShortNames = %r" %(collectionShortNames))
+
+    # Create a dict of ANC class instances, which will handle ingest and 
+    # granulation
+    ANC_objects = {}
+    for shortName in collectionShortNames :
+        className = ANC.classNames[shortName]
+        ANC_objects[shortName] = getattr(ANC,className)(inDir=inDir)
+        #LOG.info("dir(ANC_objects[%s] = %r" % (shortName,dir(ANC_objects[shortName])))
+        LOG.info("ANC_objects[%s].blobDatasetName = %r" % (shortName,ANC_objects[shortName].blobDatasetName))
+
+    # Open the NCEP gridded blob file
+    ncepXmlFile = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
+    # FIXME : Should be using two NCEP blob files, and averaging
+    gridBlobFile = gridBlobFiles[0]
+
+    if path.exists(ncepXmlFile):
+        LOG.debug("We are using for %s: %s,%s" %('NCEP-ANC-Int',ncepXmlFile,gridBlobFile))
+    
+    endian = ancEndian
+    ncepBlobObj = adl_blob.map(ncepXmlFile,gridBlobFile, endian=endian)
+    ncepBlobArrObj = ncepBlobObj.as_arrays()
+    LOG.debug("%s...\n%r" % (gridBlobFile,ncepBlobArrObj._fields))
+    
+    # Ingest the ANC gridded data and copy to the gridData attribute of the ANC objects
+    for shortName in collectionShortNames :
+        if ANC_objects[shortName].sourceType == 'NCEP_ANC_Int' :
+            ANC_objects[shortName].sourceList = gridBlobFiles
+            ANC_objects[shortName].ingest(ncepBlobArrObj)
+        else :
+            ANC_objects[shortName].ingest()
+        LOG.info("Ingesting ANC_objects gridded  %s" % (shortName))
+
+    # Loop through the required ANC datasets and create the blobs.
+    # FIXME : Handle pathological geolocation cases
+
+    for dicts in geoDicts :
+        for shortName in collectionShortNames :
+        
+            # Set the geolocation information in this ancillary object for 
+            # the current granule...
+            LOG.info("Processing dataset %s for %s" % (ANC_objects[shortName].blobDatasetName,shortName))
+            ANC_objects[shortName].setGeolocationInfo(dicts)
+            ANC_objects[shortName].granulate()
+            ANC_objects[shortName].toFile()
+
+
 def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     '''Granulates the input gridded blob files into the required NCEP granulated datasets.'''
 
@@ -3645,23 +3743,38 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
     # Dictionary relating the required NCEP collection short names and the 
     # NCEP gridded blob dataset names
 
+    # Aerosol Controller
     NCEP_shortNameToBlobName = {}
+    NCEP_shortNameToBlobName['VIIRS-ANC-Wind-Direction-Mod-Gran'] = 'windDirection'  # Dummy Entry
+    NCEP_shortNameToBlobName['VIIRS-ANC-Wind-Speed-Mod-Gran'] = ['uComponentOfWind', 'vComponentOfWind']
+    NCEP_shortNameToBlobName['VIIRS-ANC-Optical-Depth-Mod-Gran'] = ['faot550','aotSlant550']
     NCEP_shortNameToBlobName['VIIRS-ANC-Preci-Wtr-Mod-Gran'] = 'totalPrecipitableWater'
     NCEP_shortNameToBlobName['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = 'surfaceTemperature'
-    NCEP_shortNameToBlobName['VIIRS-ANC-Wind-Speed-Mod-Gran'] = ['uComponentOfWind', 'vComponentOfWind']
-    NCEP_shortNameToBlobName['VIIRS-ANC-Surf-Ht-Mod-Gran'] = 'surfaceGeopotentialHeight'
-    NCEP_shortNameToBlobName['VIIRS-ANC-Wind-Direction-Mod-Gran'] = 'windDirection'  # Dummy Entry
-    NCEP_shortNameToBlobName['VIIRS-ANC-Press-Surf-Mod-Gran'] = 'surfacePressure'
     NCEP_shortNameToBlobName['VIIRS-ANC-Tot-Col-Mod-Gran'] = 'totalColumnOzone'
+    NCEP_shortNameToBlobName['VIIRS-ANC-Press-Surf-Mod-Gran'] = 'surfacePressure'
 
+    # NCEP Surface Pressure Controller
+    NCEP_shortNameToBlobName['VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran'] = 'surfaceGeopotentialHeight'
+    NCEP_shortNameToBlobName['VIIRS-ANC-Sp-Humd-Surf-Mod-Gran'] = 'surfaceSpecificHumidity'
+    NCEP_shortNameToBlobName['VIIRS-ANC-Surf-Ht-Mod-Gran'] = None
+    NCEP_shortNameToBlobName['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = 'surfaceTemperature'
+
+    # Aerosol Controller
     NCEP_shortNameToXmlName = {}
+    NCEP_shortNameToXmlName['VIIRS-ANC-Wind-Direction-Mod-Gran'] = 'VIIRS_ANC_WIND_DIRECTION_MOD_GRAN.xml'
+    NCEP_shortNameToXmlName['VIIRS-ANC-Wind-Speed-Mod-Gran'] = 'VIIRS_ANC_WIND_SPEED_MOD_GRAN.xml'
+    NCEP_shortNameToXmlName['VIIRS-ANC-Optical-Depth-Mod-Gran'] = 'VIIRS_ANC_OPTICAL_DEPTH_MOD_GRAN.xml'
     NCEP_shortNameToXmlName['VIIRS-ANC-Preci-Wtr-Mod-Gran'] = 'VIIRS_ANC_PRECI_WTR_MOD_GRAN.xml'
     NCEP_shortNameToXmlName['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = 'VIIRS_ANC_TEMP_SURF2M_MOD_GRAN.xml'
-    NCEP_shortNameToXmlName['VIIRS-ANC-Wind-Speed-Mod-Gran'] = 'VIIRS_ANC_WIND_SPEED_MOD_GRAN.xml'
-    NCEP_shortNameToXmlName['VIIRS-ANC-Surf-Ht-Mod-Gran'] = 'VIIRS_ANC_SURF_HT_MOD_GRAN.xml'
-    NCEP_shortNameToXmlName['VIIRS-ANC-Wind-Direction-Mod-Gran'] = 'VIIRS_ANC_WIND_DIRECTION_MOD_GRAN.xml'
-    NCEP_shortNameToXmlName['VIIRS-ANC-Press-Surf-Mod-Gran'] = 'VIIRS_ANC_PRESS_SURF_MOD_GRAN.xml'
     NCEP_shortNameToXmlName['VIIRS-ANC-Tot-Col-Mod-Gran'] = 'VIIRS_ANC_TOT_COL_MOD_GRAN.xml'
+    NCEP_shortNameToXmlName['VIIRS-ANC-Press-Surf-Mod-Gran'] = 'VIIRS_ANC_PRESS_SURF_MOD_GRAN.xml'
+
+    # NCEP Surface Pressure Controller
+    NCEP_shortNameToXmlName['VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran'] = 'VIIRS_ANC_GEOPOT_HT_LEV_MOD_GRAN.xml'
+    NCEP_shortNameToXmlName['VIIRS-ANC-Sp-Humd-Surf-Mod-Gran'] = 'VIIRS_ANC_SP_HUMD_SURF_MOD_GRAN.xml'
+    NCEP_shortNameToXmlName['VIIRS-ANC-Surf-Ht-Mod-Gran'] = 'VIIRS_ANC_SURF_HT_MOD_GRAN.xml'
+    NCEP_shortNameToXmlName['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = 'VIIRS_ANC_TEMP_SURF2M_MOD_GRAN.xml'
+
 
     # Moderate resolution trim table arrays. These are 
     # bool arrays, and the trim pixels are set to True.
@@ -3729,10 +3842,11 @@ def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
     LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Surf-Ht-Mod-Gran'])))
 
-    # Surface Pressure
+    # Base 10 logarithm of the Surface Pressure
     blobDsetName = NCEP_shortNameToBlobName['VIIRS-ANC-Press-Surf-Mod-Gran']
     NCEP_globalGridData['VIIRS-ANC-Press-Surf-Mod-Gran'] = \
             getattr(ncepBlobArrObj,blobDsetName).astype('float')
+    NCEP_globalGridData['VIIRS-ANC-Press-Surf-Mod-Gran'] = np.log10(NCEP_globalGridData['VIIRS-ANC-Press-Surf-Mod-Gran'])
     LOG.debug("Shape of dataset %s is %s" % (blobDsetName,np.shape(NCEP_globalGridData['VIIRS-ANC-Press-Surf-Mod-Gran'])))
     # TODO : Terrain correction of surface pressure in ADL/ANC/VIIRS/SurfPres/src/ProAncViirsGranulateSurfPres.cpp
 
@@ -4830,10 +4944,11 @@ def main():
 
     # Determine the correct input file path and glob
 
-    input_dir,inputGlobs = _create_input_file_globs(options.inputFiles)
-    if inputGlobs['GEO'] is None or inputGlobs['MOD'] is None or inputGlobs['IMG'] is None :
-        LOG.error("No input files found matching %s, aborting..."%(path.basename(options.inputFiles)))
-        sys.exit(1)
+    if not options.skipSdrUnpack :
+        input_dir,inputGlobs = _create_input_file_globs(options.inputFiles)
+        if inputGlobs['GEO'] is None or inputGlobs['MOD'] is None or inputGlobs['IMG'] is None :
+            LOG.error("No input files found matching %s, aborting..."%(options.inputFiles))
+            sys.exit(1)
 
     # Set the work directory
 
@@ -4851,14 +4966,14 @@ def main():
     if not path.isdir(log_dir):
         LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
-    perf_dir = path.join(work_dir, 'perf')
-    if not path.isdir(perf_dir):
-        LOG.debug('creating directory %s' % (perf_dir))
-        os.makedirs(perf_dir)
-    anc_dir = path.join(work_dir, 'linked_data')
-    if not path.isdir(anc_dir):
-        LOG.debug('creating directory %s' % (anc_dir))
-        os.makedirs(anc_dir)
+    #perf_dir = path.join(work_dir, 'perf')
+    #if not path.isdir(perf_dir):
+        #LOG.debug('creating directory %s' % (perf_dir))
+        #os.makedirs(perf_dir)
+    #anc_dir = path.join(work_dir, 'linked_data')
+    #if not path.isdir(anc_dir):
+        #LOG.debug('creating directory %s' % (anc_dir))
+        #os.makedirs(anc_dir)
 
     # Unpack HDF5 VIIRS SDRs in the input directory to the work directory
     unpacking_problems = 0
@@ -5014,10 +5129,12 @@ def main():
         # Granulate the global grid NCEP blob files
 
         granBlobFiles = _granulate_NCEP_gridBlobs(work_dir,anc_granules_to_process,gridBlobFiles)
+        #granBlobFiles = _granulate_NCEP_gridBlobs_NEW(work_dir,anc_granules_to_process,gridBlobFiles)
         # This method adds Wind direction, Surface Pressure and Total Column Ozone.
         #granBlobFiles = _granulate_NCEP_gridBlobs_aot(work_dir,anc_granules_to_process,gridBlobFiles)
 
         LOG.debug("granBlobFiles: %r" % (granBlobFiles))
+        #sys.exit(0)
 
         # Transcode the NAAPS GRIB files into NAAPS global grid blob files
         #gridBlobFiles = _create_NAAPS_gridBlobs(naapsFiles)
