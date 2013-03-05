@@ -3679,23 +3679,25 @@ def _granulate_NCEP_gridBlobs_NEW(inDir,geoDicts, gridBlobFiles):
     for shortName in collectionShortNames :
         if ANC_objects[shortName].sourceType == 'NCEP_ANC_Int' :
             ANC_objects[shortName].sourceList = gridBlobFiles
-            ANC_objects[shortName].ingest(ncepBlobArrObj)
+            ANC_objects[shortName].ingest(ancBlob=ncepBlobArrObj)
         else :
             ANC_objects[shortName].ingest()
         LOG.info("Ingesting ANC_objects gridded  %s" % (shortName))
 
     # Loop through the required ANC datasets and create the blobs.
-    # FIXME : Handle pathological geolocation cases
-
     for dicts in geoDicts :
         for shortName in collectionShortNames :
         
-            # Set the geolocation information in this ancillary object for 
-            # the current granule...
             LOG.info("Processing dataset %s for %s" % (ANC_objects[shortName].blobDatasetName,shortName))
+
+            # Set the geolocation information in this ancillary object for the current granule...
             ANC_objects[shortName].setGeolocationInfo(dicts)
+
+            # Granulate the gridded data in this ancillary object for the current granule...
             ANC_objects[shortName].granulate()
-            ANC_objects[shortName].toFile()
+
+            # Shipout the granulated data in this ancillary object to a blob/asc pair.
+            ANC_objects[shortName].shipOutToFile()
 
 
 def _granulate_NCEP_gridBlobs_aot(inDir,geoDicts, gridBlobFiles):
@@ -5128,13 +5130,13 @@ def main():
 
         # Granulate the global grid NCEP blob files
 
-        granBlobFiles = _granulate_NCEP_gridBlobs(work_dir,anc_granules_to_process,gridBlobFiles)
-        #granBlobFiles = _granulate_NCEP_gridBlobs_NEW(work_dir,anc_granules_to_process,gridBlobFiles)
+        #granBlobFiles = _granulate_NCEP_gridBlobs(work_dir,anc_granules_to_process,gridBlobFiles)
+        granBlobFiles = _granulate_NCEP_gridBlobs_NEW(work_dir,anc_granules_to_process,gridBlobFiles)
         # This method adds Wind direction, Surface Pressure and Total Column Ozone.
         #granBlobFiles = _granulate_NCEP_gridBlobs_aot(work_dir,anc_granules_to_process,gridBlobFiles)
 
         LOG.debug("granBlobFiles: %r" % (granBlobFiles))
-        #sys.exit(0)
+        sys.exit(0)
 
         # Transcode the NAAPS GRIB files into NAAPS global grid blob files
         #gridBlobFiles = _create_NAAPS_gridBlobs(naapsFiles)

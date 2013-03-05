@@ -57,10 +57,7 @@ try :
 except :
     LOG = logging.getLogger('PrecipWater')
 
-# import the superclass
-#import ANC
-#from ANC import ANC
-from Utils import getURID, getAscLine, getAscStructs
+from Utils import getURID, getAscLine, getAscStructs, shipOutToFile
 
 class PrecipWater() :
 
@@ -89,7 +86,7 @@ class PrecipWater() :
             self.ancEndian = ancEndian
 
 
-    def ingest(self,ancBlob):
+    def ingest(self,ancBlob=None):
         '''
         Ingest the ancillary dataset.
         '''
@@ -302,7 +299,6 @@ class PrecipWater() :
         Granulate the ancillary dataset.
         '''
         # Massage the NCEP data array a bit...
-        #NCEP_anc = np.array(NCEP_globalGridData[shortName])[::-1,:]
         gridData = self.gridData[::-1,:]
         gridData = np.roll(gridData,360)
 
@@ -335,7 +331,7 @@ class PrecipWater() :
 
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
-        #firstGranule = False
+
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
@@ -351,96 +347,8 @@ class PrecipWater() :
         self.data = data.filled()
 
 
-    def toFile(self):
-        '''
-        Granulate the ancillary dataset.
-        '''
+    def shipOutToFile(self):
+        ''' Pass the current class instance to this Utils method to generate 
+            a blob/asc file pair from the input ancillary data object.'''
 
-        # Set some environment variables and paths
-        CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-        ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-        CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-        ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
-
-        # Create new NCEP ancillary blob, and copy granulated data to it
-
-        endian = self.ancEndian
-        xmlName = path.join(ADL_HOME,'xml/VIIRS',self.xmlName)
-
-        # Create a new URID to be used in making the asc filenames
-
-        URID_dict = getURID()
-        #URID_dict = self._getURID()
-        #URID_dict = ANC.getURID()
-
-        URID = URID_dict['URID']
-        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
-        creationDateStr = URID_dict['creationDateStr']
-
-        # Create a new directory in the input directory for the new ancillary
-        # asc and blob files
-
-        blobDir = self.inDir
-
-        ascFileName = path.join(blobDir,URID+'.asc')
-        blobName = path.join(blobDir,URID+'.'+self.collectionShortName)
-
-        LOG.debug("ascFileName : %s" % (ascFileName))
-        LOG.debug("blobName : %s" % (blobName))
-
-        # Create a new ancillary blob, and copy the data to it.
-        newNCEPblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
-        newNCEPblobArrObj = newNCEPblobObj.as_arrays()
-
-        blobData = getattr(newNCEPblobArrObj,'data')
-        blobData[:,:] = self.data[:,:]
-
-        # Make a new NCEP asc file from the template, and substitute for the various tags
-
-        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
-
-        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
-        
-        ANC_fileList = self.sourceList
-        for idx in range(len(ANC_fileList)) :
-            ANC_fileList[idx] = path.basename(ANC_fileList[idx])
-        ANC_fileList.sort()
-        ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
-        ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) for files in ANC_fileList])
-
-        LOG.debug("RangeDateTimeStr = %s\n" % (self.RangeDateTimeStr))
-        LOG.debug("GRingLatitudeStr = \n%s\n" % (self.GRingLatitudeStr))
-        LOG.debug("GRingLongitudeStr = \n%s\n" % (self.GRingLongitudeStr))
-
-        try:
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
-        except Exception, err :
-            LOG.error("%s, aborting." % (err))
-            sys.exit(1)
-
-        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
-
-        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
-
-        #URID = dicts['URID']
-        #geo_Collection_ShortName = dicts['N_Collection_Short_Name']
-        N_Granule_ID = self.geoDict['N_Granule_ID']
-        #ObservedStartTimeObj = dicts['ObservedStartTime']
-
-        for line in ascTemplateFile.readlines():
-           line = line.replace("CSPP_URID",URID)
-           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
-           line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
-           line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",self.collectionShortName)
-           line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
-           line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
-           line = line.replace("  CSPP_RANGE_DATE_TIME",self.RangeDateTimeStr)
-           line = line.replace("  CSPP_GRINGLATITUDE",self.GRingLatitudeStr)
-           line = line.replace("  CSPP_GRINGLONGITUDE",self.GRingLongitudeStr)
-           line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
-           ascFile.write(line) 
-
-        ascFile.close()
-        ascTemplateFile.close()
-
+        shipOutToFile(self)

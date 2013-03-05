@@ -57,10 +57,10 @@ LOG = logging.getLogger('CloudMaskIP')
 #blobDatasetName = 'totalPrecipitableWater'
 
 ANC_collectionShortNames = [
-                           'VIIRS-ANC-Preci-Wtr-Mod-Gran'#,
-                           #'VIIRS-ANC-Temp-Surf2M-Mod-Gran'#,
-                           #'VIIRS-ANC-Wind-Speed-Mod-Gran' #,
-                           #'VIIRS-ANC-Surf-Ht-Mod-Gran'
+                           'VIIRS-ANC-Preci-Wtr-Mod-Gran',
+                           'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
+                           'VIIRS-ANC-Wind-Speed-Mod-Gran',
+                           'VIIRS-ANC-Surf-Ht-Mod-Gran'
                           ]
 
 GridIP_collectionShortNames = [
