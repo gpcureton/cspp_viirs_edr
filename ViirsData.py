@@ -277,57 +277,58 @@ class ViirsTrimTable:
             for each row in the moderate (16 rows) and imagery (32 rows) scans
             respectively.
         """
-        self.modTrimTable = [[1090, 2109],
-                             [820 , 2379],
-                             [520 , 2679],
-                             [130 , 3069],
-                             [0   , 3199],
-                             [0   , 3199],
-                             [0   , 3199],
-                             [0   , 3199],
-                             [0   , 3199],
-                             [0   , 3199],
-                             [0   , 3199],
-                             [0   , 3199],
-                             [130 , 3069],
-                             [520 , 2679],
-                             [820 , 2379],
-                             [1090, 2109]]
-        
 
-        self.imgTrimTable = [[2180, 4219],
-                             [2180, 4219],
-                             [1640, 4759],
-                             [1640, 4759],
-                             [1040, 5359],
-                             [1040, 5359],
-                             [260 , 6139],
-                             [260 , 6139],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [0   , 6399],
-                             [260 , 6139],
-                             [260 , 6139],
-                             [1040, 5359],
-                             [1040, 5359],
-                             [1640, 4759],
-                             [1640, 4759],
-                             [2180, 4219],
-                             [2180, 4219]]
+        self.modTrimTable = [[1090, 2109, 1008, 2191],
+                             [820 , 2379, 640 , 2559],
+                             [520 , 2679, 0   , 3199],
+                             [130 , 3069, 0   , 3199],
+                             [0   , 3199, 0   , 3199],
+                             [0   , 3199, 0   , 3199],
+                             [0   , 3199, 0   , 3199],
+                             [0   , 3199, 0   , 3199],
+                             [0   , 3199, 0   , 3199],
+                             [0   , 3199, 0   , 3199],
+                             [0   , 3199, 0   , 3199],
+                             [0   , 3199, 0   , 3199],
+                             [130 , 3069, 0   , 3199],
+                             [520 , 2679, 0   , 3199],
+                             [820 , 2379, 640 , 2559],
+                             [1090, 2109, 1008, 2191]]
+
         
+        self.imgTrimTable = [[2180, 4219, 2016, 4383],
+                             [2180, 4219, 2016, 4383],
+                             [1640, 4759, 1280, 5119],
+                             [1640, 4759, 1280, 5119],
+                             [1040, 5359, 0   , 6399],
+                             [1040, 5359, 0   , 6399],
+                             [260 , 6139, 0   , 6399],
+                             [260 , 6139, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [0   , 6399, 0   , 6399],
+                             [260 , 6139, 0   , 6399],
+                             [260 , 6139, 0   , 6399],
+                             [1040, 5359, 0   , 6399],
+                             [1040, 5359, 0   , 6399],
+                             [1640, 4759, 1280, 5119],
+                             [1640, 4759, 1280, 5119],
+                             [2180, 4219, 2016, 4383],
+                             [2180, 4219, 2016, 4383]]
+
         ### Some fill values to be used with the pixel trim, depending
         ### on the datatype of the dataset.
         ### (IDPS header: ProCmnDefs.h)
@@ -436,37 +437,84 @@ class ViirsTrimTable:
 
     def createModTrimArray(self,nscans=48,trimType=bool):
         """
-            Creates an array with 16*nscans pixel rows, with the trimmed
+            Creates an array with nDetectors*nscans pixel rows, with the trimmed
             pixels set to True.
         """
-        trimScanArray = np.ones((16,3200),dtype=trimType)
+        nDetectors = 16
+        trimScanArray = np.ones((nDetectors,3200),dtype=trimType)
         for row in range(len(self.modTrimTable)):
-            trimScanArray[row,self.modTrimTable[row][0]:self.modTrimTable[row][1]] = False
+            colStart = self.modTrimTable[row][0]
+            colEnd = self.modTrimTable[row][1] + 1
+            trimScanArray[row,colStart:colEnd] = False
 
-        trimArray = np.ones((16*nscans,3200),dtype=trimType)
+        trimArray = np.ones((nDetectors*nscans,3200),dtype=trimType)
         for scan in range(nscans):
-            startRow = 16 * scan
-            endRow = startRow + 16
+            startRow = nDetectors * scan
+            endRow = startRow + nDetectors
             trimArray[startRow:endRow,:] = trimScanArray
 
         return trimArray
 
     def createImgTrimArray(self,nscans=48,trimType=bool):
         """
-            Creates an array with 32*nscans pixel rows, with the trimmed
+            Creates an array with nDetectors*nscans pixel rows, with the trimmed
             pixels set to True.
         """
-        trimScanArray = np.ones((32,6400),dtype=trimType)
+        nDetectors = nDetectors
+        trimScanArray = np.ones((nDetectors,6400),dtype=trimType)
         for row in range(len(self.imgTrimTable)):
-            trimScanArray[row,self.imgTrimTable[row][0]:self.imgTrimTable[row][1]] = False
+            colStart = self.imgTrimTable[row][0]
+            colEnd = self.imgTrimTable[row][1] + 1
+            trimScanArray[row,colStart:colEnd] = False
 
-        trimArray = np.ones((32*nscans,6400),dtype=trimType)
+        trimArray = np.ones((nDetectors*nscans,6400),dtype=trimType)
         for scan in range(nscans):
-            startRow = 32 * scan
-            endRow = startRow + 32
+            startRow = nDetectors * scan
+            endRow = startRow + nDetectors
             trimArray[startRow:endRow,:] = trimScanArray
 
         return trimArray
+
+    def createOnboardModTrimArray(self,nscans=48,trimType=bool):
+        """
+            Creates an array with nDetectors*nscans pixel rows, with the trimmed
+            pixels set to True.
+        """
+        nDetectors = 16
+        trimScanArray = np.ones((nDetectors,3200),dtype=trimType)
+        for row in range(len(self.modTrimTable)):
+            colStart = self.modTrimTable[row][2]
+            colEnd = self.modTrimTable[row][3] + 1
+            trimScanArray[row,colStart:colEnd] = False
+
+        trimArray = np.ones((nDetectors*nscans,3200),dtype=trimType)
+        for scan in range(nscans):
+            startRow = nDetectors * scan
+            endRow = startRow + nDetectors
+            trimArray[startRow:endRow,:] = trimScanArray
+
+        return trimArray
+
+    def createOnboardImgTrimArray(self,nscans=48,trimType=bool):
+        """
+            Creates an array with nDetectors*nscans pixel rows, with the trimmed
+            pixels set to True.
+        """
+        nDetectors = 32
+        trimScanArray = np.ones((nDetectors,6400),dtype=trimType)
+        for row in range(len(self.imgTrimTable)):
+            colStart = self.imgTrimTable[row][2]
+            colEnd = self.imgTrimTable[row][3] + 1
+            trimScanArray[row,colStart:colEnd] = False
+
+        trimArray = np.ones((nDetectors*nscans,6400),dtype=trimType)
+        for scan in range(nscans):
+            startRow = nDetectors * scan
+            endRow = startRow + nDetectors
+            trimArray[startRow:endRow,:] = trimScanArray
+
+        return trimArray
+
 
 class CloudMaskData:
     """
