@@ -9,14 +9,14 @@ Created by Geoff Cureton on 2013-03-04.
 Copyright (c) 2013 University of Wisconsin SSEC. All rights reserved.
 """
 
-file_Date = '$Date: 2013-03-04 19:26:20 -0800 (Mon, 04 Mar 2013) $'
-file_Revision = '$Revision: 1228 $'
-file_Author = '$Author: geoffc $'
-file_HeadURL = '$HeadURL: https://svn.ssec.wisc.edu/repos/jpss_adl/trunk/scripts/edr/ANC/Utils.py $'
-file_Id = '$Id: Utils.py 1228 2013-03-05 03:26:20Z geoffc $'
+file_Date = '$Date$'
+file_Revision = '$Revision$'
+file_Author = '$Author$'
+file_HeadURL = '$HeadURL$'
+file_Id = '$Id$'
 
 __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
-__version__ = '$Id: Utils.py 1228 2013-03-05 03:26:20Z geoffc $'
+__version__ = '$Id$'
 __docformat__ = 'Epytext'
 
 import os, sys, logging, traceback
