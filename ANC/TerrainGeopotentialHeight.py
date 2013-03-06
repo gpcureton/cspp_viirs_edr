@@ -99,7 +99,25 @@ class TerrainGeopotentialHeight() :
         Ingest the ancillary dataset.
         '''
         LOG.info("Ingesting of %s is to be handled differently." % (self.collectionShortName))        
-        self.gridData = None
+        if ancBlob is None:
+            self.gridData = None
+        else :
+            data = ancBlob.height[:,:]
+            self.sourceType = 'VIIRS-MOD-GEO-TC'
+
+            # Moderate resolution trim table arrays. These are 
+            # bool arrays, and the trim pixels are set to True.
+            modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
+
+            # Fill the required pixel trim rows in the granulated NCEP data with 
+            # the ONBOARD_PT_FILL value for the correct data type
+
+            fillValue = self.trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]        
+            LOG.info("ONGROUND_PT_FILL for %s is %r" %(data.dtype.name,fillValue))
+
+            data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
+            self.data = data.filled()
+
         #return getattr(ancBlob,self.blobDatasetName).astype(self.dataType)
 
 
@@ -107,8 +125,6 @@ class TerrainGeopotentialHeight() :
         '''
         Populate this class instance with the geolocation data for a single granule
         '''
-
-        return
 
         # Set some environment variables and paths
         CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
@@ -150,7 +166,7 @@ class TerrainGeopotentialHeight() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -166,6 +182,11 @@ class TerrainGeopotentialHeight() :
 
         geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
         geoBlobArrObj = geoBlobObj.as_arrays()
+
+        # If we have the terrain corrected geolocation, get the terrain height
+
+        if terrainCorrectedGeo :
+            self.ingest(geoBlobArrObj)
 
         # Get scan_mode to find any bad scans
 
@@ -201,10 +222,7 @@ class TerrainGeopotentialHeight() :
         lonMask = longitude.mask
 
         # Check if the geolocation is in radians, convert to degrees
-        # FIXME : This information is likely conveyed by whether the 
-        # FIXME :     geolocation short-name is *-GEO-TC (degrees) or
-        # FIXME :     *-RGEO_TC (radians).
-        if (lonRange < 2.*np.pi) :
+        if 'RGEO' in geo_Collection_ShortName :
             LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
@@ -236,9 +254,9 @@ class TerrainGeopotentialHeight() :
         geoAscFile = open(geoAscFileName,'rt')
 
         #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
-        self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
-        self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-        self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
+        self.RangeDateTimeStr  =  getAscLine(geoAscFile,"ObservedDateTime")
+        self.RangeDateTimeStr  =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
+        self.GRingLatitudeStr  =  getAscStructs(geoAscFile,"GRingLatitude",12)
         self.GRingLongitudeStr = getAscStructs(geoAscFile,"GRingLongitude",12)
 
         geoAscFile.close()
@@ -311,62 +329,11 @@ class TerrainGeopotentialHeight() :
         '''
         Granulate the ancillary dataset.
         '''
-
-        return
-
-        # Massage the NCEP data array a bit...
-        gridData = self.gridData[::-1,:]
-        gridData = np.roll(gridData,360)
-
-        # Contruct a default 0.5 degree grid...
-        degInc = 0.5
-        grids = np.mgrid[-90.:90.+degInc:degInc,-180.:180.:degInc]
-        gridLat,gridLon = grids[0],grids[1]
-
-        latitude = self.latitude
-        longitude = self.longitude
-
-        LOG.info("Granulating %s ..." % (self.collectionShortName))
-        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
-        LOG.debug("gridData.shape = %s" % (str(gridData.shape)))
-        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
-        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
-
-        LOG.debug("min of gridData  = %r"%(np.min(gridData)))
-        LOG.debug("max of gridData  = %r"%(np.max(gridData)))
-
-        t1 = time()
-        data,dataIdx = self._grid2Gran_bilinearInterp(np.ravel(latitude),
-                                  np.ravel(longitude),
-                                  gridData.astype(np.float64),
-                                  gridLat,
-                                  gridLon)
-        t2 = time()
-        elapsedTime = t2-t1
-        LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
-
-        data = data.reshape(latitude.shape)
-        dataIdx = dataIdx.reshape(latitude.shape)
-
-        LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
-        LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
-
-        # Moderate resolution trim table arrays. These are 
-        # bool arrays, and the trim pixels are set to True.
-        modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
-
-        # Fill the required pixel trim rows in the granulated NCEP data with 
-        # the ONBOARD_PT_FILL value for the correct data type
-
-        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
-        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        self.data = data.filled()
+        pass
 
 
     def shipOutToFile(self):
         ''' Pass the current class instance to this Utils method to generate 
             a blob/asc file pair from the input ancillary data object.'''
-
-        return
 
         shipOutToFile(self)

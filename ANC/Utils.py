@@ -202,17 +202,12 @@ def shipOutToFile(ANCobj):
 
     LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
 
-    #URID = dicts['URID']
-    #geo_Collection_ShortName = dicts['N_Collection_Short_Name']
-    N_Granule_ID = ANCobj.geoDict['N_Granule_ID']
-    #ObservedStartTimeObj = dicts['ObservedStartTime']
-
     for line in ascTemplateFile.readlines():
        line = line.replace("CSPP_URID",URID)
        line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
-       line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
+       line = line.replace("CSPP_ANC_BLOB_FULLPATH",path.basename(blobName))
        line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",ANCobj.collectionShortName)
-       line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
+       line = line.replace("CSPP_GRANULE_ID",ANCobj.geoDict['N_Granule_ID'])
        line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
        line = line.replace("  CSPP_RANGE_DATE_TIME",ANCobj.RangeDateTimeStr)
        line = line.replace("  CSPP_GRINGLATITUDE",ANCobj.GRingLatitudeStr)

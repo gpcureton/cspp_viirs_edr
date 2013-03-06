@@ -18,14 +18,11 @@ __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
 __version__ = '$Id$'
 __docformat__ = 'Epytext'
 
-#import ANC
-#import ANC_subclass
-#from ANC_subclass import ANC_subclass
 
 #import ProCmnPhysConst
-from PrecipWater            import PrecipWater
-from SurfTemp               import SurfTemp
-from WindSpeed              import WindSpeed
+from PrecipWater               import PrecipWater
+from SurfTemp                  import SurfTemp
+from WindSpeed                 import WindSpeed
 from TerrainGeopotentialHeight import TerrainGeopotentialHeight
 
 classNames = {}
@@ -34,32 +31,26 @@ classNames['VIIRS-ANC-Preci-Wtr-Mod-Gran'] = 'PrecipWater'
 classNames['VIIRS-ANC-Wind-Speed-Mod-Gran'] = 'WindSpeed'
 classNames['VIIRS-ANC-Surf-Ht-Mod-Gran'] = 'TerrainGeopotentialHeight'
 
-#import ProCmnPhysConst
-#import PrecipWater
-#import SurfGeopotentialHeight
-#import SurfTemp
-#import WindSpeed
-
-#import AotClimatology
-#import Bathymetry
-#import GeopotentialHeight
-#import NhfOzone
-#import NhfPresLevelTemp
-#import NhfSpecSurfHumidity
-#import NhfSurfPres
-#import NhfSurfTemp
-#import NhfWaterVaporMixRatio
-#import NitrateDepletion
-#import OpticalDepth
-#import Ozone
-#import PresLevelTemp
-#import SkinTemp
-#import SpecSurfHumidity
-#import SurfPresCorrection
-#import SurfPres
-#import TerrainGeopotentialHeight
-#import TropoGeopotentialHeight
-#import WaterVaporMixRatio
-#import WindDirection
+#from AotClimatology            import AotClimatology
+#from Bathymetry                import Bathymetry
+#from GeopotentialHeight        import GeopotentialHeight
+#from NhfOzone                  import NhfOzone
+#from NhfPresLevelTemp          import NhfPresLevelTemp
+#from NhfSpecSurfHumidity       import NhfSpecSurfHumidity
+#from NhfSurfPres               import NhfSurfPres
+#from NhfSurfTemp               import NhfSurfTemp
+#from NhfWaterVaporMixRatio     import NhfWaterVaporMixRatio
+#from NitrateDepletion          import NitrateDepletion
+#from OpticalDepth              import OpticalDepth
+#from Ozone                     import Ozone
+#from PresLevelTemp             import PresLevelTemp
+#from SkinTemp                  import SkinTemp
+#from SpecSurfHumidity          import SpecSurfHumidity
+#from SurfPresCorrection        import SurfPresCorrection
+#from SurfPres                  import SurfPres
+#from TerrainGeopotentialHeight import TerrainGeopotentialHeight
+#from TropoGeopotentialHeight   import TropoGeopotentialHeight
+#from WaterVaporMixRatio        import WaterVaporMixRatio
+#from WindDirection             import WindDirection
 
 
