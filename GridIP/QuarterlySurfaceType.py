@@ -1,22 +1,22 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-SnowIceCover.py
+QuarterlySurfaceType.py
 
- * DESCRIPTION:  Class to granulate the SnowIceCover data product 
+ * DESCRIPTION:  Class to granulate the IGBP Quarterly Surface Type data product 
 
-Created by Geoff Cureton on 2013-02-27.
+Created by Geoff Cureton on 2013-03-05.
 Copyright (c) 2013 University of Wisconsin SSEC. All rights reserved.
 """
 
-file_Date = '$Date$'
-file_Revision = '$Revision$'
-file_Author = '$Author$'
-file_HeadURL = '$HeadURL$'
-file_Id = '$Id$'
+file_Date = '$Date: 2013-03-04 18:21:21 -0800 (Mon, 04 Mar 2013) $'
+file_Revision = '$Revision: 1227 $'
+file_Author = '$Author: geoffc $'
+file_HeadURL = '$HeadURL: https://svn.ssec.wisc.edu/repos/jpss_adl/trunk/scripts/edr/GridIP/QstLwm.py $'
+file_Id = '$Id: QstLwm.py 1227 2013-03-05 02:21:21Z geoffc $'
 
 __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
-__version__ = '$Id$'
+__version__ = '$Id: QstLwm.py 1227 2013-03-05 02:21:21Z geoffc $'
 __docformat__ = 'Epytext'
 
 
@@ -53,19 +53,19 @@ try :
     sourcename= file_Id.split(" ")
     LOG = logging.getLogger(sourcename[1])
 except :
-    LOG = logging.getLogger('QstLwm')
+    LOG = logging.getLogger('QuarterlySurfaceType')
 
 from Utils import getURID, getAscLine, getAscStructs, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
 
-class SnowIceCover() :
+class QuarterlySurfaceType() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
-        self.collectionShortName = 'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'
-        self.xmlName = 'VIIRS_GRIDIP_VIIRS_SNOW_ICE_COVER_MOD_GRAN.xml'
-        self.blobDatasetName = 'snowIceCover'
+        self.collectionShortName = 'VIIRS-GridIP-VIIRS-Qst-Mod-Gran'
+        self.xmlName = 'VIIRS_GRIDIP_VIIRS_QST_MOD_GRAN.xml'
+        self.blobDatasetName = 'igbp'
         self.dataType = 'uint8'
-        self.sourceType = 'NISE'
+        self.sourceType = 'IGBP'
         self.sourceList = ['']
         self.trimObj = ViirsData.ViirsTrimTable()
 
@@ -83,6 +83,31 @@ class SnowIceCover() :
             self.ancEndian = adl_blob.LITTLE_ENDIAN
         else :
             self.ancEndian = ancEndian
+
+        # QST type value enumerations to be used with the igbp field
+        self.IGBP_dict = {
+            'IGBP_EVERNEEDLE'    : 1,
+            'IGBP_EVERBROAD'     : 2,
+            'IGBP_DECIDNEEDLE'   : 3,
+            'IGBP_DECIDBROAD'    : 4,
+            'IGBP_MIXEDFOREST'   : 5,
+            'IGBP_CLOSEDSHRUBS'  : 6,
+            'IGBP_OPENSHRUBS'    : 7,
+            'IGBP_WOODYSAVANNA'  : 8,
+            'IGBP_SAVANNA'       : 9,
+            'IGBP_GRASSLAND'     : 10,
+            'IGBP_WETLANDS'      : 11,
+            'IGBP_CROPLANDS'     : 12,
+            'IGBP_URBAN'         : 13,
+            'IGBP_CROPNATMOSAIC' : 14,
+            'IGBP_SNOWICE'       : 15,
+            'IGBP_BARREN'        : 16,
+            'IGBP_WATERBODIES'   : 17,
+            'IGBP_UNCLASSIFIED'  : 30,
+            'IGBP_FILL'          : 31,
+            'IGBP_MIN'           : 1,
+            'IGBP_MAX'           : 17
+        }
 
 
     def subset(self,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
