@@ -58,7 +58,7 @@ try :
 except :
     LOG = logging.getLogger('TerrainGeopotentialHeight')
 
-from Utils import getURID, getAscLine, getAscStructs, shipOutToFile
+from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 
 class TerrainGeopotentialHeight() :
 

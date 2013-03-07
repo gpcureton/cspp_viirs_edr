@@ -25,6 +25,8 @@ import string
 import uuid
 from datetime import datetime,timedelta
 
+import numpy as np
+
 import adl_blob
 from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
@@ -132,6 +134,95 @@ def getAscStructs(fileObj,searchString,linesOfContext):
     return dataStr
 
 
+def findDatelineCrossings(latCrnList,lonCrnList):
+    '''#----------------------------------------------------------------------------
+    # Finds the places where the boundary points that will make up a polygon
+    # cross the dateline.
+    #
+    # This method is heavily based on the AltNN NNfind_crossings() method
+    #
+    # NOTE:  This loop will find the place(s) where the boundary crosses 180
+    # degrees longitude.  It will also record the index after the crossing
+    # for the first two crossings.
+    # 
+    # NOTE:  Since the last point in the boundary is equal to the first point
+    # in the boundary, there is no chance of a crossing between the last
+    # and first points.
+    #
+    # initialize the number of crossings to zero
+    # for loop over the boundary
+    #    if the longitudes cross the 180 degree line, then
+    #       increment the number of crossings
+    #       if this is first crossing, then
+    #          save the index after the crossing
+    #       else if this is the second crossing
+    #          save the index after the second crossing
+    #       endif
+    #    endif
+    # end for loop
+    #-------------------------------------------------------------------------'''
+
+    status = 0
+    numCrosses = 0
+
+    # For an ascending granule, the corner points are numbered [0,1,3,2], from the southeast
+    # corner moving anti-clockwise.
+
+    LOG.debug("latCrnList = %r " % (latCrnList))
+    LOG.debug("lonCrnList = %r " % (lonCrnList))
+
+    for idx1,idx2 in zip([1,3,2],[0,1,3]):
+        
+        # Convert the longitudes to radians, and calculate the 
+        # absolute difference
+        lon1 = np.radians(lonCrnList[idx1])
+        lon2 = np.radians(lonCrnList[idx2])
+        lonDiff = np.fabs( lon1 - lon2 )
+        
+        if ( np.fabs(lonDiff) > np.pi ):
+
+            # We have a crossing, incrememnt the number of crossings
+            numCrosses += 1
+            
+            if(numCrosses == 1):
+
+                # This was the first crossing
+                cross1Idx_ = idx1
+
+            elif(numCrosses == 2):
+
+                # This was the second crossing
+                cross2Idx_ = idx1
+
+            else :
+
+                # we should never get here
+                return -1
+
+    num180Crossings_ = numCrosses
+
+    '''
+    # now determine the minimum and maximum latitude
+    maxLat_ = latCrnList[0]
+    minLat_ = maxLat_
+
+    for idx in [1,3,2]:
+        if(latCrnList[idx] > maxLat_):
+            # if current lat is bigger than maxLat_, make the current point the
+            # maximum
+            maxLat_ = latCrnList[idx]
+
+        if(latCrnList[idx] < minLat_):
+            # if current lat is smaller than minLat_, make the current point the
+            # minimum
+            minLat_ = latCrnList[idx]
+
+    return num180Crossings_,minLat_,maxLat_
+    '''
+
+    return num180Crossings_
+
+
 def shipOutToFile(ANCobj):
     '''
     Generate a blob/asc file pair from the input ancillary data object.
@@ -143,7 +234,7 @@ def shipOutToFile(ANCobj):
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-    # Create new NCEP ancillary blob, and copy granulated data to it
+    # Create new ANC ancillary blob, and copy granulated data to it
 
     endian = ANCobj.ancEndian
     xmlName = path.join(ADL_HOME,'xml/VIIRS',ANCobj.xmlName)
@@ -168,13 +259,13 @@ def shipOutToFile(ANCobj):
     LOG.debug("blobName : %s" % (blobName))
 
     # Create a new ancillary blob, and copy the data to it.
-    newNCEPblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
-    newNCEPblobArrObj = newNCEPblobObj.as_arrays()
+    newANCblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
+    newANCblobArrObj = newANCblobObj.as_arrays()
 
-    blobData = getattr(newNCEPblobArrObj,'data')
+    blobData = getattr(newANCblobArrObj,'data')
     blobData[:,:] = ANCobj.data[:,:]
 
-    # Make a new NCEP asc file from the template, and substitute for the various tags
+    # Make a new ANC asc file from the template, and substitute for the various tags
 
     ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
 

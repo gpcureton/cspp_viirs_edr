@@ -57,7 +57,7 @@ try :
 except :
     LOG = logging.getLogger('SurfTemp')
 
-from Utils import getURID, getAscLine, getAscStructs, shipOutToFile
+from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 
 class SurfTemp() :
 
@@ -215,6 +215,32 @@ class SurfTemp() :
         longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
         self.longitude = longitude.filled()
 
+        # Record the corners, taking care to exclude any bad scans...
+        nDetectors = 16
+        firstGoodScan = np.where(scanMode<=2)[0][0]
+        lastGoodScan = np.where(scanMode<=2)[0][-1]
+        firstGoodRow = firstGoodScan * nDetectors
+        lastGoodRow = lastGoodScan * nDetectors + nDetectors - 1
+
+        latCrnList = [latitude[firstGoodRow,0],latitude[firstGoodRow,-1],latitude[lastGoodRow,0],latitude[lastGoodRow,-1]]
+        lonCrnList = [longitude[firstGoodRow,0],longitude[firstGoodRow,-1],longitude[lastGoodRow,0],longitude[lastGoodRow,-1]]
+
+        # Check for dateline/pole crossings
+        num180Crossings = findDatelineCrossings(latCrnList,lonCrnList)
+        LOG.info("We have %d dateline crossings."%(num180Crossings))
+
+        # Copy the geolocation information to the class object
+        self.latMin    = latMin
+        self.latMax    = latMax
+        self.latRange  = latRange
+        self.lonMin    = lonMin
+        self.lonMax    = lonMax
+        self.lonRange  = lonRange
+        self.scanMode  = scanMode
+        self.latCrnList  = latCrnList
+        self.lonCrnList  = lonCrnList
+        self.num180Crossings  = num180Crossings
+
         # Parse the geolocation asc file to get struct information which will be 
         # written to the ancillary asc files
 
@@ -299,23 +325,39 @@ class SurfTemp() :
         '''
         Granulate the ancillary dataset.
         '''
-        # Massage the NCEP data array a bit...
-        gridData = self.gridData[::-1,:]
-        gridData = np.roll(gridData,360)
+        LOG.info("Granulating %s ..." % (self.collectionShortName))
 
-        # Contruct a default 0.5 degree grid...
         degInc = 0.5
-        grids = np.mgrid[-90.:90.+degInc:degInc,-180.:180.:degInc]
-        gridLat,gridLon = grids[0],grids[1]
 
+        lats = np.arange(361.)*degInc - 90.
+        lons = np.arange(720.)*degInc - 180.
         latitude = self.latitude
         longitude = self.longitude
 
-        LOG.info("Granulating %s ..." % (self.collectionShortName))
-        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
-        LOG.debug("gridData.shape = %s" % (str(gridData.shape)))
-        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
-        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
+        # Flip so that lats are (-90 ... 90)
+        gridData = self.gridData[::-1,:]
+
+        if self.num180Crossings != 2 :
+
+            gridData = np.roll(gridData,360)
+            gridLon,gridLat = np.meshgrid(lons,lats)
+
+            LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+
+        else :
+
+            negLonIdx = np.where(lons<0)
+            lons[negLonIdx] += 360.
+            lons = np.roll(lons,360)
+            gridLon,gridLat = np.meshgrid(lons,lats)
+
+            longitudeNegIdx = np.where(longitude < 0.)
+            longitude[longitudeNegIdx] += 360.
+
+            LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+
 
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))
         LOG.debug("max of gridData  = %r"%(np.max(gridData)))
