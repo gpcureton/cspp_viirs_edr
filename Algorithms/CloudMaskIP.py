@@ -52,10 +52,6 @@ from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain,
 # every module should have a LOG object
 LOG = logging.getLogger('CloudMaskIP')
 
-#collectionShortName = 'VIIRS-ANC-Preci-Wtr-Mod-Gran'
-#xmlName = 'VIIRS_ANC_PRECI_WTR_MOD_GRAN.xml'
-#blobDatasetName = 'totalPrecipitableWater'
-
 ANC_collectionShortNames = [
                            'VIIRS-ANC-Preci-Wtr-Mod-Gran',
                            'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
@@ -64,8 +60,8 @@ ANC_collectionShortNames = [
                           ]
 
 GridIP_collectionShortNames = [
-                            'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran',
-                            'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran',
+                            #'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran',
+                            #'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran',
                             'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
                           ]
 
