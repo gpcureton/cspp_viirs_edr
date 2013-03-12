@@ -19,8 +19,6 @@ __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
 __version__ = '$Id$'
 __docformat__ = 'Epytext'
 
-
-
 import os, sys, logging, traceback
 from os import path,uname,environ
 import string
@@ -40,6 +38,9 @@ from bisect import bisect_left,bisect_right
 import ctypes
 from numpy.ctypeslib import ndpointer
 
+import tables as pytables
+from tables import exceptions as pyEx
+
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
@@ -55,7 +56,7 @@ try :
 except :
     LOG = logging.getLogger('LandWaterMask')
 
-from Utils import getURID, getAscLine, getAscStructs, shipOutToFile
+from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
 
 class LandWaterMask() :
@@ -98,69 +99,268 @@ class LandWaterMask() :
         }
 
 
-    def subset(self,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
-        '''Subsets the global elevation dataset to cover the required geolocation range.'''
+    def setGeolocationInfo(self,dicts):
+        '''
+        Populate this class instance with the geolocation data for a single granule
+        '''
+        # Set some environment variables and paths
+        CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+        ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+        CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    
+        ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-        CSPP_RT_ANC_HOME = path.abspath(os.getenv('CSPP_RT_ANC_HOME'))
+        # Collect some data from the geolocation dictionary
+        self.geoDict = dicts
+        URID = dicts['URID']
+        geo_Collection_ShortName = dicts['N_Collection_Short_Name']
+        N_Granule_ID = dicts['N_Granule_ID']
+        ObservedStartTimeObj = dicts['ObservedStartTime']
+        geoAscFileName = dicts['_filename']
+        geoBlobFileName = string.replace(geoAscFileName,'asc',geo_Collection_ShortName)
+
+        LOG.debug("\n###########################")
+        LOG.debug("  Geolocation Information  ")
+        LOG.debug("###########################")
+        LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
+        LOG.info("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
+        LOG.debug("URID : %r" % (URID))
+        LOG.debug("geoAscFileName : %r" % (geoAscFileName))
+        LOG.debug("geoBlobFileName : %r" % (geoAscFileName))
+        LOG.debug("###########################\n")
+
+        # Do we have terrain corrected geolocation?
+
+        terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
+
+        # Do we have long or short style geolocation field names?
+
+        if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
+            longFormGeoNames = True
+            LOG.debug("We have long form geolocation names")
+        elif (geo_Collection_ShortName=='VIIRS-MOD-GEO' or geo_Collection_ShortName=='VIIRS-MOD-RGEO-TC') :
+            LOG.debug("We have short form geolocation names")
+            longFormGeoNames = False
+        else :
+            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            return -1
+
+        # Get the geolocation xml file
+
+        geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
+        geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
+        if path.exists(geoXmlFile):
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
+
+        # Open the geolocation blob and get the latitude and longitude
+
+        endian = self.sdrEndian
+
+        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoBlobFileName, endian=endian)
+        geoBlobArrObj = geoBlobObj.as_arrays()
+
+        # Get scan_mode to find any bad scans
+
+        #scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = getattr(geoBlobArrObj,'scan_mode').astype('uint8')
+        LOG.debug("Scan Mode = %r" % (scanMode))
+
+        # Detemine the min, max and range of the latitude and longitude, 
+        # taking care to exclude any fill values.
+
+        if longFormGeoNames :
+            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
+            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+        else :
+            latitude = getattr(geoBlobArrObj,'lat').astype('float')
+            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+
+        latitude = ma.masked_less(latitude,-800.)
+        latMin,latMax = np.min(latitude),np.max(latitude)
+        latRange = latMax-latMin
+
+        longitude = ma.masked_less(longitude,-800.)
+        lonMin,lonMax = np.min(longitude),np.max(longitude)
+        lonRange = lonMax-lonMin
+
+        LOG.debug("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+        LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+
+        # Determine the latitude and longitude fill masks, so we can restore the 
+        # fill values after we have scaled...
+
+        latMask = latitude.mask
+        lonMask = longitude.mask
+
+        # Check if the geolocation is in radians, convert to degrees
+        if 'RGEO' in geo_Collection_ShortName :
+            LOG.info("Geolocation is in radians, convert to degrees...")
+            latitude = np.degrees(latitude)
+            longitude = np.degrees(longitude)
         
+            latMin,latMax = np.min(latitude),np.max(latitude)
+            latRange = latMax-latMin
+
+            lonMin,lonMax = np.min(longitude),np.max(longitude)
+            lonRange = lonMax-lonMin
+
+            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+
+        # Restore fill values to masked pixels in geolocation
+
+        geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][latitude.dtype.name]
+        latitude = ma.array(latitude,mask=latMask,fill_value=geoFillValue)
+        latitude = latitude.filled()
+
+        geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][longitude.dtype.name]
+        longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
+        longitude = longitude.filled()
+
+        # Shift the longitudes to be between -180 and 180 degrees
+        if lonMax > 180. :
+            LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+            # Scale to restore -ve longitudess, not necessarily # FIXME
+            dateLineIdx = np.where(longitude>180.)
+            LOG.debug("dateLineIdx = %r" % (dateLineIdx))
+            longitude[dateLineIdx] -= 360.
+            lonMax = np.max(ma.array(longitude,mask=lonMask))
+            lonMin = np.min(ma.array(longitude,mask=lonMask))
+            lonRange = lonMax-lonMin
+            LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+
+        # Record the corners, taking care to exclude any bad scans...
+        nDetectors = 16
+        firstGoodScan = np.where(scanMode<=2)[0][0]
+        lastGoodScan = np.where(scanMode<=2)[0][-1]
+        firstGoodRow = firstGoodScan * nDetectors
+        lastGoodRow = lastGoodScan * nDetectors + nDetectors - 1
+
+        latCrnList = [latitude[firstGoodRow,0],latitude[firstGoodRow,-1],latitude[lastGoodRow,0],latitude[lastGoodRow,-1]]
+        lonCrnList = [longitude[firstGoodRow,0],longitude[firstGoodRow,-1],longitude[lastGoodRow,0],longitude[lastGoodRow,-1]]
+
+        # Check for dateline/pole crossings
+        num180Crossings = findDatelineCrossings(latCrnList,lonCrnList)
+        LOG.info("We have %d dateline crossings."%(num180Crossings))
+        
+        # Copy the geolocation information to the class object
+        self.latMin    = latMin
+        self.latMax    = latMax
+        self.latRange  = latRange
+        self.lonMin    = lonMin
+        self.lonMax    = lonMax
+        self.lonRange  = lonRange
+        self.latitude  = latitude
+        self.longitude = longitude
+        self.scanMode  = scanMode
+        self.latCrnList  = latCrnList
+        self.lonCrnList  = lonCrnList
+        self.num180Crossings  = num180Crossings
+
+        # Parse the geolocation asc file to get struct information which will be 
+        # written to the ancillary asc files
+
+        LOG.info("geolocation asc filename : %s"%(geoAscFileName))
+
+        LOG.debug("\nOpening %s..." % (geoAscFileName))
+
+        geoAscFile = open(geoAscFileName,'rt')
+
+        self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
+        self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
+
+        self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
+        self.GRingLongitudeStr = getAscStructs(geoAscFile,"GRingLongitude",12)
+
+        self.North_Bounding_Coordinate_Str = getAscLine(geoAscFile,"North_Bounding_Coordinate")
+        self.South_Bounding_Coordinate_Str = getAscLine(geoAscFile,"South_Bounding_Coordinate")
+        self.East_Bounding_Coordinate_Str  = getAscLine(geoAscFile,"East_Bounding_Coordinate")
+        self.West_Bounding_Coordinate_Str  = getAscLine(geoAscFile,"West_Bounding_Coordinate")
+
+        geoAscFile.close()
+
+
+    def subset(self):
+        '''Subsets the IGBP global ecosystem dataset to cover the required geolocation range.'''
+
+        # Get the subset of DEM global dataset.
+
         DEM_dLat = 30.*(1./3600.)
         DEM_dLon = 30.*(1./3600.)
 
-        DEM_gridLats = -1. * (np.arange(21600.) * DEM_dLat - 90.)
-        DEM_gridLons = np.arange(43200.) * DEM_dLon - 180.
-
-        # Get the subset of DEM global dataset.
+        CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
         DEM_fileName = path.join(CSPP_RT_ANC_HOME,'LSM/dem30ARC_Global_LandWater_uncompressed.h5')
-
-        dateLineCrossed,ascendingNode,descendingNode = isDatelineCrossed(latCrnList,lonCrnList)
-        LOG.debug("dateLineCross is %r" % (dateLineCrossed))
-        LOG.debug("ascendingNode is %r" % (ascendingNode))
-        LOG.debug("descendingNode is %r\n" % (descendingNode))
-
-        latMin = min(latMinList)
-        latMax = max(latMaxList)
-        lonMin = min(lonMinList)
-        lonMax = max(lonMaxList)
-
-        DEM_latMask = np.equal((DEM_gridLats<(latMax+DEM_dLat)),(DEM_gridLats>(latMin-DEM_dLat)))
-        DEM_lonMask = np.equal((DEM_gridLons<(lonMax+DEM_dLon)),(DEM_gridLons>(lonMin-DEM_dLon)))
-
-        DEM_latIdx = np.where(DEM_latMask==True)[0]
-        DEM_lonIdx = np.where(DEM_lonMask==True)[0]
-
-        DEM_latMinIdx = DEM_latIdx[0]
-        DEM_latMaxIdx = DEM_latIdx[-1]
-        DEM_lonMinIdx = DEM_lonIdx[0]
-        DEM_lonMaxIdx = DEM_lonIdx[-1]
-
-        LOG.debug("Opening DEM file %s" % (DEM_fileName))
-        # TODO : Use original HDF4 file which contains elevation and LWM.
-        DEMobj = pytables.openFile(DEM_fileName,'r')
-        DEM_node = DEMobj.getNode('/demGRID/Data Fields/LandWater')
+        self.sourceList.append(path.basename(DEM_fileName))
 
         try :
+            # TODO : Use original HDF4 file which contains elevation and LWM.
+            DEMobj = pytables.openFile(DEM_fileName,'r')
+            DEM_node = DEMobj.getNode('/demGRID/Data Fields/LandWater')
+        except Exception, err :
+            LOG.exception("%s"%(err))
+            LOG.exception("Problem opening DEM file (%s), aborting."%(DEM_fileName))
+            sys.exit(1)
+
+        try :
+            DEM_gridLats = -1. * (np.arange(21600.) * DEM_dLat - 90.)
+            DEM_gridLons = np.arange(43200.) * DEM_dLon - 180.
+
+            LOG.info("min,max DEM Grid Latitude values : %f,%f"%(DEM_gridLats[0],DEM_gridLats[-1]))
+            LOG.info("min,max DEM Grid Longitude values : %f,%f"%(DEM_gridLons[0],DEM_gridLons[-1]))
+
+            latMin = self.latMin
+            latMax = self.latMax
+            lonMin = self.lonMin
+            lonMax = self.lonMax
+
+            DEM_latMask = np.equal((DEM_gridLats<(latMax+DEM_dLat)),(DEM_gridLats>(latMin-DEM_dLat)))
+            DEM_lonMask = np.equal((DEM_gridLons<(lonMax+DEM_dLon)),(DEM_gridLons>(lonMin-DEM_dLon)))
+
+            DEM_latIdx = np.where(DEM_latMask==True)[0]
+            DEM_lonIdx = np.where(DEM_lonMask==True)[0]
+
+            DEM_latMinIdx = DEM_latIdx[0]
+            DEM_latMaxIdx = DEM_latIdx[-1]
+            DEM_lonMinIdx = DEM_lonIdx[0]
+            DEM_lonMaxIdx = DEM_lonIdx[-1]
+
+            LOG.info("DEM_latMinIdx = %d" % (DEM_latMinIdx))
+            LOG.info("DEM_latMaxIdx = %d" % (DEM_latMaxIdx))
+            LOG.info("DEM_lonMinIdx = %d" % (DEM_lonMinIdx))
+            LOG.info("DEM_lonMaxIdx = %d" % (DEM_lonMaxIdx))
 
             lat_subset = DEM_gridLats[DEM_latMinIdx:DEM_latMaxIdx+1]
+            self.gridLat = lat_subset
 
-            if True in dateLineCrossed :
-                posLonCrn = np.min(ma.masked_less_equal(np.array(lonCrnList),0.))
-                negLonCrn = np.max(ma.masked_outside(np.array(lonCrnList),-800.,0.))
+            if self.num180Crossings == 2 :
+
+                # We have a dateline crossing, so subset the positude and negative
+                # longitude grids and sandwich them together.
+                posLonCrn = np.min(ma.masked_less_equal(np.array(self.lonCrnList),0.))
+                negLonCrn = np.max(ma.masked_outside(np.array(self.lonCrnList),-800.,0.))
                 posIdx = index(DEM_gridLons,find_lt(DEM_gridLons,posLonCrn))
                 negIdx = index(DEM_gridLons,find_gt(DEM_gridLons,negLonCrn))
-
-                posBlock = DEM_node[DEM_latMinIdx:DEM_latMaxIdx+1,posIdx:]
-                negBlock = DEM_node[DEM_latMinIdx:DEM_latMaxIdx+1,:negIdx]
-
-                DEM_subset = np.concatenate((posBlock,negBlock),axis=1)
 
                 posLons_subset = DEM_gridLons[posIdx:]
                 negLons_subset = DEM_gridLons[:negIdx]
                 lon_subset = np.concatenate((posLons_subset,negLons_subset))
 
+                # Do the same with the DEM data
+                posBlock = DEM_node[DEM_latMinIdx:DEM_latMaxIdx+1,posIdx:]
+                negBlock = DEM_node[DEM_latMinIdx:DEM_latMaxIdx+1,:negIdx]
+                DEM_subset = np.concatenate((posBlock,negBlock),axis=1)
+
             else :
 
                 DEM_subset = DEM_node[DEM_latMinIdx:DEM_latMaxIdx+1,DEM_lonMinIdx:DEM_lonMaxIdx+1]
                 lon_subset = DEM_gridLons[DEM_lonMinIdx:DEM_lonMaxIdx+1]
+
+            self.gridLon = lon_subset
+
+            # Copy DEM data to the GridIP object
+            self.gridData = DEM_subset.astype(self.dataType)
 
             DEM_node.close()
             DEMobj.close()
@@ -172,84 +372,134 @@ class LandWaterMask() :
             DEM_node.close()
             DEMobj.close()
 
-        return DEM_subset.astype('uint8'),lat_subset,lon_subset,DEM_fileName
+
+    def _grid2Gran(self, dataLat, dataLon, gridData, gridLat, gridLon):
+        '''Granulates a gridded dataset using an input geolocation'''
+
+        nData = np.int64(dataLat.size)
+        gridRows = np.int32(gridLat.shape[0])
+        gridCols = np.int32(gridLat.shape[1])
+
+        data = np.ones(np.shape(dataLat),dtype=np.float64)* -999.9
+        dataIdx  = np.ones(np.shape(dataLat),dtype=np.int64) * -99999
+
+        CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+        ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+
+        libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
+        LOG.debug("Gridding and granulation library file: %s" % (libFile))
+        lib = ctypes.cdll.LoadLibrary(libFile)
+        grid2gran = lib.grid2gran_nearest
+        grid2gran.restype = None
+        grid2gran.argtypes = [
+                ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+                ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+                ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+                ctypes.c_int64,
+                ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+                ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+                ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
+                ndpointer(ctypes.c_int64,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
+                ctypes.c_int32,
+                ctypes.c_int32
+                ]
+
+        '''
+        int snapGrid_ctypes(double *lat, 
+                        double *lon, 
+                        double *data, 
+                        long nData, 
+                        double *gridLat,
+                        double *gridLon,
+                        double *gridData,
+                        long *gridDataIdx,
+                        int nGridRows,
+                        int nGridCols
+                        )
+        '''
+
+        LOG.debug("Calling C routine grid2gran()...")
+
+        retVal = grid2gran(dataLat,
+                           dataLon,
+                           data,
+                           nData,
+                           gridLat,
+                           gridLon,
+                           gridData,
+                           dataIdx,
+                           gridRows,
+                           gridCols)
+
+        LOG.debug("Returning from C routine grid2gran()")
 
 
-    def granulate(self,geoDicts):
-        '''Granulates the input DEM files.'''
+        return data,dataIdx
+
+
+    def granulate(self):
+        '''
+        Granulates the GridIP DEM files.
+        '''
+
+        # Generate the lat and lon grids, and flip them and the data over latitude
+        gridLon,gridLat = np.meshgrid(self.gridLon,self.gridLat[::-1])
+        gridData = self.gridData[::-1,:]
+
+        latitude = self.latitude
+        longitude = self.longitude
+
+        # If we have a dateline crossing, remove the longitude discontinuity
+        # by adding 360 degrees to the negative longitudes.
+        if self.num180Crossings == 2 :
+            gridLonNegIdx = np.where(gridLon < 0.)
+            gridLon[gridLonNegIdx] += 360.
+            longitudeNegIdx = np.where(longitude < 0.)
+            longitude[longitudeNegIdx] += 360.
+
+        LOG.info("Granulating %s ..." % (self.collectionShortName))
+        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
+        LOG.debug("gridData.shape = %s" % (str(gridData.shape)))
+        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
+        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
+
+        LOG.debug("min of gridData  = %r"%(np.min(gridData)))
+        LOG.debug("max of gridData  = %r"%(np.max(gridData)))
+
+        t1 = time()
+        data,dataIdx = self._grid2Gran(np.ravel(latitude),
+                                  np.ravel(longitude),
+                                  gridData.astype(np.float64),
+                                  gridLat.astype(np.float64),
+                                  gridLon.astype(np.float64))
+        t2 = time()
+        elapsedTime = t2-t1
+        LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
+
+        data = data.reshape(latitude.shape)
+        dataIdx = dataIdx.reshape(latitude.shape)
+
+        # Convert granulated data back to original type...
+        data = data.astype(self.dataType)
+
+        LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
+        LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
+        modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
 
-        trimObj = ViirsData.ViirsTrimTable()
-        modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
+        # Fill the required pixel trim rows in the granulated GridIP data with 
+        # the ONBOARD_PT_FILL value for the correct data type
 
-        # Get a bunch of information about the geolocation
-        latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
-
-        LOG.debug("\nGranules -->")
-        LOG.debug("latMin : %r" % (latMinList))
-        LOG.debug("latMax : %r" % (latMaxList))
-        LOG.debug("lonMin : %r" % (lonMinList))
-        LOG.debug("lonMax : %r" % (lonMaxList))
-        LOG.debug("latCrnList : %r" % (latCrnList))
-        LOG.debug("lonCrnList : %r\n" % (lonCrnList))
-
-        DEM_subset,lat_subset,lon_subset,DEM_fileName = \
-                _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList)
-
-        gridLon,gridLat = np.meshgrid(lon_subset,lat_subset[::-1])
-        DEM_subset = DEM_subset[::-1,:]
-
-        DEM_type = DEM_subset.dtype
-
-        DEM_list = []
-
-        for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
-
-            N_Granule_ID = geoDict['N_Granule_ID']
-
-            LOG.debug("\nGranulating %s ..." % ('DEM'))
-            LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
-            LOG.debug("DEM_subset.shape = %s" % (str(DEM_subset.shape)))
-            LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
-            LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
-
-            LOG.debug("min of DEM_subset  = %s"%(np.min(DEM_subset)))
-            LOG.debug("max of DEM_subset  = %s"%(np.max(DEM_subset)))
-
-            data,dataIdx = _grid2Gran(np.ravel(latitude),
-                                      np.ravel(longitude),
-                                      DEM_subset.astype(np.float64),
-                                      gridLat.astype(np.float64),
-                                      gridLon.astype(np.float64))
-
-            data = data.reshape(latitude.shape)
-            dataIdx = dataIdx.reshape(latitude.shape)
-            LOG.debug("Shape of first granulated %s data is %s" % ('DEM',np.shape(data)))
-            LOG.debug("Shape of first granulated %s dataIdx is %s" % ('DEM',np.shape(dataIdx)))
-
-            # Convert granulated data back to original type...
-
-            data = data.astype(DEM_type)
-
-            # Fill the required pixel trim rows in the granulated NCEP data with 
-            # the ONBOARD_PT_FILL value for the correct data type
-
-            fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
-            data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-            LOG.debug("min of DEM granule = %d"%(np.min(data)))
-            LOG.debug("max of DEM granule = %d"%(np.max(data)))
-
-            data = data.filled()
-
-            DEM_list.append(data)
-
-        return DEM_list
+        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
+        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
+        self.data = data.filled()
 
 
     def shipOutToFile(self):
         ''' Pass the current class instance to this Utils method to generate 
             a blob/asc file pair from the input ancillary data object.'''
 
-        shipOutToFile(self)
+        #shipOutToFile(self)
+        pass

@@ -19,8 +19,6 @@ __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
 __version__ = '$Id$'
 __docformat__ = 'Epytext'
 
-
-
 import os, sys, logging, traceback
 from os import path,uname,environ
 import string
@@ -42,8 +40,6 @@ from numpy.ctypeslib import ndpointer
 
 import ViirsData
 
-from NCEPtoBlob import NCEPclass
-
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
 import adl_asc
@@ -57,7 +53,7 @@ try :
 except :
     LOG = logging.getLogger('QstLwm')
 
-from Utils import getURID, getAscLine, getAscStructs, shipOutToFile
+from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
 
 class QstLwm() :
@@ -70,6 +66,11 @@ class QstLwm() :
         self.sourceType = 'DEM-IGBP'
         self.sourceList = ['']
         self.trimObj = ViirsData.ViirsTrimTable()
+
+        self.GridIP_collectionShortNames = [
+                            'VIIRS-GridIP-VIIRS-Qst-Mod-Gran',
+                            'VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'
+                          ]
 
         if inDir is None :
             self.inDir = path.abspath(path.curdir)
@@ -130,17 +131,343 @@ class QstLwm() :
                 self.QSTLWM_dict['OCEAN_SEA'],                    # DEM 5 : QSTLWM 17
                 self.QSTLWM_dict['OCEAN_SEA'],                    # DEM 6 : QSTLWM 17
                 self.QSTLWM_dict['OCEAN_SEA']                     # DEM 7 : QSTLWM 17
-            ],dtype=('uint8'))
+            ],dtype=(self.dataType))
 
 
-    def subset(self,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
-        '''Subsets the global elevation dataset to cover the required geolocation range.'''
+    def setGeolocationInfo(self,dicts):
+        '''
+        Populate this class instance with the geolocation data for a single granule
+        '''
+        # Set some environment variables and paths
+        CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+        ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+        CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    
+        ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
+
+        # Collect some data from the geolocation dictionary
+        self.geoDict = dicts
+        URID = dicts['URID']
+        geo_Collection_ShortName = dicts['N_Collection_Short_Name']
+        N_Granule_ID = dicts['N_Granule_ID']
+        ObservedStartTimeObj = dicts['ObservedStartTime']
+        geoAscFileName = dicts['_filename']
+        geoBlobFileName = string.replace(geoAscFileName,'asc',geo_Collection_ShortName)
+
+        LOG.debug("\n###########################")
+        LOG.debug("  Geolocation Information  ")
+        LOG.debug("###########################")
+        LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
+        LOG.info("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
+        LOG.debug("URID : %r" % (URID))
+        LOG.debug("geoAscFileName : %r" % (geoAscFileName))
+        LOG.debug("geoBlobFileName : %r" % (geoAscFileName))
+        LOG.debug("###########################\n")
+
+        # Do we have terrain corrected geolocation?
+
+        terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
+
+        # Do we have long or short style geolocation field names?
+
+        if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
+            longFormGeoNames = True
+            LOG.debug("We have long form geolocation names")
+        elif (geo_Collection_ShortName=='VIIRS-MOD-GEO' or geo_Collection_ShortName=='VIIRS-MOD-RGEO-TC') :
+            LOG.debug("We have short form geolocation names")
+            longFormGeoNames = False
+        else :
+            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            return -1
+
+        # Get the geolocation xml file
+
+        geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
+        geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
+        if path.exists(geoXmlFile):
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
+
+        # Open the geolocation blob and get the latitude and longitude
+
+        endian = self.sdrEndian
+
+        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoBlobFileName, endian=endian)
+        geoBlobArrObj = geoBlobObj.as_arrays()
+
+        # Get scan_mode to find any bad scans
+
+        #scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = getattr(geoBlobArrObj,'scan_mode').astype('uint8')
+        LOG.debug("Scan Mode = %r" % (scanMode))
+
+        # Detemine the min, max and range of the latitude and longitude, 
+        # taking care to exclude any fill values.
+
+        if longFormGeoNames :
+            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
+            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+        else :
+            latitude = getattr(geoBlobArrObj,'lat').astype('float')
+            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+
+        latitude = ma.masked_less(latitude,-800.)
+        latMin,latMax = np.min(latitude),np.max(latitude)
+        latRange = latMax-latMin
+
+        longitude = ma.masked_less(longitude,-800.)
+        lonMin,lonMax = np.min(longitude),np.max(longitude)
+        lonRange = lonMax-lonMin
+
+        LOG.debug("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+        LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+
+        # Determine the latitude and longitude fill masks, so we can restore the 
+        # fill values after we have scaled...
+
+        latMask = latitude.mask
+        lonMask = longitude.mask
+
+        # Check if the geolocation is in radians, convert to degrees
+        if 'RGEO' in geo_Collection_ShortName :
+            LOG.info("Geolocation is in radians, convert to degrees...")
+            latitude = np.degrees(latitude)
+            longitude = np.degrees(longitude)
+        
+            latMin,latMax = np.min(latitude),np.max(latitude)
+            latRange = latMax-latMin
+
+            lonMin,lonMax = np.min(longitude),np.max(longitude)
+            lonRange = lonMax-lonMin
+
+            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+
+        # Restore fill values to masked pixels in geolocation
+
+        geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][latitude.dtype.name]
+        latitude = ma.array(latitude,mask=latMask,fill_value=geoFillValue)
+        latitude = latitude.filled()
+
+        geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][longitude.dtype.name]
+        longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
+        longitude = longitude.filled()
+
+        # Shift the longitudes to be between -180 and 180 degrees
+        if lonMax > 180. :
+            LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+            # Scale to restore -ve longitudess, not necessarily # FIXME
+            dateLineIdx = np.where(longitude>180.)
+            LOG.debug("dateLineIdx = %r" % (dateLineIdx))
+            longitude[dateLineIdx] -= 360.
+            lonMax = np.max(ma.array(longitude,mask=lonMask))
+            lonMin = np.min(ma.array(longitude,mask=lonMask))
+            lonRange = lonMax-lonMin
+            LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
+
+        # Record the corners, taking care to exclude any bad scans...
+        nDetectors = 16
+        firstGoodScan = np.where(scanMode<=2)[0][0]
+        lastGoodScan = np.where(scanMode<=2)[0][-1]
+        firstGoodRow = firstGoodScan * nDetectors
+        lastGoodRow = lastGoodScan * nDetectors + nDetectors - 1
+
+        latCrnList = [latitude[firstGoodRow,0],latitude[firstGoodRow,-1],latitude[lastGoodRow,0],latitude[lastGoodRow,-1]]
+        lonCrnList = [longitude[firstGoodRow,0],longitude[firstGoodRow,-1],longitude[lastGoodRow,0],longitude[lastGoodRow,-1]]
+
+        # Check for dateline/pole crossings
+        num180Crossings = findDatelineCrossings(latCrnList,lonCrnList)
+        LOG.info("We have %d dateline crossings."%(num180Crossings))
+        
+        # Copy the geolocation information to the class object
+        self.latMin    = latMin
+        self.latMax    = latMax
+        self.latRange  = latRange
+        self.lonMin    = lonMin
+        self.lonMax    = lonMax
+        self.lonRange  = lonRange
+        self.latitude  = latitude
+        self.longitude = longitude
+        self.scanMode  = scanMode
+        self.latCrnList  = latCrnList
+        self.lonCrnList  = lonCrnList
+        self.num180Crossings  = num180Crossings
+
+        # Parse the geolocation asc file to get struct information which will be 
+        # written to the ancillary asc files
+
+        LOG.info("geolocation asc filename : %s"%(geoAscFileName))
+
+        LOG.debug("\nOpening %s..." % (geoAscFileName))
+
+        geoAscFile = open(geoAscFileName,'rt')
+
+        self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
+        self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
+
+        self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
+        self.GRingLongitudeStr = getAscStructs(geoAscFile,"GRingLongitude",12)
+
+        self.North_Bounding_Coordinate_Str = getAscLine(geoAscFile,"North_Bounding_Coordinate")
+        self.South_Bounding_Coordinate_Str = getAscLine(geoAscFile,"South_Bounding_Coordinate")
+        self.East_Bounding_Coordinate_Str  = getAscLine(geoAscFile,"East_Bounding_Coordinate")
+        self.West_Bounding_Coordinate_Str  = getAscLine(geoAscFile,"West_Bounding_Coordinate")
+
+        geoAscFile.close()
+
+
+    def subset(self):
+        '''Subsets the IGBP and LWM datasets to cover the required geolocation range.'''
         pass
 
 
-    def granulate(self,geoDicts):
-        '''Granulates the input DEM files.'''
-        pass
+    def __QSTLWM(self,GridIP_objects):
+        '''
+        Combines the LWM and IGBP to make the QSTLWM
+        '''
+        
+        '''
+        LWM  = np.array([ 0, 1, 2, 3, 4, 5, 6, 7, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],dtype='uint8')
+        IGBP = np.array([17,17,17,17,17,17,17,17, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16],dtype='uint8')
+        QSTLWM_exp = np.array([17,19,19,18, 9,17,17,17, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16],dtype='uint8')
+
+        '''
+
+        DEM_list = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_list
+        DEM_dict = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict
+        LWM = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].data
+
+        IGBP_dict = GridIP_objects['VIIRS-GridIP-VIIRS-Qst-Mod-Gran'].IGBP_dict
+        IGBP = GridIP_objects['VIIRS-GridIP-VIIRS-Qst-Mod-Gran'].data
+
+        QSTLWM_dict = self.QSTLWM_dict
+        DEM_to_QSTLWM = self.DEM_to_QSTLWM
+        QSTLWM_dtype = self.dataType
+
+        LOG.debug("min of LWM  = %d" % (np.min(LWM)))
+        LOG.debug("max of LWM  = %d" % (np.max(LWM)))
+        LOG.debug("min of IGBP = %d" % (np.min(IGBP)))
+        LOG.debug("max of IGBP = %d" % (np.max(IGBP)))
+
+        # Construct the IGBP and LWM masks
+
+        IGBP_mask = ma.masked_greater(IGBP,17).mask
+        LWM_mask = ma.masked_greater(LWM,7).mask
+
+        # Determine the combined mask
+
+        totalMask = np.ravel(np.bitwise_or(IGBP_mask,LWM_mask))
+
+        # Mask and compress the IGBP and LWM datasets
+
+        IGBP_reduced = ma.array(np.ravel(IGBP),mask=totalMask).compressed()
+        LWM_reduced = ma.array(np.ravel(LWM),mask=totalMask).compressed()
+
+        DEM_LAND_mask = (LWM_reduced == DEM_dict['DEM_LAND'])
+        DEM_water_mask = np.bitwise_not(DEM_LAND_mask)
+        IGBP_waterBodies_mask = (IGBP_reduced == IGBP_dict['IGBP_WATERBODIES'])
+        
+        QSTLWM_coastalWater_mask = np.logical_and(DEM_LAND_mask,IGBP_waterBodies_mask)
+        QSTLWM_IGBP_land_mask = np.invert(IGBP_waterBodies_mask)
+        
+        QSTLWM_IGBP_idx = np.where(QSTLWM_IGBP_land_mask)
+        QSTLWM_coastalWater_idx = np.where(QSTLWM_coastalWater_mask)
+        QSTLWM_LSM_idx = np.where(DEM_water_mask)
+        
+        QSTLWM_reduced = np.ones(IGBP_reduced.shape,dtype='uint8') * QSTLWM_dict['FILL_VALUE']
+        
+        QSTLWM_reduced[QSTLWM_IGBP_idx] = IGBP_reduced[QSTLWM_IGBP_idx]
+        QSTLWM_reduced[QSTLWM_coastalWater_idx] = np.array([QSTLWM_dict['COASTAL_WATER']],dtype=QSTLWM_dtype)[0]
+        QSTLWM_reduced[QSTLWM_LSM_idx] = DEM_to_QSTLWM[LWM_reduced[QSTLWM_LSM_idx]]
+
+        # Restore to original shape...
+        QSTLWM = np.ones(IGBP.shape,dtype=QSTLWM_dtype) * QSTLWM_dict['FILL_VALUE']
+        QSTLWM = np.ravel(QSTLWM)
+        validIdx = np.where(totalMask==False)
+        QSTLWM[validIdx] = QSTLWM_reduced
+        QSTLWM = QSTLWM.reshape(IGBP.shape)
+
+        # Fill the required pixel trim rows in the granulated NCEP data with 
+        # the ONBOARD_PT_FILL value for the correct data type
+
+        #fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][QSTLWM_dtype]        
+        #QSTLWM = ma.array(QSTLWM,mask=modTrimMask,fill_value=fillValue)
+        #LOG.debug("min of QSTLWM granule = %d" % (np.min(QSTLWM)))
+        #LOG.debug("max of QSTLWM granule = %d" % (np.max(QSTLWM)))
+        #QSTLWM = QSTLWM.filled()
+
+        return QSTLWM
+
+
+    def granulate(self):
+        '''Granulates the IGBP and LWM datasets, and combines them create the QSTLWM data.'''
+
+        import GridIP
+
+        # Get the geolocation information
+        geoDict = self.geoDict
+        inDir = self.inDir
+
+        # Obtain the required GridIP collection shortnames for each algorithm
+        collectionShortNames = []
+        for shortName in self.GridIP_collectionShortNames :
+            LOG.info("Adding %s to the list of required collection short names..." \
+                    %(shortName))
+            collectionShortNames.append(shortName)
+
+        # Create a dict of GridIP class instances, which will handle ingest and 
+        # granulation
+        GridIP_objects = {}
+        for shortName in collectionShortNames :
+            className = GridIP.classNames[shortName]
+            GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir)
+            LOG.info("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
+
+        # Loop through the required GridIP datasets and create the blobs.
+        for shortName in collectionShortNames :
+        
+            LOG.info("Processing dataset %s for %s" % (GridIP_objects[shortName].blobDatasetName,shortName))
+
+            # Set the geolocation information in this ancillary object for the current granule...
+            GridIP_objects[shortName].setGeolocationInfo(geoDict)
+
+            LOG.info("min,max,range of latitude: %f %f %f" % (\
+                    GridIP_objects[shortName].latMin,\
+                    GridIP_objects[shortName].latMax,\
+                    GridIP_objects[shortName].latRange))
+            LOG.info("min,max,range of longitude: %f %f %f" % (\
+                    GridIP_objects[shortName].lonMin,\
+                    GridIP_objects[shortName].lonMax,\
+                    GridIP_objects[shortName].lonRange))
+
+            LOG.info("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
+            LOG.info("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
+
+            # Subset the gridded data for this ancillary object to cover the required lat/lon range.
+            GridIP_objects[shortName].subset()
+
+            # Granulate the gridded data in this ancillary object for the current granule...
+            GridIP_objects[shortName].granulate()
+
+        # Combine the LWM and IGBP to make the QSTLWM
+        data = self.__QSTLWM(GridIP_objects)
+
+        # Convert granulated data back to original type...
+        data = data.astype(self.dataType)
+
+        LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
+
+        # Moderate resolution trim table arrays. These are 
+        # bool arrays, and the trim pixels are set to True.
+        modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
+
+        # Fill the required pixel trim rows in the granulated GridIP data with 
+        # the ONBOARD_PT_FILL value for the correct data type
+
+        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
+        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
+        self.data = data.filled()
 
 
     def shipOutToFile(self):

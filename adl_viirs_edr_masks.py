@@ -1174,7 +1174,7 @@ def _granulate_GridIP(inDir,geoDicts):
         algName = Algorithms.modules[alg]
         algorithms.append(getattr(Algorithms,algName))
 
-    # Obtain the required ANC collection shortnames for each algorithm
+    # Obtain the required GridIP collection shortnames for each algorithm
     collectionShortNames = []
     for alg in algorithms :
         for shortName in alg.GridIP_collectionShortNames :
@@ -2266,7 +2266,7 @@ def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
             + (transSeaIceCoastalMask * LSM_Land_Coastal) \
             + (transSeaIceOceanMask * LSM_SeaWater_InlandWater)
 
-    snowIceMask  = np.ones(nise_val.shape,dtype='int') * CM_NO_SNOW
+    snowIceMask = np.ones(nise_val.shape,dtype='int') * CM_NO_SNOW
     snowIceMask = ma.array(snowIceMask,mask=snowMask,fill_value=CM_SNOW)
     snowIceMask = snowIceMask.filled()
 
@@ -3505,11 +3505,11 @@ def main():
 
         # Granulate the global IGBP file
 
-        IGBP_granules = _granulate_IGBP(anc_granules_to_process,work_dir)
+        #IGBP_granules = _granulate_IGBP(anc_granules_to_process,work_dir)
 
         # Combine the IGBP and the DEM to make the QSTLWM
 
-        _QSTLWM(DEM_granules,IGBP_granules,anc_granules_to_process,work_dir)
+        #_QSTLWM(DEM_granules,IGBP_granules,anc_granules_to_process,work_dir)
 
         # Granulate the global NISE HDF4 files
 

@@ -272,10 +272,7 @@ class NbarNdvi17Day() :
     def subset(self):
         '''Subsets the global NDVI dataset to cover the required geolocation range.'''
 
-        NDVI_dLat = 60.*(1./3600.)
-        NDVI_dLon = 60.*(1./3600.)
-
-        # Get the subset of NDVI global dataset.
+        # Determine the correct NDVI file.
 
         NDVIdays = np.array([1, 17, 33, 49, 65, 81, 97, 113, 129, 145, \
                              161, 177, 193, 209, 225, 241, 257, 273, 289, 305, 321, 337, 353])
@@ -308,14 +305,24 @@ class NbarNdvi17Day() :
             NDVIday = NDVIdays[lowerIdx]
             NDVIidx = lowerIdx
 
+        # Get the subset of NDVI global dataset.
+
+        NDVI_dLat = 60.*(1./3600.)
+        NDVI_dLon = 60.*(1./3600.)
+
         CSPP_RT_ANC_HOME = os.getenv('CSPP_RT_ANC_HOME')
         NDVI_fileName = path.join(CSPP_RT_ANC_HOME,'NDVI/NDVI.FM.c004.v2.0.WS.00-04.%03d.h5'%(NDVIday))
         self.sourceList.append(path.basename(NDVI_fileName))
 
         LOG.info("For Julian day %d, using NDVI file %s" % (julianDay,NDVI_fileName))
 
-        NDVIobj = pytables.openFile(NDVI_fileName)
-        NDVI_node = NDVIobj.getNode('/NDVI')
+        try :
+            NDVIobj = pytables.openFile(NDVI_fileName)
+            NDVI_node = NDVIobj.getNode('/NDVI')
+        except Exception, err :
+            LOG.exception("%s"%(err))
+            LOG.exception("Problem opening NDVI file (%s), aborting."%(NDVI_fileName))
+            sys.exit(1)
 
         try :
             NDVI_gridLats = NDVIobj.getNode('/Latitude')[:]
@@ -382,7 +389,7 @@ class NbarNdvi17Day() :
             NDVI_subset = NDVI_subset * NDVI_scaleFactor + NDVI_offset
             NDVI_subset = ma.array(NDVI_subset,mask=NDVI_mask,fill_value=-999.9)
             NDVI_subset = NDVI_subset.filled()
-            self.gridData = NDVI_subset
+            self.gridData = NDVI_subset.astype(self.dataType)
 
             NDVI_node.close()
             NDVIobj.close()
@@ -465,8 +472,6 @@ class NbarNdvi17Day() :
         '''
 
         # Generate the lat and lon grids, and flip them and the data over latitude
-        #gridLon,gridLat = np.meshgrid(lon_subset,lat_subset[::-1])
-        #NDVI_subset = NDVI_subset[::-1,:]
         gridLon,gridLat = np.meshgrid(self.gridLon,self.gridLat[::-1])
         gridData = self.gridData[::-1,:]
 
@@ -503,6 +508,9 @@ class NbarNdvi17Day() :
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
 
+        # Convert granulated data back to original type...
+        data = data.astype(self.dataType)
+
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
@@ -513,7 +521,7 @@ class NbarNdvi17Day() :
         # Fill the required pixel trim rows in the granulated GridIP data with 
         # the ONBOARD_PT_FILL value for the correct data type
 
-        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
+        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
         self.data = data.filled()
 
