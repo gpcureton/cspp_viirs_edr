@@ -31,6 +31,18 @@ from bisect import bisect_left,bisect_right
 import adl_blob
 from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
+# Plotting stuff
+import matplotlib
+import matplotlib.cm as cm
+from matplotlib.colors import ListedColormap
+from matplotlib.figure import Figure
+
+matplotlib.use('Agg')
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+# This must come *after* the backend is specified.
+import matplotlib.pyplot as ppl
+
 # every module should have a LOG object
 try :
     sourcename= file_Id.split(" ")
@@ -353,4 +365,52 @@ def shipOutToFile(GridIPobj):
 
     ascFile.close()
     ascTemplateFile.close()
+
+
+def plotArr(data,pngName):
+    '''
+    Plot the input array, with a colourbar.
+    '''
+
+    plotTitle =  string.replace(pngName,".png","")
+    cbTitle   =  "Value"
+    #vmin,vmax =  0,1
+    vmin,vmax =  None,None
+
+    # Create figure with default size, and create canvas to draw on
+    scale=1.5
+    fig = Figure(figsize=(scale*8,scale*3))
+    canvas = FigureCanvas(fig)
+
+    # Create main axes instance, leaving room for colorbar at bottom,
+    # and also get the Bbox of the axes instance
+    ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
+    ax = fig.add_axes(ax_rect)
+
+    # Granule axis title
+    ax_title = ppl.setp(ax,title=plotTitle)
+    ppl.setp(ax_title,fontsize=12)
+    ppl.setp(ax_title,family="sans-serif")
+
+    # Plot the data
+    im = ax.imshow(data,axes=ax,interpolation='nearest',vmin=vmin,vmax=vmax)
+    
+    # add a colorbar axis
+    cax_rect = [0.05 , 0.05, 0.9 , 0.10 ] # [left,bottom,width,height]
+    cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
+
+    # Plot the colorbar.
+    cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+    ppl.setp(cax.get_xticklabels(),fontsize=9)
+
+    # Colourbar title
+    cax_title = ppl.setp(cax,title=cbTitle)
+    ppl.setp(cax_title,fontsize=9)
+
+    # Redraw the figure
+    canvas.draw()
+
+    # save image 
+    canvas.print_figure(pngName,dpi=200)
+
 

@@ -60,9 +60,11 @@ ANC_collectionShortNames = [
                           ]
 
 GridIP_collectionShortNames = [
-                            #'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran',
-                            #'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran',
+                            'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran',
+                            'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran',
                             'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
+                            #'VIIRS-GridIP-VIIRS-Qst-Mod-Gran' # Prerequisite for QSTLWM
+                            #'VIIRS-GridIP-VIIRS-Lwm-Mod-Gran' # Prerequisite for QSTLWM, Snow-Ice
                           ]
 
 controllerBinary = 'ProEdrViirsMasksController.exe'

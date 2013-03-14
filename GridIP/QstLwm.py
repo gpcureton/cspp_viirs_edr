@@ -158,7 +158,7 @@ class QstLwm() :
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
-        LOG.info("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoAscFileName : %r" % (geoAscFileName))
@@ -297,7 +297,7 @@ class QstLwm() :
         # Parse the geolocation asc file to get struct information which will be 
         # written to the ancillary asc files
 
-        LOG.info("geolocation asc filename : %s"%(geoAscFileName))
+        LOG.debug("geolocation asc filename : %s"%(geoAscFileName))
 
         LOG.debug("\nOpening %s..." % (geoAscFileName))
 
@@ -388,19 +388,10 @@ class QstLwm() :
         QSTLWM[validIdx] = QSTLWM_reduced
         QSTLWM = QSTLWM.reshape(IGBP.shape)
 
-        # Fill the required pixel trim rows in the granulated NCEP data with 
-        # the ONBOARD_PT_FILL value for the correct data type
-
-        #fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][QSTLWM_dtype]        
-        #QSTLWM = ma.array(QSTLWM,mask=modTrimMask,fill_value=fillValue)
-        #LOG.debug("min of QSTLWM granule = %d" % (np.min(QSTLWM)))
-        #LOG.debug("max of QSTLWM granule = %d" % (np.max(QSTLWM)))
-        #QSTLWM = QSTLWM.filled()
-
         return QSTLWM
 
 
-    def granulate(self):
+    def granulate(self,GridIP_objects):
         '''Granulates the IGBP and LWM datasets, and combines them create the QSTLWM data.'''
 
         import GridIP
@@ -409,7 +400,7 @@ class QstLwm() :
         geoDict = self.geoDict
         inDir = self.inDir
 
-        # Obtain the required GridIP collection shortnames for each algorithm
+        # Obtain the required GridIP collection shortnames for this algorithm
         collectionShortNames = []
         for shortName in self.GridIP_collectionShortNames :
             LOG.info("Adding %s to the list of required collection short names..." \
@@ -418,37 +409,38 @@ class QstLwm() :
 
         # Create a dict of GridIP class instances, which will handle ingest and 
         # granulation
-        GridIP_objects = {}
+        #GridIP_objects = {}
         for shortName in collectionShortNames :
             className = GridIP.classNames[shortName]
             GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir)
-            LOG.info("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
+            LOG.debug("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
 
         # Loop through the required GridIP datasets and create the blobs.
         for shortName in collectionShortNames :
         
-            LOG.info("Processing dataset %s for %s" % (GridIP_objects[shortName].blobDatasetName,shortName))
+            LOG.debug("Processing dataset %s for %s" % (GridIP_objects[shortName].blobDatasetName,shortName))
 
             # Set the geolocation information in this ancillary object for the current granule...
             GridIP_objects[shortName].setGeolocationInfo(geoDict)
 
-            LOG.info("min,max,range of latitude: %f %f %f" % (\
+            LOG.debug("min,max,range of latitude: %f %f %f" % (\
                     GridIP_objects[shortName].latMin,\
                     GridIP_objects[shortName].latMax,\
                     GridIP_objects[shortName].latRange))
-            LOG.info("min,max,range of longitude: %f %f %f" % (\
+            LOG.debug("min,max,range of longitude: %f %f %f" % (\
                     GridIP_objects[shortName].lonMin,\
                     GridIP_objects[shortName].lonMax,\
                     GridIP_objects[shortName].lonRange))
 
-            LOG.info("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
-            LOG.info("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
+            LOG.debug("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
+            LOG.debug("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
 
             # Subset the gridded data for this ancillary object to cover the required lat/lon range.
             GridIP_objects[shortName].subset()
 
             # Granulate the gridded data in this ancillary object for the current granule...
-            GridIP_objects[shortName].granulate()
+            GridIP_objects[shortName].granulate(GridIP_objects)
+            GridIP_objects[shortName].shipOutToFile()
 
         # Combine the LWM and IGBP to make the QSTLWM
         data = self.__QSTLWM(GridIP_objects)

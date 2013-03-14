@@ -58,7 +58,8 @@ ANC_collectionShortNames = [
                            'VIIRS-ANC-Wind-Speed-Mod-Gran',
                            'VIIRS-ANC-Wind-Direction-Mod-Gran',
                            'VIIRS-ANC-Press-Surf-Mod-Gran',
-                           'VIIRS-ANC-Tot-Col-Mod-Gran'
+                           'VIIRS-ANC-Tot-Col-Mod-Gran',
+                           'VIIRS-ANC-Optical-Depth-Mod-Gran'
                           ]
 
 GridIP_collectionShortNames = [

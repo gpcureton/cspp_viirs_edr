@@ -135,7 +135,7 @@ class QuarterlySurfaceType() :
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
-        LOG.info("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoAscFileName : %r" % (geoAscFileName))
@@ -274,7 +274,7 @@ class QuarterlySurfaceType() :
         # Parse the geolocation asc file to get struct information which will be 
         # written to the ancillary asc files
 
-        LOG.info("geolocation asc filename : %s"%(geoAscFileName))
+        LOG.debug("geolocation asc filename : %s"%(geoAscFileName))
 
         LOG.debug("\nOpening %s..." % (geoAscFileName))
 
@@ -318,8 +318,8 @@ class QuarterlySurfaceType() :
             IGBP_gridLats = IGBPobj.getNode('/Latitude')[:]
             IGBP_gridLons = IGBPobj.getNode('/Longitude')[:]
 
-            LOG.info("min,max IGBP Grid Latitude values : %f,%f"%(IGBP_gridLats[0],IGBP_gridLats[-1]))
-            LOG.info("min,max IGBP Grid Longitude values : %f,%f"%(IGBP_gridLons[0],IGBP_gridLons[-1]))
+            LOG.debug("min,max IGBP Grid Latitude values : %f,%f"%(IGBP_gridLats[0],IGBP_gridLats[-1]))
+            LOG.debug("min,max IGBP Grid Longitude values : %f,%f"%(IGBP_gridLons[0],IGBP_gridLons[-1]))
 
             latMin = self.latMin
             latMax = self.latMax
@@ -337,10 +337,10 @@ class QuarterlySurfaceType() :
             IGBP_lonMinIdx = IGBP_lonIdx[0]
             IGBP_lonMaxIdx = IGBP_lonIdx[-1]
 
-            LOG.info("IGBP_latMinIdx = %d" % (IGBP_latMinIdx))
-            LOG.info("IGBP_latMaxIdx = %d" % (IGBP_latMaxIdx))
-            LOG.info("IGBP_lonMinIdx = %d" % (IGBP_lonMinIdx))
-            LOG.info("IGBP_lonMaxIdx = %d" % (IGBP_lonMaxIdx))
+            LOG.debug("IGBP_latMinIdx = %d" % (IGBP_latMinIdx))
+            LOG.debug("IGBP_latMaxIdx = %d" % (IGBP_latMaxIdx))
+            LOG.debug("IGBP_lonMinIdx = %d" % (IGBP_lonMinIdx))
+            LOG.debug("IGBP_lonMaxIdx = %d" % (IGBP_lonMaxIdx))
 
             lat_subset = IGBP_gridLats[IGBP_latMinIdx:IGBP_latMaxIdx+1]
             self.gridLat = lat_subset
@@ -452,7 +452,7 @@ class QuarterlySurfaceType() :
         return data,dataIdx
 
 
-    def granulate(self):
+    def granulate(self,GridIP_objects):
         '''
         Granulate the GridIP IGBP dataset.
         '''
@@ -516,4 +516,5 @@ class QuarterlySurfaceType() :
         ''' Pass the current class instance to this Utils method to generate 
             a blob/asc file pair from the input ancillary data object.'''
 
-        shipOutToFile(self)
+        #shipOutToFile(self)
+        pass

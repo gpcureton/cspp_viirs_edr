@@ -339,8 +339,8 @@ class PrecipWater() :
             gridData = np.roll(gridData,360)
             gridLon,gridLat = np.meshgrid(lons,lats)
 
-            LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
         else :
 
@@ -352,8 +352,8 @@ class PrecipWater() :
             longitudeNegIdx = np.where(longitude < 0.)
             longitude[longitudeNegIdx] += 360.
 
-            LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
 
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))

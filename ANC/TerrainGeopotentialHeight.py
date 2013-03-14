@@ -98,7 +98,7 @@ class TerrainGeopotentialHeight() :
         '''
         Ingest the ancillary dataset.
         '''
-        LOG.info("Ingesting of %s is to be handled differently." % (self.collectionShortName))        
+        LOG.debug("Ingesting of %s is to be handled differently." % (self.collectionShortName))        
         if ancBlob is None:
             self.gridData = None
         else :
@@ -113,7 +113,7 @@ class TerrainGeopotentialHeight() :
             # the ONBOARD_PT_FILL value for the correct data type
 
             fillValue = self.trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]        
-            LOG.info("ONGROUND_PT_FILL for %s is %r" %(data.dtype.name,fillValue))
+            LOG.debug("ONGROUND_PT_FILL for %s is %r" %(data.dtype.name,fillValue))
 
             data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
             self.data = data.filled()

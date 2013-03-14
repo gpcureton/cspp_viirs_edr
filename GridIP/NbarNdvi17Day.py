@@ -110,7 +110,7 @@ class NbarNdvi17Day() :
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
-        LOG.info("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoAscFileName : %r" % (geoAscFileName))
@@ -249,7 +249,7 @@ class NbarNdvi17Day() :
         # Parse the geolocation asc file to get struct information which will be 
         # written to the ancillary asc files
 
-        LOG.info("geolocation asc filename : %s"%(geoAscFileName))
+        LOG.debug("geolocation asc filename : %s"%(geoAscFileName))
 
         LOG.debug("\nOpening %s..." % (geoAscFileName))
 
@@ -328,8 +328,8 @@ class NbarNdvi17Day() :
             NDVI_gridLats = NDVIobj.getNode('/Latitude')[:]
             NDVI_gridLons = NDVIobj.getNode('/Longitude')[:]
 
-            LOG.info("min,max NDVI Grid Latitude values : %f,%f"%(NDVI_gridLats[0],NDVI_gridLats[-1]))
-            LOG.info("min,max NDVI Grid Longitude values : %f,%f"%(NDVI_gridLons[0],NDVI_gridLons[-1]))
+            LOG.debug("min,max NDVI Grid Latitude values : %f,%f"%(NDVI_gridLats[0],NDVI_gridLats[-1]))
+            LOG.debug("min,max NDVI Grid Longitude values : %f,%f"%(NDVI_gridLons[0],NDVI_gridLons[-1]))
 
             NDVI_scaleFactor = NDVI_node.attrs['scale_factor']
             NDVI_offset = NDVI_node.attrs['add_offset']
@@ -351,10 +351,10 @@ class NbarNdvi17Day() :
             NDVI_lonMinIdx = NDVI_lonIdx[0]
             NDVI_lonMaxIdx = NDVI_lonIdx[-1]
 
-            LOG.info("NDVI_latMinIdx = %d" % (NDVI_latMinIdx))
-            LOG.info("NDVI_latMaxIdx = %d" % (NDVI_latMaxIdx))
-            LOG.info("NDVI_lonMinIdx = %d" % (NDVI_lonMinIdx))
-            LOG.info("NDVI_lonMaxIdx = %d" % (NDVI_lonMaxIdx))
+            LOG.debug("NDVI_latMinIdx = %d" % (NDVI_latMinIdx))
+            LOG.debug("NDVI_latMaxIdx = %d" % (NDVI_latMaxIdx))
+            LOG.debug("NDVI_lonMinIdx = %d" % (NDVI_lonMinIdx))
+            LOG.debug("NDVI_lonMaxIdx = %d" % (NDVI_lonMaxIdx))
 
             lat_subset = NDVI_gridLats[NDVI_latMinIdx:NDVI_latMaxIdx+1]
             self.gridLat = lat_subset
@@ -466,7 +466,7 @@ class NbarNdvi17Day() :
         return data,dataIdx
 
 
-    def granulate(self):
+    def granulate(self,GridIP_objects):
         '''
         Granulate the GridIP NDVI dataset.
         '''
@@ -516,6 +516,7 @@ class NbarNdvi17Day() :
 
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
+
         modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
 
         # Fill the required pixel trim rows in the granulated GridIP data with 

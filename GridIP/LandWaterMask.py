@@ -123,7 +123,7 @@ class LandWaterMask() :
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
-        LOG.info("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
+        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoAscFileName : %r" % (geoAscFileName))
@@ -262,7 +262,7 @@ class LandWaterMask() :
         # Parse the geolocation asc file to get struct information which will be 
         # written to the ancillary asc files
 
-        LOG.info("geolocation asc filename : %s"%(geoAscFileName))
+        LOG.debug("geolocation asc filename : %s"%(geoAscFileName))
 
         LOG.debug("\nOpening %s..." % (geoAscFileName))
 
@@ -307,8 +307,8 @@ class LandWaterMask() :
             DEM_gridLats = -1. * (np.arange(21600.) * DEM_dLat - 90.)
             DEM_gridLons = np.arange(43200.) * DEM_dLon - 180.
 
-            LOG.info("min,max DEM Grid Latitude values : %f,%f"%(DEM_gridLats[0],DEM_gridLats[-1]))
-            LOG.info("min,max DEM Grid Longitude values : %f,%f"%(DEM_gridLons[0],DEM_gridLons[-1]))
+            LOG.debug("min,max DEM Grid Latitude values : %f,%f"%(DEM_gridLats[0],DEM_gridLats[-1]))
+            LOG.debug("min,max DEM Grid Longitude values : %f,%f"%(DEM_gridLons[0],DEM_gridLons[-1]))
 
             latMin = self.latMin
             latMax = self.latMax
@@ -326,10 +326,10 @@ class LandWaterMask() :
             DEM_lonMinIdx = DEM_lonIdx[0]
             DEM_lonMaxIdx = DEM_lonIdx[-1]
 
-            LOG.info("DEM_latMinIdx = %d" % (DEM_latMinIdx))
-            LOG.info("DEM_latMaxIdx = %d" % (DEM_latMaxIdx))
-            LOG.info("DEM_lonMinIdx = %d" % (DEM_lonMinIdx))
-            LOG.info("DEM_lonMaxIdx = %d" % (DEM_lonMaxIdx))
+            LOG.debug("DEM_latMinIdx = %d" % (DEM_latMinIdx))
+            LOG.debug("DEM_latMaxIdx = %d" % (DEM_latMaxIdx))
+            LOG.debug("DEM_lonMinIdx = %d" % (DEM_lonMinIdx))
+            LOG.debug("DEM_lonMaxIdx = %d" % (DEM_lonMaxIdx))
 
             lat_subset = DEM_gridLats[DEM_latMinIdx:DEM_latMaxIdx+1]
             self.gridLat = lat_subset
@@ -437,7 +437,7 @@ class LandWaterMask() :
         return data,dataIdx
 
 
-    def granulate(self):
+    def granulate(self,GridIP_objects):
         '''
         Granulates the GridIP DEM files.
         '''
@@ -496,6 +496,8 @@ class LandWaterMask() :
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
         self.data = data.filled()
 
+        self.testString = "This is a test string from LSM : %s" % (self.geoDict['N_Granule_ID'])
+        LOG.debug("self.testString = %s" % (self.testString))
 
     def shipOutToFile(self):
         ''' Pass the current class instance to this Utils method to generate 

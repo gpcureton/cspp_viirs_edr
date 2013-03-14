@@ -128,6 +128,7 @@ from adl_common import _test_logging as test_logging
 # locations of executables in ADL
 ADL_VIIRS_MASKS_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsMasksController.exe'))
 ADL_VIIRS_AEROSOL_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe'))
+ADL_VIIRS_SST_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsSstController.exe'))
 
 # we're not likely to succeed in processing using geolocation smaller than this many bytes
 MINIMUM_SDR_BLOB_SIZE = 81000000
@@ -1186,8 +1187,7 @@ def _granulate_GridIP(inDir,geoDicts):
     collectionShortNames = list(set(collectionShortNames))
     LOG.info("collectionShortNames = %r" %(collectionShortNames))
 
-    # Create a dict of GridIP class instances, which will handle ingest and 
-    # granulation
+    # Create a dict of GridIP class instances, which will handle ingest and granulation.
     GridIP_objects = {}
     for shortName in collectionShortNames :
         className = GridIP.classNames[shortName]
@@ -1204,23 +1204,23 @@ def _granulate_GridIP(inDir,geoDicts):
             # Set the geolocation information in this ancillary object for the current granule...
             GridIP_objects[shortName].setGeolocationInfo(dicts)
 
-            LOG.info("min,max,range of latitude: %f %f %f" % (\
+            LOG.debug("min,max,range of latitude: %f %f %f" % (\
                     GridIP_objects[shortName].latMin,\
                     GridIP_objects[shortName].latMax,\
                     GridIP_objects[shortName].latRange))
-            LOG.info("min,max,range of longitude: %f %f %f" % (\
+            LOG.debug("min,max,range of longitude: %f %f %f" % (\
                     GridIP_objects[shortName].lonMin,\
                     GridIP_objects[shortName].lonMax,\
                     GridIP_objects[shortName].lonRange))
 
-            LOG.info("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
-            LOG.info("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
+            LOG.debug("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
+            LOG.debug("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
 
             # Subset the gridded data for this ancillary object to cover the required lat/lon range.
             GridIP_objects[shortName].subset()
 
             # Granulate the gridded data in this ancillary object for the current granule...
-            GridIP_objects[shortName].granulate()
+            GridIP_objects[shortName].granulate(GridIP_objects)
 
             # Shipout the granulated data in this ancillary object to a blob/asc pair.
             GridIP_objects[shortName].shipOutToFile()
@@ -3477,7 +3477,7 @@ def main():
                 LOG.error('Failed to find or retrieve any NISE files, aborting...')
                 return -1
 
-            all_dyn_anc = list(gribFiles) + list(niseFiles)
+            all_dyn_anc = list(gribFiles) #+ list(niseFiles)
             LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
 
 
@@ -3495,29 +3495,9 @@ def main():
 
         _granulate_ANC(work_dir,anc_granules_to_process,gridBlobFiles)
 
-        # Granulate the VIIRS GridIP data (NDVI only for now)
+        # Granulate the VIIRS GridIP data
 
         _granulate_GridIP(work_dir,anc_granules_to_process)
-
-        # Granulate the global DEM file
-
-        DEM_granules = _granulate_DEM(anc_granules_to_process,work_dir)
-
-        # Granulate the global IGBP file
-
-        #IGBP_granules = _granulate_IGBP(anc_granules_to_process,work_dir)
-
-        # Combine the IGBP and the DEM to make the QSTLWM
-
-        #_QSTLWM(DEM_granules,IGBP_granules,anc_granules_to_process,work_dir)
-
-        # Granulate the global NISE HDF4 files
-
-        granNiseFiles = _granulate_NISE_list(work_dir,anc_granules_to_process,DEM_granules,niseFiles)
-
-        # Granulate the global NDVI files
-
-        #_granulate_NDVI(work_dir,anc_granules_to_process)
 
         t2 = time()
         LOG.info( "Generation of VIIRS Masks ancillary data took %f seconds." % (t2-t1))
