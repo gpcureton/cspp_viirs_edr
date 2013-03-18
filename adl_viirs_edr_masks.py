@@ -90,7 +90,6 @@ import ViirsData
 from thermo import rh_to_mr
 rh_to_mr_vec = np.vectorize(rh_to_mr)
 
-from NCEPtoBlob import NCEPclass
 #from NAAPStoBlob import NAAPSclass
 #import pyhdf.SD as SD
 from HDF4File import HDF4File
@@ -176,139 +175,139 @@ def set_anc_endian(inputEndianness) :
         LOG.error('Invalid value for the VIIRS ancillary endianness : %s ' % (inputEndianness))
 
 # QST type value enumerations to be used with the igbp field
-IGBP_dict = {
-    'IGBP_EVERNEEDLE'    : 1,
-    'IGBP_EVERBROAD'     : 2,
-    'IGBP_DECIDNEEDLE'   : 3,
-    'IGBP_DECIDBROAD'    : 4,
-    'IGBP_MIXEDFOREST'   : 5,
-    'IGBP_CLOSEDSHRUBS'  : 6,
-    'IGBP_OPENSHRUBS'    : 7,
-    'IGBP_WOODYSAVANNA'  : 8,
-    'IGBP_SAVANNA'       : 9,
-    'IGBP_GRASSLAND'     : 10,
-    'IGBP_WETLANDS'      : 11,
-    'IGBP_CROPLANDS'     : 12,
-    'IGBP_URBAN'         : 13,
-    'IGBP_CROPNATMOSAIC' : 14,
-    'IGBP_SNOWICE'       : 15,
-    'IGBP_BARREN'        : 16,
-    'IGBP_WATERBODIES'   : 17,
-    'IGBP_UNCLASSIFIED'  : 30,
-    'IGBP_FILL'          : 31,
-    'IGBP_MIN'           : 1,
-    'IGBP_MAX'           : 17
-}
+#IGBP_dict = {
+    #'IGBP_EVERNEEDLE'    : 1,
+    #'IGBP_EVERBROAD'     : 2,
+    #'IGBP_DECIDNEEDLE'   : 3,
+    #'IGBP_DECIDBROAD'    : 4,
+    #'IGBP_MIXEDFOREST'   : 5,
+    #'IGBP_CLOSEDSHRUBS'  : 6,
+    #'IGBP_OPENSHRUBS'    : 7,
+    #'IGBP_WOODYSAVANNA'  : 8,
+    #'IGBP_SAVANNA'       : 9,
+    #'IGBP_GRASSLAND'     : 10,
+    #'IGBP_WETLANDS'      : 11,
+    #'IGBP_CROPLANDS'     : 12,
+    #'IGBP_URBAN'         : 13,
+    #'IGBP_CROPNATMOSAIC' : 14,
+    #'IGBP_SNOWICE'       : 15,
+    #'IGBP_BARREN'        : 16,
+    #'IGBP_WATERBODIES'   : 17,
+    #'IGBP_UNCLASSIFIED'  : 30,
+    #'IGBP_FILL'          : 31,
+    #'IGBP_MIN'           : 1,
+    #'IGBP_MAX'           : 17
+#}
 
 # QST Land Water Mask type value enumerations to be used with the qstlwm field
-QSTLWM_list = [
-    'EVERGREEN_NEEDLELEAF_FOREST', 'EVERGREEN_BROADLEAF_FORESTS', 'DECIDUOUS_NEEDLELEAF_FORESTS', 'DECIDUOUS_BROADLEAF_FORESTS', 'MIXED_FORESTS', 'CLOSED_SHRUBLANDS', 'OPEN_SHRUBLANDS', 'WOODY_SAVANNAS', 'SAVANNAS', 'GRASSLANDS', 'PERMANENT_WETLANDS', 'CROPLANDS', 'URBAN_AND_BUILDUP_LANDS', 'CROPLAND_NATURAL_VEGETATION', 'SNOW_AND_ICE', 'BARREN_OR_SPARSELY_VEGETATED', 'OCEAN_SEA', 'INLAND_WATER', 'COASTAL_WATER', 'UNCLASSIFIED_LAND', 'FILL_VALUE'
-]
-QSTLWM_dict = {
-    'EVERGREEN_NEEDLELEAF_FOREST'  : 1,
-    'EVERGREEN_BROADLEAF_FORESTS'  : 2,
-    'DECIDUOUS_NEEDLELEAF_FORESTS' : 3,
-    'DECIDUOUS_BROADLEAF_FORESTS'  : 4,
-    'MIXED_FORESTS'                : 5,
-    'CLOSED_SHRUBLANDS'            : 6,
-    'OPEN_SHRUBLANDS'              : 7,
-    'WOODY_SAVANNAS'               : 8,
-    'SAVANNAS'                     : 9,
-    'GRASSLANDS'                   : 10,
-    'PERMANENT_WETLANDS'           : 11,
-    'CROPLANDS'                    : 12,
-    'URBAN_AND_BUILDUP_LANDS'      : 13, 
-    'CROPLAND_NATURAL_VEGETATION'  : 14,
-    'SNOW_AND_ICE'                 : 15,
-    'BARREN_OR_SPARSELY_VEGETATED' : 16,
-    'OCEAN_SEA'                    : 17,
-    'INLAND_WATER'                 : 18,
-    'COASTAL_WATER'                : 19,
-    'UNCLASSIFIED_LAND'            : 20,
-    'FILL_VALUE'                   : 255
-}
+#QSTLWM_list = [
+    #'EVERGREEN_NEEDLELEAF_FOREST', 'EVERGREEN_BROADLEAF_FORESTS', 'DECIDUOUS_NEEDLELEAF_FORESTS', 'DECIDUOUS_BROADLEAF_FORESTS', 'MIXED_FORESTS', 'CLOSED_SHRUBLANDS', 'OPEN_SHRUBLANDS', 'WOODY_SAVANNAS', 'SAVANNAS', 'GRASSLANDS', 'PERMANENT_WETLANDS', 'CROPLANDS', 'URBAN_AND_BUILDUP_LANDS', 'CROPLAND_NATURAL_VEGETATION', 'SNOW_AND_ICE', 'BARREN_OR_SPARSELY_VEGETATED', 'OCEAN_SEA', 'INLAND_WATER', 'COASTAL_WATER', 'UNCLASSIFIED_LAND', 'FILL_VALUE'
+#]
+#QSTLWM_dict = {
+    #'EVERGREEN_NEEDLELEAF_FOREST'  : 1,
+    #'EVERGREEN_BROADLEAF_FORESTS'  : 2,
+    #'DECIDUOUS_NEEDLELEAF_FORESTS' : 3,
+    #'DECIDUOUS_BROADLEAF_FORESTS'  : 4,
+    #'MIXED_FORESTS'                : 5,
+    #'CLOSED_SHRUBLANDS'            : 6,
+    #'OPEN_SHRUBLANDS'              : 7,
+    #'WOODY_SAVANNAS'               : 8,
+    #'SAVANNAS'                     : 9,
+    #'GRASSLANDS'                   : 10,
+    #'PERMANENT_WETLANDS'           : 11,
+    #'CROPLANDS'                    : 12,
+    #'URBAN_AND_BUILDUP_LANDS'      : 13, 
+    #'CROPLAND_NATURAL_VEGETATION'  : 14,
+    #'SNOW_AND_ICE'                 : 15,
+    #'BARREN_OR_SPARSELY_VEGETATED' : 16,
+    #'OCEAN_SEA'                    : 17,
+    #'INLAND_WATER'                 : 18,
+    #'COASTAL_WATER'                : 19,
+    #'UNCLASSIFIED_LAND'            : 20,
+    #'FILL_VALUE'                   : 255
+#}
 
 # Digital Elevation Model (DEM) land sea mask types
-DEM_list = ['DEM_SHALLOW_OCEAN','DEM_LAND','DEM_COASTLINE','DEM_SHALLOW_INLAND_WATER','DEM_EPHEMERAL_WATER','DEM_DEEP_INLAND_WATER','DEM_MOD_CONT_OCEAN','DEM_DEEP_OCEAN']
-DEM_dict = {
-    'DEM_SHALLOW_OCEAN'        : 0,
-    'DEM_LAND'                 : 1,
-    'DEM_COASTLINE'            : 2,
-    'DEM_SHALLOW_INLAND_WATER' : 3,
-    'DEM_EPHEMERAL_WATER'      : 4,
-    'DEM_DEEP_INLAND_WATER'    : 5,
-    'DEM_MOD_CONT_OCEAN'       : 6,
-    'DEM_DEEP_OCEAN'           : 7
-}
+#DEM_list = ['DEM_SHALLOW_OCEAN','DEM_LAND','DEM_COASTLINE','DEM_SHALLOW_INLAND_WATER','DEM_EPHEMERAL_WATER','DEM_DEEP_INLAND_WATER','DEM_MOD_CONT_OCEAN','DEM_DEEP_OCEAN']
+#DEM_dict = {
+    #'DEM_SHALLOW_OCEAN'        : 0,
+    #'DEM_LAND'                 : 1,
+    #'DEM_COASTLINE'            : 2,
+    #'DEM_SHALLOW_INLAND_WATER' : 3,
+    #'DEM_EPHEMERAL_WATER'      : 4,
+    #'DEM_DEEP_INLAND_WATER'    : 5,
+    #'DEM_MOD_CONT_OCEAN'       : 6,
+    #'DEM_DEEP_OCEAN'           : 7
+#}
 
-DEM_to_QSTLWM = np.array([
-    QSTLWM_dict['OCEAN_SEA'],                    # DEM 0 : QSTLWM 17
-    QSTLWM_dict['EVERGREEN_NEEDLELEAF_FOREST'],  # DEM 1 : QSTLWM  1
-    QSTLWM_dict['COASTAL_WATER'],                # DEM 2 : QSTLWM 19
-    QSTLWM_dict['INLAND_WATER'],                 # DEM 3 : QSTLWM 18
-    QSTLWM_dict['SAVANNAS'],                     # DEM 4 : QSTLWM  9
-    QSTLWM_dict['OCEAN_SEA'],                    # DEM 5 : QSTLWM 17
-    QSTLWM_dict['OCEAN_SEA'],                    # DEM 6 : QSTLWM 17
-    QSTLWM_dict['OCEAN_SEA']                     # DEM 7 : QSTLWM 17
-],dtype=('uint8'))
+#DEM_to_QSTLWM = np.array([
+    #QSTLWM_dict['OCEAN_SEA'],                    # DEM 0 : QSTLWM 17
+    #QSTLWM_dict['EVERGREEN_NEEDLELEAF_FOREST'],  # DEM 1 : QSTLWM  1
+    #QSTLWM_dict['COASTAL_WATER'],                # DEM 2 : QSTLWM 19
+    #QSTLWM_dict['INLAND_WATER'],                 # DEM 3 : QSTLWM 18
+    #QSTLWM_dict['SAVANNAS'],                     # DEM 4 : QSTLWM  9
+    #QSTLWM_dict['OCEAN_SEA'],                    # DEM 5 : QSTLWM 17
+    #QSTLWM_dict['OCEAN_SEA'],                    # DEM 6 : QSTLWM 17
+    #QSTLWM_dict['OCEAN_SEA']                     # DEM 7 : QSTLWM 17
+#],dtype=('uint8'))
 
 
-def index(a, x):
-    '''Locate the leftmost value exactly equal to x'''
-    i = bisect_left(a, x)
-    if i != len(a) and a[i] == x:
-        return i
-    raise ValueError
+#def index(a, x):
+    #'''Locate the leftmost value exactly equal to x'''
+    #i = bisect_left(a, x)
+    #if i != len(a) and a[i] == x:
+        #return i
+    #raise ValueError
 
-def find_lt(a, x):
-    '''Find rightmost value less than x'''
-    i = bisect_left(a, x)
-    if i:
-        return a[i-1]
-    raise ValueError
+#def find_lt(a, x):
+    #'''Find rightmost value less than x'''
+    #i = bisect_left(a, x)
+    #if i:
+        #return a[i-1]
+    #raise ValueError
 
-def find_le(a, x):
-    '''Find rightmost value less than or equal to x'''
-    i = bisect_right(a, x)
-    if i:
-        return a[i-1]
-    raise ValueError
+#def find_le(a, x):
+    #'''Find rightmost value less than or equal to x'''
+    #i = bisect_right(a, x)
+    #if i:
+        #return a[i-1]
+    #raise ValueError
 
-def find_gt(a, x):
-    '''Find leftmost value greater than x'''
-    i = bisect_right(a, x)
-    if i != len(a):
-        return a[i]
-    raise ValueError
+#def find_gt(a, x):
+    #'''Find leftmost value greater than x'''
+    #i = bisect_right(a, x)
+    #if i != len(a):
+        #return a[i]
+    #raise ValueError
 
-def find_ge(a, x):
-    '''Find leftmost item greater than or equal to x'''
-    i = bisect_left(a, x)
-    if i != len(a):
-        return a[i]
-    raise ValueError
+#def find_ge(a, x):
+    #'''Find leftmost item greater than or equal to x'''
+    #i = bisect_left(a, x)
+    #if i != len(a):
+        #return a[i]
+    #raise ValueError
 
-def toJulianDate(inTime):
-    '''
-    Takes time in regular yyyymmdd format and returns time string in Julian yyyyddd format.
-    '''
-    inTime = str(inTime)
-    try :
-        return time.strftime("%Y%j",time.strptime(inTime, "%Y%m%d"))
-    except :
-        LOG.error("Incorrect data format (%s). Should conform to yyyymmdd." % (inTime))
-        return 1
+#def toJulianDate(inTime):
+    #'''
+    #Takes time in regular yyyymmdd format and returns time string in Julian yyyyddd format.
+    #'''
+    #inTime = str(inTime)
+    #try :
+        #return time.strftime("%Y%j",time.strptime(inTime, "%Y%m%d"))
+    #except :
+        #LOG.error("Incorrect data format (%s). Should conform to yyyymmdd." % (inTime))
+        #return 1
 
-def fromJulianDate(inTime):
-    '''
-    Takes time in Julian yyyyddd format and returns time string in regular yyyymmdd format .
-    '''
-    inTime = str(inTime)
-    try :
-        return time.strftime("%Y%m%d",time.strptime(inTime,"%Y%j"))
-    except :
-        LOG.error("Incorrect data format (%s). Should conform to yyyyddd." % (inTime))
-        return 1
+#def fromJulianDate(inTime):
+    #'''
+    #Takes time in Julian yyyyddd format and returns time string in regular yyyymmdd format .
+    #'''
+    #inTime = str(inTime)
+    #try :
+        #return time.strftime("%Y%m%d",time.strptime(inTime,"%Y%j"))
+    #except :
+        #LOG.error("Incorrect data format (%s). Should conform to yyyyddd." % (inTime))
+        #return 1
 
 #----------------------------------------------------------------------------
 # Finds the places where the boundary points that will make up a polygon
@@ -316,6 +315,7 @@ def fromJulianDate(inTime):
 #
 # This method is heavily based on the AltNN NNfind_crossings() method
 #----------------------------------------------------------------------------
+'''
 def findDatelineCrossings(latCrnList,lonCrnList):
 
     #-------------------------------------------------------------------------
@@ -379,7 +379,6 @@ def findDatelineCrossings(latCrnList,lonCrnList):
 
     num180Crossings_ = numCrosses
 
-    '''
     # now determine the minimum and maximum latitude
     maxLat_ = latCrnList[0]
     minLat_ = maxLat_
@@ -396,51 +395,51 @@ def findDatelineCrossings(latCrnList,lonCrnList):
             minLat_ = latCrnList[idx]
 
     return num180Crossings_,minLat_,maxLat_
-    '''
 
     return num180Crossings_
+'''
 
-def isDatelineCrossed(latCrnList,lonCrnList):
+#def isDatelineCrossed(latCrnList,lonCrnList):
 
-    dateLineCrossed = []
-    ascendingNode = []
-    descendingNode = []
+    #dateLineCrossed = []
+    #ascendingNode = []
+    #descendingNode = []
 
-    LOG.debug("Determining granule dateline crossings...")
+    #LOG.debug("Determining granule dateline crossings...")
 
-    for granLats,granLons in zip(latCrnList,lonCrnList):
-        LOG.debug("Processing granule...")
-        isDatelineCrosser = False
-        isAscendingNode = False
-        isDecendingNode = False
+    #for granLats,granLons in zip(latCrnList,lonCrnList):
+        #LOG.debug("Processing granule...")
+        #isDatelineCrosser = False
+        #isAscendingNode = False
+        #isDecendingNode = False
 
-        # TODO : Use the ADL method of determining dateline crossings
-        numCrossings = findDatelineCrossings(granLats,granLons)
-        LOG.debug("Number of dataline crossings %d" % (numCrossings))
+        ## TODO : Use the ADL method of determining dateline crossings
+        #numCrossings = findDatelineCrossings(granLats,granLons)
+        #LOG.debug("Number of dataline crossings %d" % (numCrossings))
 
-        # Ascending node ? ...
-        if (granLats[2] > granLats[0]):
-            LOG.debug("Ascending node...")
-            isAscendingNode = True
-            # Dateline crosser ? ...
-            if (granLons[0] < granLons[3]):
-                LOG.debug("Dateline crosser...\n")
-                isDatelineCrosser = True
+        ## Ascending node ? ...
+        #if (granLats[2] > granLats[0]):
+            #LOG.debug("Ascending node...")
+            #isAscendingNode = True
+            ## Dateline crosser ? ...
+            #if (granLons[0] < granLons[3]):
+                #LOG.debug("Dateline crosser...\n")
+                #isDatelineCrosser = True
 
-        # Descending node ? ...
-        if (granLats[0] > granLats[2]):
-            LOG.debug("Descending node...")
-            isDecendingNode = True
-            # Dateline crosser ? ...
-            if (granLons[1] < granLons[2]):
-                LOG.debug("Dateline crosser...\n")
-                isDatelineCrosser = True
+        ## Descending node ? ...
+        #if (granLats[0] > granLats[2]):
+            #LOG.debug("Descending node...")
+            #isDecendingNode = True
+            ## Dateline crosser ? ...
+            #if (granLons[1] < granLons[2]):
+                #LOG.debug("Dateline crosser...\n")
+                #isDatelineCrosser = True
 
-        dateLineCrossed.append(isDatelineCrosser)
-        ascendingNode.append(isAscendingNode)
-        descendingNode.append(isDecendingNode)
+        #dateLineCrossed.append(isDatelineCrosser)
+        #ascendingNode.append(isAscendingNode)
+        #descendingNode.append(isDecendingNode)
 
-    return dateLineCrossed,ascendingNode,descendingNode
+    #return dateLineCrossed,ascendingNode,descendingNode
 
 
 def _create_input_file_globs(inputFiles):
@@ -489,13 +488,6 @@ def _create_input_file_globs(inputFiles):
     return input_dir,inputGlobs
 
 
-def _test_sdr_granules(collectionShortName, work_dir='.'):
-    "list granules we'd generate XML for"
-    granules_to_process =  list(sift_metadata_for_viirs_sdr(collectionShortName ,work_dir))
-    from pprint import pprint
-    pprint([x['N_Granule_ID'] for x in granules_to_process])
-    return granules_to_process
-
 def _skim_viirs_sdr(collectionShortName,work_dir):
     "skim for VIIRS SDR data meeting minimum requirements"
     for info in skim_dir(work_dir, N_Collection_Short_Name=collectionShortName):
@@ -505,6 +497,7 @@ def _skim_viirs_sdr(collectionShortName,work_dir):
             LOG.info('Ignoring %s, invalid blob. For direct broadcast this can happen at start or end of pass.' % (path))
         else:
             yield info
+
 
 def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_granules_preferred=False):
     """
@@ -583,45 +576,45 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
             yield gran
  
 # XML template for ProEdrViirsMasksController.exe
-XML_TMPL_VIIRS_MASKS_EDR = """<InfTkConfig>
-  <idpProcessName>ProEdrViirsMasksController.exe</idpProcessName>
-  <siSoftwareId />
-  <isRestart>FALSE</isRestart>
-  <useExtSiWriter>FALSE</useExtSiWriter>
-  <debugLogLevel>LOW</debugLogLevel>
-  <debugLevel>DBG_HIGH</debugLevel>
-  <dbgDest>D_FILE</dbgDest>
-  <enablePerf>FALSE</enablePerf>
-  <perfPath>${WORK_DIR}/perf</perfPath>
-  <dbgPath>${WORK_DIR}/log</dbgPath>
-  <initData>
-     <domain>OPS</domain>
-     <subDomain>SUBDOMAIN</subDomain>
-     <startMode>INF_STARTMODE_COLD</startMode>
-     <executionMode>INF_EXEMODE_PRIMARY</executionMode>
-     <healthTimeoutPeriod>30</healthTimeoutPeriod>
-  </initData>
-  <lockinMem>FALSE</lockinMem>
-  <rootDir>${WORK_DIR}</rootDir>
-  <inputPath>${WORK_DIR}</inputPath>
-  <outputPath>${WORK_DIR}</outputPath>
-  <dataStartIET>0000000000000000</dataStartIET>
-  <dataEndIET>1111111111111111</dataEndIET>
-  <actualScans>47</actualScans>
-  <previousActualScans>48</previousActualScans>
-  <nextActualScans>48</nextActualScans> 
-  <usingMetadata>TRUE</usingMetadata>
-  <configGuideName>ProEdrViirsMasksController_GuideList.cfg</configGuideName>
+#XML_TMPL_VIIRS_MASKS_EDR = """<InfTkConfig>
+  #<idpProcessName>ProEdrViirsMasksController.exe</idpProcessName>
+  #<siSoftwareId />
+  #<isRestart>FALSE</isRestart>
+  #<useExtSiWriter>FALSE</useExtSiWriter>
+  #<debugLogLevel>LOW</debugLogLevel>
+  #<debugLevel>DBG_HIGH</debugLevel>
+  #<dbgDest>D_FILE</dbgDest>
+  #<enablePerf>FALSE</enablePerf>
+  #<perfPath>${WORK_DIR}/perf</perfPath>
+  #<dbgPath>${WORK_DIR}/log</dbgPath>
+  #<initData>
+     #<domain>OPS</domain>
+     #<subDomain>SUBDOMAIN</subDomain>
+     #<startMode>INF_STARTMODE_COLD</startMode>
+     #<executionMode>INF_EXEMODE_PRIMARY</executionMode>
+     #<healthTimeoutPeriod>30</healthTimeoutPeriod>
+  #</initData>
+  #<lockinMem>FALSE</lockinMem>
+  #<rootDir>${WORK_DIR}</rootDir>
+  #<inputPath>${WORK_DIR}</inputPath>
+  #<outputPath>${WORK_DIR}</outputPath>
+  #<dataStartIET>0000000000000000</dataStartIET>
+  #<dataEndIET>1111111111111111</dataEndIET>
+  #<actualScans>47</actualScans>
+  #<previousActualScans>48</previousActualScans>
+  #<nextActualScans>48</nextActualScans> 
+  #<usingMetadata>TRUE</usingMetadata>
+  #<configGuideName>ProEdrViirsMasksController_GuideList.cfg</configGuideName>
 
-  <task>
-    <taskType>EDR</taskType>
-    <taskDetails1>%(N_Granule_ID)s</taskDetails1>
-    <taskDetails2>%(N_Granule_Version)s</taskDetails2>
-    <taskDetails3>NPP</taskDetails3>
-    <taskDetails4>VIIRS</taskDetails4>
-  </task>
-</InfTkConfig>
-"""
+  #<task>
+    #<taskType>EDR</taskType>
+    #<taskDetails1>%(N_Granule_ID)s</taskDetails1>
+    #<taskDetails2>%(N_Granule_Version)s</taskDetails2>
+    #<taskDetails3>NPP</taskDetails3>
+    #<taskDetails4>VIIRS</taskDetails4>
+  #</task>
+#</InfTkConfig>
+#"""
 
 # XML template for ProEdrViirsAerosolController.exe
 XML_TMPL_VIIRS_AEROSOL_EDR = """<InfTkConfig>
@@ -707,17 +700,17 @@ XML_TMPL_VIIRS_MASKS_EDR_ADL41 = """<InfTkConfig>
 
 """
 
-def generate_viirs_masks_edr_xml(work_dir, granule_seq):
-    "generate XML files for VIIRS Masks EDR granule generation"
-    to_process = []
-    for gran in granule_seq:
-        name = gran['N_Granule_ID']
-        fnxml = 'edr_viirs_masks_%s.xml' % (name)
-        LOG.debug('writing XML file %r' % (fnxml))
-        fpxml = file(path.join(work_dir, fnxml), 'wt')
-        fpxml.write(XML_TMPL_VIIRS_MASKS_EDR % gran)
-        to_process.append([name,fnxml])
-    return to_process
+#def generate_viirs_masks_edr_xml(work_dir, granule_seq):
+    #"generate XML files for VIIRS Masks EDR granule generation"
+    #to_process = []
+    #for gran in granule_seq:
+        #name = gran['N_Granule_ID']
+        #fnxml = 'edr_viirs_masks_%s.xml' % (name)
+        #LOG.debug('writing XML file %r' % (fnxml))
+        #fpxml = file(path.join(work_dir, fnxml), 'wt')
+        #fpxml.write(XML_TMPL_VIIRS_MASKS_EDR % gran)
+        #to_process.append([name,fnxml])
+    #return to_process
 
 
 def generate_viirs_aerosol_edr_xml(work_dir, granule_seq):
@@ -731,422 +724,6 @@ def generate_viirs_aerosol_edr_xml(work_dir, granule_seq):
         fpxml.write(XML_TMPL_VIIRS_AEROSOL_EDR % gran)
         to_process.append([name,fnxml])
     return to_process
-
-def _get_geo_info(inDir,collectionShortName):
-    ''' Return a list of dictionaries summarising the metadata for the geolocation files '''
-
-    LOG.info('Geolocation dir: %s' % (inDir))
-    LOG.debug('Collection short name is : %s' % (collectionShortName))
-
-    geoDicts = []
-    geoGroups = adl_asc.contiguous_granule_groups(adl_asc.skim_dir(inDir,N_Collection_Short_Name=collectionShortName))
-
-    for group in geoGroups :
-        for granDict in group :
-            geoDicts.append(granDict)
-
-    if (geoDicts == []) :
-        group = adl_asc.skim_dir(inDir,N_Collection_Short_Name=collectionShortName)
-        while True:
-            try :
-                thisDict = group.next()
-                geoDicts.append(thisDict)
-            except StopIteration :
-                break
-
-    for dicts in geoDicts :
-        for key,item in dicts.items() :
-            LOG.info("%s : %s" % (key,repr(item)))
-
-    return geoDicts
-
-
-def _get_geo_Arrays(geoDicts):
-
-    # Determine the latitude and longitude ranges of the geolocation granules
-
-    latitudeList = []
-    longitudeList = []
-    latMinList = []
-    latMaxList = []
-    lonMinList = []
-    lonMaxList = []
-    latCrnList = []
-    lonCrnList = []
-    scanModeList = []
-
-    adlHome = os.getenv('ADL_HOME')
-
-    # Moderate resolution trim table arrays. These are 
-    # bool arrays, and the trim pixels are set to True.
-
-    trimObj = ViirsData.ViirsTrimTable()
-    modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
-
-    for geoDict in geoDicts :
-
-        URID = geoDict['URID']
-        geo_Collection_ShortName = geoDict['N_Collection_Short_Name']
-        N_Granule_ID = geoDict['N_Granule_ID']
-        ObservedStartTimeObj = geoDict['ObservedStartTime']
-
-        LOG.debug("\n###########################")
-        LOG.debug("  Geolocation Information  ")
-        LOG.debug("###########################")
-        LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
-        LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
-        LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
-        LOG.debug("URID : %r" % (URID))
-        LOG.debug("###########################\n")
-
-
-
-        geoAscFileName = geoDict['_filename']
-        geoBlobFileName = string.replace(geoAscFileName,'asc',geo_Collection_ShortName)
-
-        LOG.debug("geolocation asc file :  %s" % (geoAscFileName))
-        LOG.debug("geolocation blob file : %s" % (geoBlobFileName))
-
-        # Do we have terrain corrected geolocation?
-
-        terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
-
-        # Do we have long or short style geolocation field names?
-
-        if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
-            longFormGeoNames = True
-            LOG.debug("We have long form geolocation names")
-        elif (geo_Collection_ShortName=='VIIRS-MOD-GEO' or geo_Collection_ShortName=='VIIRS-MOD-RGEO-TC') :
-            LOG.debug("We have short form geolocation names")
-            longFormGeoNames = False
-        else :
-            LOG.error("Invalid geolocation shortname")
-            return -1
-
-        # Get the geolocation xml file
-
-        geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
-        geoXmlFile = path.join(adlHome,'xml/VIIRS',geoXmlFile)
-        if path.exists(geoXmlFile):
-            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
-
-        # Open the geolocation blob and get the latitude and longitude
-
-        endian=sdrEndian
-
-        geoBlobObj = adl_blob.map(geoXmlFile,geoBlobFileName,endian=endian)
-        geoBlobArrObj = geoBlobObj.as_arrays()
-
-        if longFormGeoNames :
-            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
-            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
-        else :
-            latitude = getattr(geoBlobArrObj,'lat').astype('float')
-            longitude = getattr(geoBlobArrObj,'lon').astype('float')
-        
-        scanMode = getattr(geoBlobArrObj,'scan_mode').astype('uint8')
-        LOG.debug("Scan Mode = %r" % (scanMode))
-
-        latitude = ma.masked_less(latitude,-800.)
-        latMin,latMax = np.min(latitude),np.max(latitude)
-        latRange = latMax-latMin
-
-        longitude = ma.masked_less(longitude,-800.)
-        lonMin,lonMax = np.min(longitude),np.max(longitude)
-        lonRange = lonMax-lonMin
-
-        LOG.debug("min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-        LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-
-        # Determine the latitude and longitude fill masks, so we can restore the 
-        # fill values after we have scaled...
-
-        latMask = latitude.mask
-        lonMask = longitude.mask
-
-        # Check if the geolocation is in radians, convert to degrees
-
-        if (lonRange < 2.*np.pi) :
-            LOG.info("Geolocation is in radians, convert to degrees...")
-            latitude = np.degrees(latitude)
-            longitude = np.degrees(longitude)
-        
-            latMin,latMax = np.min(latitude),np.max(latitude)
-            latRange = latMax-latMin
-            lonMin,lonMax = np.min(longitude),np.max(longitude)
-            lonRange = lonMax-lonMin
-
-            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-            LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-
-        # Restore fill values to masked pixels in geolocation
-
-        geoFillValue = trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][latitude.dtype.name]
-        latitude = ma.array(latitude,mask=latMask,fill_value=geoFillValue)
-        latitude = latitude.filled()
-
-        geoFillValue = trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][longitude.dtype.name]
-        longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
-        longitude = longitude.filled()
-
-        # Shift the longitudes to be between -180 and 180 degrees
-        ### FIXME ###
-        if lonMax > 180. :
-            LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-            # Scale to restore -ve longitues, not necessarily # FIXME
-            dateLineIdx = np.where(longitude>180.)
-            LOG.debug("dateLineIdx = %r" % (dateLineIdx))
-            longitude[dateLineIdx] -= 360.
-            lonMax = np.max(ma.array(longitude,mask=lonMask))
-            lonMin = np.min(ma.array(longitude,mask=lonMask))
-            lonRange = lonMax-lonMin
-            LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-        ### FIXME ###
-
-        latitudeList.append(latitude)
-        longitudeList.append(longitude)
-        latMinList.append(latMin)
-        latMaxList.append(latMax)
-        lonMinList.append(lonMin)
-        lonMaxList.append(lonMax)
-        scanModeList.append(scanMode)
-
-        # Record the corners, taking care to exclude any bad scans...
-        firstGoodScan = np.where(scanMode<=2)[0][0]
-        lastGoodScan = np.where(scanMode<=2)[0][-1]
-        firstGoodRow = firstGoodScan * 16
-        lastGoodRow = lastGoodScan * 16 + 15
-
-        latCrnList.append([latitude[firstGoodRow,0],latitude[firstGoodRow,-1],latitude[lastGoodRow,0],latitude[lastGoodRow,-1]])
-        lonCrnList.append([longitude[firstGoodRow,0],longitude[firstGoodRow,-1],longitude[lastGoodRow,0],longitude[lastGoodRow,-1]])
-
-    return latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList
-
-
-def _subset_IGBP(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
-    '''Subsets the IGBP global ecosystem dataset to cover the required geolocation range.'''
-
-    IGBP_dLat = 60.*(1./3600.)
-    IGBP_dLon = 60.*(1./3600.)
-
-    # Get the subset of NDVI global dataset.
-    IGBP_fileName = path.join(CSPP_RT_ANC_HOME,'IGBP/IGBP.EcoMap.v1.0.2004.129.v004.h5')
-
-    try :
-        IGBPobj = pytables.openFile(IGBP_fileName)
-        IGBP_node = IGBPobj.getNode('/IGBP_Land_Cover_Type')
-    except :
-        LOG.error("Problem opening IGBP file %s"%(IGBP_fileName))
-        return -1
-
-    dateLineCrossed,ascendingNode,descendingNode = isDatelineCrossed(latCrnList,lonCrnList)
-    LOG.debug("dateLineCross is %r" % (dateLineCrossed))
-    LOG.debug("ascendingNode is %r" % (ascendingNode))
-    LOG.debug("descendingNode is %r\n" % (descendingNode))
-
-    try :
-        IGBP_gridLats = IGBPobj.getNode('/Latitude')[:]
-        IGBP_gridLons = IGBPobj.getNode('/Longitude')[:]
-
-        latMin = min(latMinList)
-        latMax = max(latMaxList)
-        lonMin = min(lonMinList)
-        lonMax = max(lonMaxList)
-
-        IGBP_latMask = np.equal((IGBP_gridLats<(latMax+IGBP_dLat)),(IGBP_gridLats>(latMin-IGBP_dLat)))
-        IGBP_lonMask = np.equal((IGBP_gridLons<(lonMax+IGBP_dLon)),(IGBP_gridLons>(lonMin-IGBP_dLon)))
-
-        IGBP_latIdx = np.where(IGBP_latMask==True)[0]
-        IGBP_lonIdx = np.where(IGBP_lonMask==True)[0]
-
-        IGBP_latMinIdx = IGBP_latIdx[0]
-        IGBP_latMaxIdx = IGBP_latIdx[-1]
-        IGBP_lonMinIdx = IGBP_lonIdx[0]
-        IGBP_lonMaxIdx = IGBP_lonIdx[-1]
-
-        lat_subset = IGBP_gridLats[IGBP_latMinIdx:IGBP_latMaxIdx+1]
-
-        if True in dateLineCrossed :
-            posLonCrn = np.min(ma.masked_less_equal(np.array(lonCrnList),0.))
-            negLonCrn = np.max(ma.masked_outside(np.array(lonCrnList),-800.,0.))
-            posIdx = index(IGBP_gridLons,find_lt(IGBP_gridLons,posLonCrn))
-            negIdx = index(IGBP_gridLons,find_gt(IGBP_gridLons,negLonCrn))
-
-            posBlock = IGBP_node[IGBP_latMinIdx:IGBP_latMaxIdx+1,posIdx:]
-            negBlock = IGBP_node[IGBP_latMinIdx:IGBP_latMaxIdx+1,:negIdx]
-
-            IGBP_subset = np.concatenate((posBlock,negBlock),axis=1)
-
-            posLons_subset = IGBP_gridLons[posIdx:]
-            negLons_subset = IGBP_gridLons[:negIdx]
-            lon_subset = np.concatenate((posLons_subset,negLons_subset))
-
-        else :
-
-            IGBP_subset = IGBP_node[IGBP_latMinIdx:IGBP_latMaxIdx+1,IGBP_lonMinIdx:IGBP_lonMaxIdx+1]
-            lon_subset = IGBP_gridLons[IGBP_lonMinIdx:IGBP_lonMaxIdx+1]
-
-        IGBP_node.close()
-        IGBPobj.close()
-
-    except Exception, err :
-
-        LOG.debug("EXCEPTION: %s" % (err))
-        IGBP_node.close()
-        IGBPobj.close()
-
-    # Fix erroneous number for water bodies from 0 to 17
-    waterIdx = np.where(IGBP_subset==0)
-    IGBP_subset[waterIdx] = 17
-
-    return IGBP_subset.astype('uint8'),lat_subset,lon_subset,IGBP_fileName
-
-def _granulate_IGBP(geoDicts,inDir):
-    '''Granulates the input IGBP files.'''
-
-    # Moderate resolution trim table arrays. These are 
-    # bool arrays, and the trim pixels are set to True.
-
-    trimObj = ViirsData.ViirsTrimTable()
-    modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
-
-    # Get a bunch of information about the geolocation
-    latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
-
-    LOG.debug("\nGranules -->")
-    LOG.debug("latMin : %r" % (latMinList))
-    LOG.debug("latMax : %r" % (latMaxList))
-    LOG.debug("lonMin : %r" % (lonMinList))
-    LOG.debug("lonMax : %r" % (lonMaxList))
-    LOG.debug("latCrnList : %r" % (latCrnList))
-    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
-
-    IGBP_subset,lat_subset,lon_subset,IGBP_fileName = \
-            _subset_IGBP(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList)
-
-    gridLon,gridLat = np.meshgrid(lon_subset,lat_subset[::-1])
-    IGBP_subset = IGBP_subset[::-1,:]
-
-    IGBP_type = IGBP_subset.dtype
-
-    IGBP_list = []
-
-    for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
-
-        N_Granule_ID = geoDict['N_Granule_ID']
-
-        LOG.debug("\nGranulating %s ..." % ('IGBP'))
-        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
-        LOG.debug("IGBP_subset.shape = %s" % (str(IGBP_subset.shape)))
-        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
-        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
-
-        LOG.debug("min of IGBP_subset  = %s"%(np.min(IGBP_subset)))
-        LOG.debug("max of IGBP_subset  = %s"%(np.max(IGBP_subset)))
-
-        data,dataIdx = _grid2Gran(np.ravel(latitude),
-                                  np.ravel(longitude),
-                                  IGBP_subset.astype(np.float64),
-                                  gridLat.astype(np.float64),
-                                  gridLon.astype(np.float64))
-
-        data = data.reshape(latitude.shape)
-        dataIdx = dataIdx.reshape(latitude.shape)
-        LOG.debug("Shape of first granulated %s data is %s" % ('IGBP',np.shape(data)))
-        LOG.debug("Shape of first granulated %s dataIdx is %s" % ('IGBP',np.shape(dataIdx)))
-
-        # Convert granulated data back to original type...
-
-        data = data.astype(IGBP_type)
-
-        # Fill the required pixel trim rows in the granulated NCEP data with 
-        # the ONBOARD_PT_FILL value for the correct data type
-
-        fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
-        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        LOG.debug("min of IGBP granule = %d"%(np.min(data)))
-        LOG.debug("max of IGBP granule = %d"%(np.max(data)))
-
-        data = data.filled()
-
-        IGBP_list.append(data)
-
-    return IGBP_list
-
-
-def _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList):
-    '''Subsets the global elevation dataset to cover the required geolocation range.'''
-
-    DEM_dLat = 30.*(1./3600.)
-    DEM_dLon = 30.*(1./3600.)
-
-    DEM_gridLats = -1. * (np.arange(21600.) * DEM_dLat - 90.)
-    DEM_gridLons = np.arange(43200.) * DEM_dLon - 180.
-
-    # Get the subset of DEM global dataset.
-    DEM_fileName = path.join(CSPP_RT_ANC_HOME,'LSM/dem30ARC_Global_LandWater_uncompressed.h5')
-
-    dateLineCrossed,ascendingNode,descendingNode = isDatelineCrossed(latCrnList,lonCrnList)
-    LOG.debug("dateLineCross is %r" % (dateLineCrossed))
-    LOG.debug("ascendingNode is %r" % (ascendingNode))
-    LOG.debug("descendingNode is %r\n" % (descendingNode))
-
-    latMin = min(latMinList)
-    latMax = max(latMaxList)
-    lonMin = min(lonMinList)
-    lonMax = max(lonMaxList)
-
-    DEM_latMask = np.equal((DEM_gridLats<(latMax+DEM_dLat)),(DEM_gridLats>(latMin-DEM_dLat)))
-    DEM_lonMask = np.equal((DEM_gridLons<(lonMax+DEM_dLon)),(DEM_gridLons>(lonMin-DEM_dLon)))
-
-    DEM_latIdx = np.where(DEM_latMask==True)[0]
-    DEM_lonIdx = np.where(DEM_lonMask==True)[0]
-
-    DEM_latMinIdx = DEM_latIdx[0]
-    DEM_latMaxIdx = DEM_latIdx[-1]
-    DEM_lonMinIdx = DEM_lonIdx[0]
-    DEM_lonMaxIdx = DEM_lonIdx[-1]
-
-    LOG.debug("Opening DEM file %s" % (DEM_fileName))
-    # TODO : Use original HDF4 file which contains elevation and LWM.
-    DEMobj = pytables.openFile(DEM_fileName,'r')
-    DEM_node = DEMobj.getNode('/demGRID/Data Fields/LandWater')
-
-    try :
-
-        lat_subset = DEM_gridLats[DEM_latMinIdx:DEM_latMaxIdx+1]
-
-        if True in dateLineCrossed :
-            posLonCrn = np.min(ma.masked_less_equal(np.array(lonCrnList),0.))
-            negLonCrn = np.max(ma.masked_outside(np.array(lonCrnList),-800.,0.))
-            posIdx = index(DEM_gridLons,find_lt(DEM_gridLons,posLonCrn))
-            negIdx = index(DEM_gridLons,find_gt(DEM_gridLons,negLonCrn))
-
-            posBlock = DEM_node[DEM_latMinIdx:DEM_latMaxIdx+1,posIdx:]
-            negBlock = DEM_node[DEM_latMinIdx:DEM_latMaxIdx+1,:negIdx]
-
-            DEM_subset = np.concatenate((posBlock,negBlock),axis=1)
-
-            posLons_subset = DEM_gridLons[posIdx:]
-            negLons_subset = DEM_gridLons[:negIdx]
-            lon_subset = np.concatenate((posLons_subset,negLons_subset))
-
-        else :
-
-            DEM_subset = DEM_node[DEM_latMinIdx:DEM_latMaxIdx+1,DEM_lonMinIdx:DEM_lonMaxIdx+1]
-            lon_subset = DEM_gridLons[DEM_lonMinIdx:DEM_lonMaxIdx+1]
-
-        DEM_node.close()
-        DEMobj.close()
-
-    except Exception, err :
-
-        LOG.debug("EXCEPTION: %s" % (err))
-
-        DEM_node.close()
-        DEMobj.close()
-
-    return DEM_subset.astype('uint8'),lat_subset,lon_subset,DEM_fileName
 
 
 def _granulate_GridIP(inDir,geoDicts):
@@ -1193,6 +770,15 @@ def _granulate_GridIP(inDir,geoDicts):
         className = GridIP.classNames[shortName]
         GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir)
         LOG.info("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
+        if (np.shape(GridIP_objects[shortName].collectionShortName) != () ):
+            LOG.info("    GridIP_objects[%s].collectionShortName = %r" % (shortName,GridIP_objects[shortName].collectionShortName))
+            LOG.info("    GridIP_objects[%s].xmlName = %r" % (shortName,GridIP_objects[shortName].xmlName))
+            GridIP_objects[shortName].collectionShortName = shortName
+            GridIP_objects[shortName].xmlName = GridIP_objects[shortName].xmlName[shortName]
+            LOG.info("New GridIP_objects[%s].collectionShortName = %r" % (shortName,GridIP_objects[shortName].collectionShortName))
+            LOG.info("New GridIP_objects[%s].xmlName = %r" % (shortName,GridIP_objects[shortName].xmlName))
+
+    #sys.exit(0)
 
     # Loop through the required GridIP datasets and create the blobs.
     granIdKey = lambda x: (x['N_Granule_ID'])
@@ -1224,373 +810,6 @@ def _granulate_GridIP(inDir,geoDicts):
 
             # Shipout the granulated data in this ancillary object to a blob/asc pair.
             GridIP_objects[shortName].shipOutToFile()
-
-
-def _granulate_DEM(geoDicts,inDir):
-    '''Granulates the input DEM files.'''
-
-    # Moderate resolution trim table arrays. These are 
-    # bool arrays, and the trim pixels are set to True.
-
-    trimObj = ViirsData.ViirsTrimTable()
-    modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
-
-    # Get a bunch of information about the geolocation
-    latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
-
-    LOG.debug("\nGranules -->")
-    LOG.debug("latMin : %r" % (latMinList))
-    LOG.debug("latMax : %r" % (latMaxList))
-    LOG.debug("lonMin : %r" % (lonMinList))
-    LOG.debug("lonMax : %r" % (lonMaxList))
-    LOG.debug("latCrnList : %r" % (latCrnList))
-    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
-
-    DEM_subset,lat_subset,lon_subset,DEM_fileName = \
-            _subset_DEM(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList)
-
-    gridLon,gridLat = np.meshgrid(lon_subset,lat_subset[::-1])
-    DEM_subset = DEM_subset[::-1,:]
-
-    DEM_type = DEM_subset.dtype
-
-    DEM_list = []
-
-    for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
-
-        N_Granule_ID = geoDict['N_Granule_ID']
-
-        LOG.debug("\nGranulating %s ..." % ('DEM'))
-        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
-        LOG.debug("DEM_subset.shape = %s" % (str(DEM_subset.shape)))
-        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
-        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
-
-        LOG.debug("min of DEM_subset  = %s"%(np.min(DEM_subset)))
-        LOG.debug("max of DEM_subset  = %s"%(np.max(DEM_subset)))
-
-        data,dataIdx = _grid2Gran(np.ravel(latitude),
-                                  np.ravel(longitude),
-                                  DEM_subset.astype(np.float64),
-                                  gridLat.astype(np.float64),
-                                  gridLon.astype(np.float64))
-
-        data = data.reshape(latitude.shape)
-        dataIdx = dataIdx.reshape(latitude.shape)
-        LOG.debug("Shape of first granulated %s data is %s" % ('DEM',np.shape(data)))
-        LOG.debug("Shape of first granulated %s dataIdx is %s" % ('DEM',np.shape(dataIdx)))
-
-        # Convert granulated data back to original type...
-
-        data = data.astype(DEM_type)
-
-        # Fill the required pixel trim rows in the granulated NCEP data with 
-        # the ONBOARD_PT_FILL value for the correct data type
-
-        fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
-        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        LOG.debug("min of DEM granule = %d"%(np.min(data)))
-        LOG.debug("max of DEM granule = %d"%(np.max(data)))
-
-        data = data.filled()
-
-        DEM_list.append(data)
-
-    return DEM_list
-
-
-def _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList,inDir,geoDict):
-    '''Subsets the global NDVI dataset to cover the required geolocation range.'''
-
-    NDVI_dLat = 60.*(1./3600.)
-    NDVI_dLon = 60.*(1./3600.)
-
-    # Get the subset of NDVI global dataset.
-
-    NDVIdays = np.array([1, 17, 33, 49, 65, 81, 97, 113, 129, 145, \
-                         161, 177, 193, 209, 225, 241, 257, 273, 289, 305, 321, 337, 353])
-
-    startTimeObj = geoDict['ObservedStartTime']
-    LOG.debug("'ObservedStartTime' = %r" % (startTimeObj))
-
-    julianDay = int(startTimeObj.strftime('%j'))
-    LOG.debug("Julian day = %d" % (julianDay))
-
-    lowerDay = find_le(NDVIdays,julianDay)
-    lowerIdx = index(NDVIdays,lowerDay)
-    LOG.debug("lowerdDay, lowerIdx = %d, %d" % (lowerDay,lowerIdx))
-
-    if lowerIdx == 22 :
-        NDVIday = NDVIdays[22]
-        NDVIidx = 22
-        remain = -1
-    else :
-        #upperIdx = lowerIdx+1
-        #remain = (NDVIdays[upperIdx]-1) - julianDay
-        #print "remain = ",remain
-        #if remain < 8 :
-            #NDVIday = NDVIdays[upperIdx]
-            #NDVIidx = upperIdx
-        #else :
-            #NDVIday = NDVIdays[lowerIdx]
-            #NDVIidx = lowerIdx
-        NDVIday = NDVIdays[lowerIdx]
-        NDVIidx = lowerIdx
-
-    NDVI_fileName = path.join(CSPP_RT_ANC_HOME,'NDVI/NDVI.FM.c004.v2.0.WS.00-04.%03d.h5'%(NDVIday))
-
-    LOG.info("For Julian day %d, using NDVI file %s" % (julianDay,NDVI_fileName))
-
-    NDVIobj = pytables.openFile(NDVI_fileName)
-    NDVI_node = NDVIobj.getNode('/NDVI')
-
-    dateLineCrossed,ascendingNode,descendingNode = isDatelineCrossed(latCrnList,lonCrnList)
-    LOG.debug("dateLineCross is %r" % (dateLineCrossed))
-    LOG.debug("ascendingNode is %r" % (ascendingNode))
-    LOG.debug("descendingNode is %r\n" % (descendingNode))
-
-    try :
-        NDVI_gridLats = NDVIobj.getNode('/Latitude')[:]
-        NDVI_gridLons = NDVIobj.getNode('/Longitude')[:]
-
-        NDVI_scaleFactor = NDVI_node.attrs['scale_factor']
-        NDVI_offset = NDVI_node.attrs['add_offset']
-        NDVI_fillValue = NDVI_node.attrs['_FillValue']
-
-        latMin = min(latMinList)
-        latMax = max(latMaxList)
-        lonMin = min(lonMinList)
-        lonMax = max(lonMaxList)
-
-        NDVI_latMask = np.equal((NDVI_gridLats<(latMax+NDVI_dLat)),(NDVI_gridLats>(latMin-NDVI_dLat)))
-        NDVI_lonMask = np.equal((NDVI_gridLons<(lonMax+NDVI_dLon)),(NDVI_gridLons>(lonMin-NDVI_dLon)))
-
-        NDVI_latIdx = np.where(NDVI_latMask==True)[0]
-        NDVI_lonIdx = np.where(NDVI_lonMask==True)[0]
-
-        NDVI_latMinIdx = NDVI_latIdx[0]
-        NDVI_latMaxIdx = NDVI_latIdx[-1]
-        NDVI_lonMinIdx = NDVI_lonIdx[0]
-        NDVI_lonMaxIdx = NDVI_lonIdx[-1]
-
-        lat_subset = NDVI_gridLats[NDVI_latMinIdx:NDVI_latMaxIdx+1]
-
-        if True in dateLineCrossed :
-            posLonCrn = np.min(ma.masked_less_equal(np.array(lonCrnList),0.))
-            negLonCrn = np.max(ma.masked_outside(np.array(lonCrnList),-800.,0.))
-            posIdx = index(NDVI_gridLons,find_lt(NDVI_gridLons,posLonCrn))
-            negIdx = index(NDVI_gridLons,find_gt(NDVI_gridLons,negLonCrn))
-
-            posBlock = NDVI_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,posIdx:]
-            negBlock = NDVI_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,:negIdx]
-
-            NDVI_subset = np.concatenate((posBlock,negBlock),axis=1)
-
-            posLons_subset = NDVI_gridLons[posIdx:]
-            negLons_subset = NDVI_gridLons[:negIdx]
-            lon_subset = np.concatenate((posLons_subset,negLons_subset))
-
-        else :
-
-            NDVI_subset = NDVI_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,NDVI_lonMinIdx:NDVI_lonMaxIdx+1]
-            lon_subset = NDVI_gridLons[NDVI_lonMinIdx:NDVI_lonMaxIdx+1]
-
-        NDVI_mask = ma.masked_equal(NDVI_subset,NDVI_fillValue).mask
-        NDVI_subset = NDVI_subset * NDVI_scaleFactor + NDVI_offset
-        NDVI_subset = ma.array(NDVI_subset,mask=NDVI_mask,fill_value=-999.9)
-        NDVI_subset = NDVI_subset.filled()
-
-        NDVI_node.close()
-        NDVIobj.close()
-
-    except Exception, err :
-
-        LOG.debug("EXCEPTION: %s" % (err))
-
-        NDVI_node.close()
-        NDVIobj.close()
-
-    return NDVI_subset,lat_subset,lon_subset,NDVI_fileName
-
-
-def _granulate_NDVI(inDir,geoDicts):
-    '''Granulates the input NDVI files.'''
-
-    global ancEndian 
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ADL_HOME = os.getenv('ADL_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
-
-    masksCollShortNames = 'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
-
-    GridIP_shortNameToBlobName = {}
-    GridIP_dataType = {}
-    GridIP_shortNameToXmlName = {}
-    GridIP_shortNameToBlobName['VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'] = 'nbarNdvi'
-    GridIP_dataType['VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'] = 'float64'
-    GridIP_shortNameToXmlName['VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'] = 'VIIRS_GRIDIP_VIIRS_NBAR_NDVI_MOD_GRAN.xml'
-
-    # Moderate resolution trim table arrays. These are 
-    # bool arrays, and the trim pixels are set to True.
-
-    trimObj = ViirsData.ViirsTrimTable()
-    modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
-
-    # Get a bunch of information about the geolocation
-    latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
-
-    LOG.debug("\nGranules -->")
-    LOG.debug("latMin : %r" % (latMinList))
-    LOG.debug("latMax : %r" % (latMaxList))
-    LOG.debug("lonMin : %r" % (lonMinList))
-    LOG.debug("lonMax : %r" % (lonMaxList))
-    LOG.debug("latCrnList : %r" % (latCrnList))
-    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
-
-    NDVI_subset,lat_subset,lon_subset,NDVI_fileName = \
-            _subset_NDVI(latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList,inDir,geoDicts[0])
-
-    gridLon,gridLat = np.meshgrid(lon_subset,lat_subset[::-1])
-    NDVI_subset = NDVI_subset[::-1,:]
-
-    for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
-
-        N_Granule_ID = geoDict['N_Granule_ID']
-
-        LOG.info("Granulating %s ..." % (masksCollShortNames))
-        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
-        LOG.debug("NDVI_subset.shape = %s" % (str(NDVI_subset.shape)))
-        LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
-        LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
-
-        LOG.debug("min of NDVI_subset = %r"%(np.min(NDVI_subset)))
-        LOG.debug("max of NDVI_subset = %r"%(np.max(NDVI_subset)))
-
-        t1 = time()
-        data,dataIdx = _grid2Gran(np.ravel(latitude),
-                                  np.ravel(longitude),
-                                  NDVI_subset.astype(np.float64),
-                                  gridLat.astype(np.float64),
-                                  gridLon.astype(np.float64))
-        t2 = time()
-        elapsedTime = t2-t1
-        LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
-
-        data = data.reshape(latitude.shape)
-        dataIdx = dataIdx.reshape(latitude.shape)
-        LOG.debug("Shape of first granulated %s data is %s" % (masksCollShortNames,np.shape(data)))
-        LOG.debug("Shape of first granulated %s dataIdx is %s" % (masksCollShortNames,np.shape(dataIdx)))
-
-        # Fill the required pixel trim rows in the granulated NCEP data with 
-        # the ONBOARD_PT_FILL value for the correct data type
-
-        fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
-        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        LOG.debug("min of NDVI granule = %d"%(np.min(data)))
-        LOG.debug("max of NDVI granule = %d"%(np.max(data)))
-
-        data = data.filled()
-
-        # Create new NDVI ancillary blob, and copy granulated data to it
-
-        endian = ancEndian
-        xmlName = path.join(ADL_HOME,'xml/VIIRS',GridIP_shortNameToXmlName[masksCollShortNames])
-
-        # Create a new URID to be used in making the asc filenames
-
-        URID_dict = _getURID()
-
-        URID = URID_dict['URID']
-        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
-        creationDateStr = URID_dict['creationDateStr']
-
-        # Create a new directory in the input directory for the new ancillary
-        # asc and blob files
-
-        blobDir = inDir
-
-        ascFileName = path.join(blobDir,URID+'.asc')
-        blobName = path.join(blobDir,URID+'.'+masksCollShortNames)
-
-        LOG.debug("ascFileName : %s" % (ascFileName))
-        LOG.debug("blobName : %s" % (blobName))
-
-        # Create a new ancillary blob, and copy the data to it.
-
-        newNDVIblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
-        newNDVIblobArrObj = newNDVIblobObj.as_arrays()
-
-        blobData = getattr(newNDVIblobArrObj,GridIP_shortNameToBlobName[masksCollShortNames])
-        blobData[:,:] = data[:,:]
-
-        # Make a new NDVI asc file from the template, and substitute for the various tags
-
-        #ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
-        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-GridIP-VIIRS_Template.asc")
-
-        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
-        
-        ANC_fileList = [NDVI_fileName]
-        for idx in range(len(ANC_fileList)) :
-            ANC_fileList[idx] = path.basename(ANC_fileList[idx])
-        ANC_fileList.sort()
-        ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
-        ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) for files in ANC_fileList])
-
-        # Parse the geolocation asc file to get struct information which will be 
-        # written to the ancillary asc files
-
-        geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-        LOG.debug("\nOpening %s..." % (geoAscFileName))
-
-        geoAscFile = open(geoAscFileName,'rt')
-
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
-        RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
-        RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-
-        GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-
-        North_Bounding_Coordinate_Str = _getAscLine(geoAscFile,"North_Bounding_Coordinate")
-        South_Bounding_Coordinate_Str = _getAscLine(geoAscFile,"South_Bounding_Coordinate")
-        East_Bounding_Coordinate_Str  = _getAscLine(geoAscFile,"East_Bounding_Coordinate")
-        West_Bounding_Coordinate_Str  = _getAscLine(geoAscFile,"West_Bounding_Coordinate")
-
-        geoAscFile.close()
-
-        try:
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
-        except Exception, err :
-            LOG.error("%s, aborting." % (err))
-            sys.exit(1)
-
-        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
-
-        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
-
-        for line in ascTemplateFile.readlines():
-           line = line.replace("CSPP_URID",URID)
-           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
-           line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
-           line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",masksCollShortNames)
-           line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
-           line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
-           line = line.replace("  CSPP_RANGE_DATE_TIME",RangeDateTimeStr)
-           line = line.replace("  CSPP_GRINGLATITUDE",GRingLatitudeStr)
-           line = line.replace("  CSPP_GRINGLONGITUDE",GRingLongitudeStr)
-           line = line.replace("CSPP_NORTH_BOUNDING_COORD",North_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_SOUTH_BOUNDING_COORD",South_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_EAST_BOUNDING_COORD",East_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_WEST_BOUNDING_COORD",West_Bounding_Coordinate_Str)
-           #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
-           ascFile.write(line) 
-
-        ascFile.close()
-        ascTemplateFile.close()
 
 
 def _getURID() :
@@ -1791,905 +1010,7 @@ def _setupAuxillaryFiles(inDir):
             raise
 
 
-def _getGRC(inDir,geoDicts):
-    '''
-    Setup three dummy GRC files with the appropriate asc files
-    '''
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
-
-    # Get a bunch of information about the geolocation
-    latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
-
-    LOG.debug("\nGranules -->")
-    LOG.debug("latMin : %r" % (latMinList))
-    LOG.debug("latMax : %r" % (latMaxList))
-    LOG.debug("lonMin : %r" % (lonMinList))
-    LOG.debug("lonMax : %r" % (lonMaxList))
-    LOG.debug("latCrnList : %r" % (latCrnList))
-    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
-
-    masksCollShortNames = ['VIIRS-MOD-GRC-TC', 'VIIRS-MOD-GRC']
-    xmlNames = ['VIIRS_MOD_GRC_TC.xml', 'VIIRS_MOD_GRC.xml']
-
-    for shortName,xmlName in zip(masksCollShortNames,xmlNames):
-
-        for latitude,longitude,geoDict in zip(latitudeList,longitudeList,geoDicts):
-
-            N_Granule_ID = geoDict['N_Granule_ID']
-            LOG.info("Creating new %s asc file for granule ID %s" % (shortName,N_Granule_ID))
-
-            LOG.debug("geoDict keys are... %r" % (geoDict.keys()))
-
-            # Create a new URID to be used in making the asc filenames
-
-            URID_dict = _getURID()
-
-            URID = URID_dict['URID']
-            creationDate_nousecStr = URID_dict['creationDate_nousecStr']
-            creationDateStr = URID_dict['creationDateStr']
-
-            blobDir = inDir
-
-            ascFileName = path.join(blobDir,URID+'.asc')
-            blobName = path.join(blobDir,URID+'.'+shortName)
-
-            LOG.debug("ascFileName : %s" % (ascFileName))
-            LOG.debug("blobName : %s" % (blobName))
-
-            # Create new VIIRS-MOD-GRC blob
-
-            endian = ancEndian
-            xmlPath = path.join(ADL_HOME,'xml/VIIRS',xmlName)
-            #xmlName = path.join(ADL_HOME,'xml/VIIRS','VIIRS_MOD_GRC.xml')
-            #xmlName = path.join(ADL_HOME,'xml/VIIRS','VIIRS_MOD_GRC_TC.xml')
-
-            newGRCblobObj = adl_blob.create(xmlPath, blobName, endian=endian, overwrite=True)
-
-            # Make a new VIIRS-MOD-GRC asc file from the template, and substitute for the various tags
-
-            ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-MOD-GRC_Template.asc")
-
-            LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
-
-            # Parse the geolocation asc file to get struct information which will be 
-            # written to the ancillary asc files
-
-            geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-            LOG.debug("\nOpening %s..." % (geoAscFileName))
-
-            geoAscFile = open(geoAscFileName,'rt')
-
-            ObservedDateTime =  _getAscLine(geoAscFile,"ObservedDateTime")
-            #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
-            RangeDateTimeStr =  ObservedDateTime
-            RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-
-            GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-            GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-
-            BeginningOrbitNumber =  _getAscLine(geoAscFile,"BeginningOrbitNumber")
-
-            N_Nadir_Latitude_Max  = _getAscLine(geoAscFile,"N_Nadir_Latitude_Max")
-            N_Nadir_Latitude_Min  = _getAscLine(geoAscFile,"N_Nadir_Latitude_Min")
-            N_Nadir_Longitude_Max = _getAscLine(geoAscFile,"N_Nadir_Longitude_Max")
-            N_Nadir_Longitude_Min = _getAscLine(geoAscFile,"N_Nadir_Longitude_Min")
-
-            North_Bounding_Coordinate = _getAscLine(geoAscFile,"North_Bounding_Coordinate")
-            South_Bounding_Coordinate = _getAscLine(geoAscFile,"South_Bounding_Coordinate")
-            East_Bounding_Coordinate  = _getAscLine(geoAscFile,"East_Bounding_Coordinate")
-            West_Bounding_Coordinate  = _getAscLine(geoAscFile,"West_Bounding_Coordinate")
-
-            N_Day_Night_Flag  = _getAscLine(geoAscFile,"N_Day_Night_Flag")
-            Ascending_Descending_Indicator  = _getAscLine(geoAscFile,"Ascending/Descending_Indicator")
-
-            geoAscFile.close()
-
-            try:
-                ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-                ascFile = open(ascFileName,"wt") # create a new text file
-            except Exception, err :
-                LOG.error("%s, aborting." % (err))
-                sys.exit(1)
-
-            LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
-
-            LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
-
-            for line in ascTemplateFile.readlines():
-               line = line.replace("CSPP_URID",URID)
-               line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
-               line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
-               line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",shortName)
-               line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
-               line = line.replace("CSPP_BEGINNING_ORBIT_NUMBER",BeginningOrbitNumber)
-               line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
-               line = line.replace("  CSPP_OBSERVED_DATE_TIME",ObservedDateTime)
-               line = line.replace("  CSPP_RANGE_DATE_TIME",RangeDateTimeStr)
-               line = line.replace("  CSPP_GRINGLATITUDE",GRingLatitudeStr)
-               line = line.replace("  CSPP_GRINGLONGITUDE",GRingLongitudeStr)
-               #line = line.replace("    CSPP_RT_ANC_SOURCE_FILES",ancFileStr)
-
-               line = line.replace("  CSPP_NADIR_LATITUDE_MAX",N_Nadir_Latitude_Max)
-               line = line.replace("  CSPP_NADIR_LATITUDE_MIN",N_Nadir_Latitude_Min)
-               line = line.replace("  CSPP_NADIR_LONGITUDE_MAX",N_Nadir_Longitude_Max)
-               line = line.replace("  CSPP_NADIR_LONGITUDE_MIN",N_Nadir_Longitude_Min)
-
-               line = line.replace("  CSPP_NORTH_BOUNDING_COORD",North_Bounding_Coordinate)
-               line = line.replace("  CSPP_SOUTH_BOUNDING_COORD",South_Bounding_Coordinate)
-               line = line.replace("  CSPP_EAST_BOUNDING_COORD",East_Bounding_Coordinate)
-               line = line.replace("  CSPP_WEST_BOUNDING_COORD",West_Bounding_Coordinate)
-
-               line = line.replace("  CSPP_DAY_NIGHT_FLAG",N_Day_Night_Flag)
-               line = line.replace("  CSPP_ASCENDING_DESCENDING_INDICATOR",Ascending_Descending_Indicator)
-
-               ascFile.write(line) 
-
-            ascFile.close()
-            ascTemplateFile.close()
-
-
-def _QSTLWM(LWM_list,IGBP_list,geoDicts,inDir):
-    '''
-    Combines the LWM and IGBP to make the QSTLWM
-    '''
-    
-    '''
-    LWM  = np.array([ 0, 1, 2, 3, 4, 5, 6, 7, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],dtype='uint8')
-    IGBP = np.array([17,17,17,17,17,17,17,17, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16],dtype='uint8')
-    QSTLWM_exp = np.array([17,19,19,18, 9,17,17,17, 1, 2, 3, 4, 5, 6, 7, 8, 9,10,11,12,13,14,15,16],dtype='uint8')
-
-    '''
-
-    global ancEndian 
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ADL_HOME = os.getenv('ADL_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
-
-    masksCollShortNames = 'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran'
-
-    GridIP_shortNameToBlobName = {}
-    GridIP_dataType = {}
-    GridIP_shortNameToXmlName = {}
-    GridIP_shortNameToBlobName[masksCollShortNames] = 'qstlwm'
-    GridIP_dataType[masksCollShortNames] = 'uint8'
-    GridIP_shortNameToXmlName[masksCollShortNames] = 'VIIRS_GRIDIP_VIIRS_QST_LWM_MOD_GRAN.xml'
-
-    # Moderate resolution trim table arrays. These are 
-    # bool arrays, and the trim pixels are set to True.
-
-    trimObj = ViirsData.ViirsTrimTable()
-    modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
-
-
-    for LWM,IGBP,geoDict in zip(LWM_list,IGBP_list,geoDicts):
-
-        N_Granule_ID = geoDict['N_Granule_ID']
-
-        LOG.debug("\nMaking %s ..." % (masksCollShortNames))
-
-        LOG.debug("min of LWM  = %d" % (np.min(LWM)))
-        LOG.debug("max of LWM  = %d" % (np.max(LWM)))
-        LOG.debug("min of IGBP = %d" % (np.min(IGBP)))
-        LOG.debug("max of IGBP = %d" % (np.max(IGBP)))
-
-        # Construct the IGBP and LWM masks
-
-        IGBP_mask = ma.masked_greater(IGBP,17).mask
-        LWM_mask = ma.masked_greater(LWM,7).mask
-
-        # Determine the combined mask
-
-        totalMask = np.ravel(np.bitwise_or(IGBP_mask,LWM_mask))
-
-        # Mask and compress the IGBP and LWM datasets
-
-        IGBP_reduced = ma.array(np.ravel(IGBP),mask=totalMask).compressed()
-        LWM_reduced = ma.array(np.ravel(LWM),mask=totalMask).compressed()
-
-        DEM_LAND_mask = (LWM_reduced == DEM_dict['DEM_LAND'])
-        DEM_water_mask = np.bitwise_not(DEM_LAND_mask)
-        IGBP_waterBodies_mask = (IGBP_reduced == IGBP_dict['IGBP_WATERBODIES'])
-        
-        QSTLWM_coastalWater_mask = np.logical_and(DEM_LAND_mask,IGBP_waterBodies_mask)
-        QSTLWM_IGBP_land_mask = np.invert(IGBP_waterBodies_mask)
-        
-        QSTLWM_IGBP_idx = np.where(QSTLWM_IGBP_land_mask)
-        QSTLWM_coastalWater_idx = np.where(QSTLWM_coastalWater_mask)
-        QSTLWM_LSM_idx = np.where(DEM_water_mask)
-        
-        QSTLWM_reduced = np.ones(IGBP_reduced.shape,dtype='uint8') * QSTLWM_dict['FILL_VALUE']
-        
-        QSTLWM_reduced[QSTLWM_IGBP_idx] = IGBP_reduced[QSTLWM_IGBP_idx]
-        QSTLWM_reduced[QSTLWM_coastalWater_idx] = np.array([QSTLWM_dict['COASTAL_WATER']],dtype='uint8')[0]
-        QSTLWM_reduced[QSTLWM_LSM_idx] = DEM_to_QSTLWM[LWM_reduced[QSTLWM_LSM_idx]]
-
-        # Restore to original shape...
-        QSTLWM = np.ones(IGBP.shape,dtype='uint8') * QSTLWM_dict['FILL_VALUE']
-        QSTLWM = np.ravel(QSTLWM)
-        validIdx = np.where(totalMask==False)
-        QSTLWM[validIdx] = QSTLWM_reduced
-        QSTLWM = QSTLWM.reshape(IGBP.shape)
-
-        # Fill the required pixel trim rows in the granulated NCEP data with 
-        # the ONBOARD_PT_FILL value for the correct data type
-
-        fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][QSTLWM.dtype.name]        
-        QSTLWM = ma.array(QSTLWM,mask=modTrimMask,fill_value=fillValue)
-        LOG.debug("min of QSTLWM granule = %d" % (np.min(QSTLWM)))
-        LOG.debug("max of QSTLWM granule = %d" % (np.max(QSTLWM)))
-        QSTLWM = QSTLWM.filled()
-
-        # Create new NCEP ancillary blob, and copy granulated data to it
-
-        endian = ancEndian
-        xmlName = path.join(ADL_HOME,'xml/VIIRS',GridIP_shortNameToXmlName[masksCollShortNames])
-
-        # Create a new URID to be used in making the asc filenames
-
-        URID_dict = _getURID()
-
-        URID = URID_dict['URID']
-        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
-        creationDateStr = URID_dict['creationDateStr']
-
-        # Create a new directory in the input directory for the new ancillary
-        # asc and blob files
-
-        blobDir = inDir
-
-        ascFileName = path.join(blobDir,URID+'.asc')
-        blobName = path.join(blobDir,URID+'.'+masksCollShortNames)
-
-        LOG.debug("ascFileName : %s" % (ascFileName))
-        LOG.debug("blobName : %s" % (blobName))
-
-        # Create a new ancillary blob, and copy the data to it.
-        newQSTLWMblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
-        newQSTLWMblobArrObj = newQSTLWMblobObj.as_arrays()
-
-        blobData = getattr(newQSTLWMblobArrObj,GridIP_shortNameToBlobName[masksCollShortNames])
-        blobData[:,:] = QSTLWM[:,:]
-
-        # Make a new QSTLWM asc file from the template, and substitute for the various tags
-
-        #ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
-        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-GridIP-VIIRS_Template.asc")
-
-        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
-        
-        ANC_fileList = ['IGBP.EcoMap.v1.0.2004.129.v004.h5','dem30ARC_Global_LandWater.h5']
-        for idx in range(len(ANC_fileList)) :
-            ANC_fileList[idx] = path.basename(ANC_fileList[idx])
-        ANC_fileList.sort()
-        ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
-        ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) for files in ANC_fileList])
-
-        # Parse the geolocation asc file to get struct information which will be 
-        # written to the ancillary asc files
-
-        geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-        LOG.debug("\nOpening %s..." % (geoAscFileName))
-
-        geoAscFile = open(geoAscFileName,'rt')
-
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
-        RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
-        RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-
-        GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-
-        North_Bounding_Coordinate_Str = _getAscLine(geoAscFile,"North_Bounding_Coordinate")
-        South_Bounding_Coordinate_Str = _getAscLine(geoAscFile,"South_Bounding_Coordinate")
-        East_Bounding_Coordinate_Str  = _getAscLine(geoAscFile,"East_Bounding_Coordinate")
-        West_Bounding_Coordinate_Str  = _getAscLine(geoAscFile,"West_Bounding_Coordinate")
-
-        geoAscFile.close()
-
-        try:
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
-        except Exception, err :
-            LOG.error("%s, aborting." % (err))
-            sys.exit(1)
-
-        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
-
-        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
-
-        for line in ascTemplateFile.readlines():
-           line = line.replace("CSPP_URID",URID)
-           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
-           line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
-           line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",masksCollShortNames)
-           line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
-           line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
-           line = line.replace("  CSPP_RANGE_DATE_TIME",RangeDateTimeStr)
-           line = line.replace("  CSPP_GRINGLATITUDE",GRingLatitudeStr)
-           line = line.replace("  CSPP_GRINGLONGITUDE",GRingLongitudeStr)
-           line = line.replace("CSPP_NORTH_BOUNDING_COORD",North_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_SOUTH_BOUNDING_COORD",South_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_EAST_BOUNDING_COORD",East_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_WEST_BOUNDING_COORD",West_Bounding_Coordinate_Str)
-           #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
-           ascFile.write(line) 
-
-        ascFile.close()
-        ascTemplateFile.close()
-
-    return QSTLWM
-
-
-def _granulate_NISE(latitude,longitude,LSM,NISE_fileName):
-    '''Granulates the NISE Snow and Ice files.'''
-
-    #latitude = ma.masked_less(latitude,-800.)
-    latMin,latMax = np.min(latitude),np.max(latitude)
-    latRange = latMax-latMin
-
-    #longitude = ma.masked_less(longitude,-800.)
-    lonMin,lonMax = np.min(longitude),np.max(longitude)
-    lonRange = lonMax-lonMin
-
-    LOG.debug("\nmin,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
-    LOG.debug("min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-
-    LOG.debug("\nGranulating NISE file %s" % (NISE_fileName))
-
-    #################
-    # Using HDF5
-    #################
-
-    #NISEobj = pytables.openFile(NISE_fileName,'r')
-    #nHemi = NISEobj.getNode('/Northern Hemisphere/Data Fields/Extent')[:,:]
-    #sHemi = NISEobj.getNode('/Southern Hemisphere/Data Fields/Extent')[:,:]
-    #NISEobj.close()
-
-    #################
-    # Using HDF4
-    #################
-
-    LOG.debug("Opening the NISE file %s" % (NISE_fileName))
-    fileObj = HDF4File(NISE_fileName)
-
-    northDsetName = "Northern Hemisphere/Data Fields/Extent"
-    southDsetName = "Southern Hemisphere/Data Fields/Extent"
-    #northDsetName = "Northern Hemisphere/Data Fields/Age"
-    #southDsetName = "Southern Hemisphere/Data Fields/Age"
-
-    LOG.debug("Retrieving NISE HDF4 path '%s'" % (northDsetName))
-    nHemi = fileObj.get_dataset(northDsetName)
-
-    LOG.debug("Retrieving NISE HDF4 path '%s'" % (southDsetName))
-    sHemi = fileObj.get_dataset(southDsetName)
-
-    #################
-
-    xsize, ysize = nHemi.shape    
-
-    nHemi = nHemi.flatten()
-    sHemi = sHemi.flatten()
-    
-    pi = np.pi
-
-    rg = 6371.228 / 25.067525
-
-    r0 = (ysize-1) / 2.0
-    s0 = (xsize-1) / 2.0
-
-    gridrows, gridcols = latitude.shape
-
-    posLatMask = ma.masked_less(latitude,0.).mask
-    negLatMask = ma.masked_greater_equal(latitude,0.).mask
-
-    # For positive latitudes...
-    
-    phi = np.radians(ma.array(latitude,mask=posLatMask,fill_value=0))
-    lam = np.radians(ma.array(longitude,mask=posLatMask,fill_value=0))
-
-    rho =  2. * rg * np.sin((pi / 4.0) - (phi / 2.0))
-    r = r0 + rho * np.sin(lam)
-    s = s0 + rho * np.cos(lam)          
-
-    i_pos = round_(r, 0).astype('int') - 1
-    j_pos = round_(s, 0).astype('int') - 1
-
-
-    # For negative latitudes...
-
-    phi = np.radians(ma.array(latitude,mask=negLatMask,fill_value=0))
-    lam = np.radians(ma.array(longitude,mask=negLatMask,fill_value=0))
-
-    rho = 2. * rg * np.cos((pi / 4.0) - (phi / 2.0))
-    r = r0 + rho * np.sin(lam)
-    s = s0 - rho * np.cos(lam)
-
-    i_neg = round_(r, 0).astype('int') - 1
-    j_neg = round_(s, 0).astype('int') - 1
-
-    ###
-    # Combine the +ve and -ve latitudes
-    ###
-
-    posIdx = np.where(posLatMask==False)
-    negIdx = np.where(negLatMask==False)
-
-    # convert i_pos and j_pos to an index into the raveled nHemi..
-    k_pos = (j_pos * xsize) + i_pos
-
-    # convert i_neg and j_neg to an index into the raveled sHemi..
-    k_neg = (j_neg * xsize) + i_neg
-
-    nise_val = 999 * np.ones(latitude.shape,dtype='int')
-
-    nise_val[posIdx] = nHemi[k_pos[posIdx]]
-    nise_val[negIdx] = sHemi[k_neg[negIdx]]
-
-    # From ADL/include/ProEdrViirsCMIPGbl.h ...
-
-    CM_LAND = 1
-    CM_COASTAL = 5
-    CM_SEA_WATER = 3
-    CM_IN_WATER = 2
-    CM_SNOW = 1
-    CM_NO_SNOW = 0
-
-    # Permanent Ice
-    permIceMask = ma.masked_equal(nise_val,101).mask
-
-    # Dry Snow
-    drySnowMask = ma.masked_equal(nise_val,103).mask
-
-    # Wet Snow
-    wetSnowMask = ma.masked_equal(nise_val,104).mask
-
-    # Land and Coastal
-    LSM_Land_Coastal = (ma.masked_equal(LSM,CM_LAND) * ma.masked_equal(LSM,CM_COASTAL)).mask
-
-    # Sea Water and Inland Water
-    LSM_SeaWater_InlandWater = (ma.masked_equal(LSM,CM_SEA_WATER) * ma.masked_equal(LSM,CM_IN_WATER)).mask
-
-    # Transient sea ice > 25% concentration, AND (Land OR Coastal)
-    transSeaIceCoastalMask = ma.masked_inside(nise_val,(25+1),(101-1)).mask
-    
-    # Transient sea ice > 25% concentration, AND Permanent Ice AND (Sea OR Inland Water)
-    transSeaIceOceanMask = ma.masked_inside(nise_val,(25+1),(102-1)).mask
-
-    snowMask = permIceMask + drySnowMask + wetSnowMask \
-            + (transSeaIceCoastalMask * LSM_Land_Coastal) \
-            + (transSeaIceOceanMask * LSM_SeaWater_InlandWater)
-
-    snowIceMask = np.ones(nise_val.shape,dtype='int') * CM_NO_SNOW
-    snowIceMask = ma.array(snowIceMask,mask=snowMask,fill_value=CM_SNOW)
-    snowIceMask = snowIceMask.filled()
-
-    # Moderate resolution trim table arrays. These are 
-    # bool arrays, and the trim pixels are set to True.
-
-    trimObj = ViirsData.ViirsTrimTable()
-    modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
-
-    # Fill the required pixel trim rows in the granulated NISE data with 
-    # the ONBOARD_PT_FILL value for the correct data type
-
-    fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL']['uint8']
-    snowIceMask = ma.array(snowIceMask,mask=modTrimMask,fill_value=fillValue)
-    snowIceMask = snowIceMask.filled()
-
-    return snowIceMask
-
-
-def _granulate_NISE_list(inDir,geoDicts,DEM_granules,NISEfiles):
-    '''Granulates the input NISE snow and ice files.'''
-
-    global ancEndian 
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ADL_HOME = os.getenv('ADL_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
-
-    masksCollShortNames = 'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'
-
-    GridIP_shortNameToBlobName = {}
-    GridIP_dataType = {}
-    GridIP_shortNameToXmlName = {}
-    GridIP_shortNameToBlobName['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = 'snowIceCover'
-    GridIP_dataType['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = 'uint8'
-    GridIP_shortNameToXmlName['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = 'VIIRS_GRIDIP_VIIRS_SNOW_ICE_COVER_MOD_GRAN.xml'
-
-    # Moderate resolution trim table arrays. These are 
-    # bool arrays, and the trim pixels are set to True.
-
-    trimObj = ViirsData.ViirsTrimTable()
-    modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
-
-    # Get a bunch of information about the geolocation
-    latitudeList,longitudeList,latMinList,latMaxList,lonMinList,lonMaxList,latCrnList,lonCrnList = _get_geo_Arrays(geoDicts)
-
-    LOG.debug("\nGranules -->")
-    LOG.debug("latMin : %r" % (latMinList))
-    LOG.debug("latMax : %r" % (latMaxList))
-    LOG.debug("lonMin : %r" % (lonMinList))
-    LOG.debug("lonMax : %r" % (lonMaxList))
-    LOG.debug("latCrnList : %r" % (latCrnList))
-    LOG.debug("lonCrnList : %r\n" % (lonCrnList))
-
-    LOG.debug("\nNISE files --> %r" % (NISEfiles))
-
-    # Loop through the geolocation files and granulate...
-
-    for latitude,longitude,LSM,geoDict in zip(latitudeList,longitudeList,DEM_granules,geoDicts):
-
-        N_Granule_ID = geoDict['N_Granule_ID']
-
-        LOG.info("Granulating %s ..." % (masksCollShortNames))
-
-        ####################################################
-        # Granulate the NISE data using this geolocation...
-        ####################################################
-
-        t1 = time()
-
-        data = _granulate_NISE(latitude,longitude,LSM,NISEfiles[0])
-
-        t2 = time()
-        elapsedTime = t2-t1
-        LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
-
-        # Fill the required pixel trim rows in the granulated NCEP data with 
-        # the ONBOARD_PT_FILL value for the correct data type
-
-        #fillValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
-        #data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        #print "min of NISE granule = ",np.min(data)
-        #print "max of NISE granule = ",np.max(data)
-        #data = data.filled()
-
-        # Create new NISE ancillary blob, and copy granulated data to it
-
-        endian = ancEndian
-        xmlName = path.join(ADL_HOME,'xml/VIIRS',GridIP_shortNameToXmlName[masksCollShortNames])
-
-        # Create a new URID to be used in making the asc filenames
-
-        URID_dict = _getURID()
-
-        URID = URID_dict['URID']
-        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
-        creationDateStr = URID_dict['creationDateStr']
-
-        # Create a new directory in the input directory for the new ancillary
-        # asc and blob files
-
-        blobDir = inDir
-
-
-        ascFileName = path.join(blobDir,URID+'.asc')
-        blobName = path.join(blobDir,URID+'.'+masksCollShortNames)
-
-        LOG.debug("ascFileName : %s" % (ascFileName))
-        LOG.debug("blobName : %s" % (blobName))
-
-        # Create a new ancillary blob, and copy the data to it.
-
-        newNISEblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
-        newNISEblobArrObj = newNISEblobObj.as_arrays()
-
-        blobData = getattr(newNISEblobArrObj,GridIP_shortNameToBlobName[masksCollShortNames])
-        blobData[:,:] = data[:,:]
-
-        # Make a new NCEP asc file from the template, and substitute for the various tags
-
-        #ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-ANC_Template.asc")
-        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-GridIP-VIIRS_Template.asc")
-
-        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
-        
-        ANC_fileList = copy.copy(NISEfiles)
-        for idx in range(len(ANC_fileList)) :
-            ANC_fileList[idx] = path.basename(ANC_fileList[idx])
-        ANC_fileList.sort()
-        ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
-        ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) for files in ANC_fileList])
-
-        # Parse the geolocation asc file to get struct information which will be 
-        # written to the ancillary asc files
-
-        geoAscFileName = path.join(inDir,geoDict['URID']+".asc")
-        LOG.debug("\nOpening %s..." % (geoAscFileName))
-
-        geoAscFile = open(geoAscFileName,'rt')
-
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
-        RangeDateTimeStr =  _getAscLine(geoAscFile,"ObservedDateTime")
-        RangeDateTimeStr =  string.replace(RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-
-        GRingLatitudeStr =  _getAscStructs(geoAscFile,"GRingLatitude",12)
-        GRingLongitudeStr =  _getAscStructs(geoAscFile,"GRingLongitude",12)
-
-        North_Bounding_Coordinate_Str = _getAscLine(geoAscFile,"North_Bounding_Coordinate")
-        South_Bounding_Coordinate_Str = _getAscLine(geoAscFile,"South_Bounding_Coordinate")
-        East_Bounding_Coordinate_Str  = _getAscLine(geoAscFile,"East_Bounding_Coordinate")
-        West_Bounding_Coordinate_Str  = _getAscLine(geoAscFile,"West_Bounding_Coordinate")
-
-        geoAscFile.close()
-
-        try:
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
-        except Exception, err :
-            LOG.error("%s, aborting." % (err))
-            sys.exit(1)
-
-        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
-
-        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
-
-        for line in ascTemplateFile.readlines():
-           line = line.replace("CSPP_URID",URID)
-           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
-           line = line.replace("CSPP_ANC_BLOB_FULLPATH",blobName)
-           line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",masksCollShortNames)
-           line = line.replace("CSPP_GRANULE_ID",N_Granule_ID)
-           line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
-           line = line.replace("  CSPP_RANGE_DATE_TIME",RangeDateTimeStr)
-           line = line.replace("  CSPP_GRINGLATITUDE",GRingLatitudeStr)
-           line = line.replace("  CSPP_GRINGLONGITUDE",GRingLongitudeStr)
-           line = line.replace("CSPP_NORTH_BOUNDING_COORD",North_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_SOUTH_BOUNDING_COORD",South_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_EAST_BOUNDING_COORD",East_Bounding_Coordinate_Str)
-           line = line.replace("CSPP_WEST_BOUNDING_COORD",West_Bounding_Coordinate_Str)
-           #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
-           ascFile.write(line) 
-
-        ascFile.close()
-        ascTemplateFile.close()
-
-
-def _retrieve_grib_files(geoDicts):
-    ''' Download the GRIB files which cover the dates of the geolocation files.'''
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-
-    gribFiles = []
-
-    for geoDict in geoDicts:
-        timeObj = geoDict['ObservedStartTime']
-        dateStamp = timeObj.strftime("%Y%m%d")
-        seconds = repr(int(round(timeObj.second + float(timeObj.microsecond)/1000000.)))
-        deciSeconds = int(round(float(timeObj.microsecond)/100000.))
-        deciSeconds = repr(0 if deciSeconds > 9 else deciSeconds)
-        startTimeStamp = "%s%s" % (timeObj.strftime("%H%M%S"),deciSeconds)
-
-        timeObj = geoDict['ObservedEndTime']
-        seconds = repr(int(round(timeObj.second + float(timeObj.microsecond)/1000000.)))
-        deciSeconds = int(round(float(timeObj.microsecond)/100000.))
-        deciSeconds = repr(0 if deciSeconds > 9 else deciSeconds)
-        endTimeStamp = "%s%s" % (timeObj.strftime("%H%M%S"),deciSeconds)
-
-        timeObj = geoDict['UnpackTime']
-        unpackTimeStamp = timeObj.strftime("%Y%m%d%H%M%S%f")
-
-        granuleName = "GMODO_npp_d%s_t%s_e%s_b00014_c%s.h5" % (dateStamp,startTimeStamp,endTimeStamp,unpackTimeStamp)
-
-        try :
-            LOG.info('Retrieving NCEP files for %s ...' % (granuleName))
-            cmdStr = '%s/cspp_retrieve_gdas_gfs.csh %s' % (ANC_SCRIPTS_PATH,granuleName)
-            LOG.debug('\t%s' % (cmdStr))
-            args = shlex.split(cmdStr)
-
-            procRetVal = 0
-            procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            procObj.wait()
-            procRetVal = procObj.returncode
-
-            procOutput = procObj.stdout.readlines()
-            #procOutput = procObj.stdout.read()
-
-            # FIXME : How to get this output to have linebreaks when using readlines()
-            #LOG.debug(procOutput)
-            
-            for lines in procOutput:
-                if "GDAS/GFS file" in lines :
-                    lines = string.replace(lines,'GDAS/GFS file 1: ','')
-                    lines = string.replace(lines,'GDAS/GFS file 2: ','')
-                    lines = string.replace(lines,'\n','')
-                    gribFiles.append(lines)
-
-            # TODO : On error, jump to a cleanup routine
-            if not (procRetVal == 0) :
-                LOG.error('Retrieval of ancillary files failed for %s.' % (granuleName))
-                #sys.exit(procRetVal)
-
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
-
-    # Uniqify the list of GRIB files
-    gribFiles = list(set(gribFiles))
-    gribFiles.sort()
-
-    for gribFile in gribFiles :
-        LOG.info('Retrieved GRIB file: %r' % (gribFile))
-
-    return gribFiles
-
-
-def _create_NCEP_gridBlobs(gribFiles):
-    '''Converts NCEP GRIB files into NCEP blobs'''
-
-    from copy import deepcopy
-
-    blobFiles = []
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    csppPython = os.getenv('PY')
-    
-
-    for files in gribFiles :
-        gribPath = path.dirname(files)
-        gribFile = path.basename(files)
-        gribBlob = "%s_blob.le" % (gribFile)
-        gribBlob = path.join(gribPath,gribBlob)
-
-        if not path.exists(gribBlob):
-            try :
-                LOG.info('Transcoding %s to %s ...' % \
-                        (path.basename(files),path.basename(gribBlob)))
-
-                NCEPxml = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
-
-                # Create the grib object and populate with the grib file data
-                NCEPobj = NCEPclass(gribFile=files)
-
-                # Convert surface pressure from Pa to mb or hPa ...
-                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
-                # Ref: applyScalingFactor(currentBuffer, GRID_SIZE, 0.01);
-                NCEPobj.NCEPmessages['surfacePressure'].data /= 100.
-
-                # Convert total column ozone from DU or kg m**-2 to Atm.cm ...
-                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
-                # Code: const float DOBSON_TO_ATMSCM_SCALING_FACTOR = .001;
-                # Code: applyScalingFactor(currentBuffer, GRID_SIZE,DOBSON_TO_ATMSCM_SCALING_FACTOR);
-                NCEPobj.NCEPmessages['totalColumnOzone'].data /= 1000.
-
-                # Convert total precipitable water kg m^{-2} to cm ...
-                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
-                # Code: applyScalingFactor(currentBuffer, GRID_SIZE, .10);
-                NCEPobj.NCEPmessages['totalPrecipitableWater'].data /= 10.
-
-                # Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}
-                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
-                # Code: void IngMsdNCEP_Converter::applyWaterVaporMixingRatio()
-                # Code: destination[i] = 1000 * (destination[i]/ (1-destination[i]));
-                moistureObj = NCEPobj.NCEPmessages['waterVaporMixingRatioLayers'].messageLevelData
-
-                temperatureObj = NCEPobj.NCEPmessages['temperatureLayers'].messageLevelData
-
-                # Compute the 100mb mixing ratio in g/kg
-                if moistureObj['100'].name == 'Specific humidity':
-                    specHumidity_100mb = moistureObj['100'].data
-                    mixingRatio_100mb = 1000. * specHumidity_100mb/(1. - specHumidity_100mb)
-                elif  moistureObj['100'].name == 'Relative humidity':
-                    relativeHumidity_100mb = moistureObj['100'].data
-                    temperature_100mb = temperatureObj['100'].data
-                    mixingRatio_100mb = rh_to_mr_vec(relativeHumidity_100mb,100.,temperature_100mb)
-                else :
-                    pass
-
-                for level,levelIdx in NCEPobj.NCEP_LAYER_LEVELS.items() : 
-                    levelStrIdx = level[:-2]
-                    pressure = NCEPobj.NCEP_LAYER_VALUES[levelIdx]
-
-                    if pressure < 100. :
-                        # Copy the 100mb message object to this pressure, and assign the correct
-                        # mixing ratio
-                        moistureObj[levelStrIdx] = deepcopy(moistureObj['100'])
-                        moistureObj[levelStrIdx].level = levelStrIdx
-
-                        # Compute the mixing ratio in g/kg
-                        mixingRatio = np.maximum(mixingRatio_100mb,0.003) * ((pressure/100.)**3.)
-                        mixingRatio = np.maximum(mixingRatio_100mb,0.003)
-                    else :
-                        # Compute the mixing ratio in g/kg
-                        if moistureObj[levelStrIdx].name == 'Specific humidity':
-                            specHumidity = moistureObj[levelStrIdx].data 
-                            mixingRatio = 1000. * specHumidity/(1. - specHumidity)
-                        elif  moistureObj[levelStrIdx].name == 'Relative humidity':
-                            relativeHumidity = moistureObj[levelStrIdx].data
-                            temperature = temperatureObj[levelStrIdx].data
-                            mixingRatio = rh_to_mr_vec(relativeHumidity,pressure,temperature)
-                        else :
-                            pass
-
-                    moistureObj[levelStrIdx].data = mixingRatio
-
-                # Write the contents of the NCEPobj object to an ADL blob file
-                endian = adl_blob.LITTLE_ENDIAN
-                procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
-
-                #blobFiles.append(gribBlob)
-                if not (procRetVal == 0) :
-                    LOG.error('Transcoding of ancillary files failed for %s.' % (files))
-                    sys.exit(procRetVal)
-                else :
-                    LOG.debug('Finished creating NCEP GRIB blob %s' % (gribBlob))
-                    blobFiles.append(gribBlob)
-
-            except Exception, err:
-                LOG.warn( "%s" % (str(err)))
-        else :
-            LOG.info('NCEP global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
-            blobFiles.append(gribBlob)
-
-    return blobFiles
-
-
-def _getAscLine(fileObj,searchString):
-    dataStr = ''
-    try :
-        while True :
-            line = fileObj.readline()
-
-            if searchString in line : 
-                dataStr = "%s" % (string.replace(line,'\n',''));
-                break
-
-        fileObj.seek(0)
-
-    except Exception, err:
-        fileObj.close()
-
-    return dataStr
-
-
-def _getAscStructs(fileObj,searchString,linesOfContext):
-
-    dataList = []
-    data_count = 0
-    dataFound = False
-
-    try :
-        while True :
-            line = fileObj.readline()
-
-            if searchString in line : 
-                dataFound = True
-
-            if dataFound :
-                dataStr = "%s" % (string.replace(line,'\n',''));
-                dataList.append(dataStr)
-                data_count += 1
-            else :
-                pass
-
-            if (data_count == linesOfContext) :
-                break
-
-        fileObj.seek(0)
-
-    except Exception, err:
-        fileObj.close()
-        return -1
-
-    dataStr=''
-    dataStr = "%s" % ("\n").join(['%s' % (str(lines)) for lines in dataList])
-
-    return dataStr
-
-
-def _granulate_ANC(inDir,geoDicts, gridBlobFiles):
+def _granulate_ANC(inDir,geoDicts):
     '''Granulates the input gridded blob files into the required ANC granulated datasets.'''
 
     import ANC
@@ -2706,8 +1027,19 @@ def _granulate_ANC(inDir,geoDicts, gridBlobFiles):
     algList = ['VCM']
     #algList = ['VCM','AOT']
     
-    # Collection shortnames of the required NCEP ancillary datasets
-    # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
+    # Download the required NCEP grib files
+    LOG.info("Downloading NCEP GRIB ancillary into cache...")
+    gribFiles = ANC.retrieve_NCEP_grib_files(geoDicts)
+    LOG.debug('dynamic ancillary GRIB files: %s' % repr(gribFiles))
+    if (gribFiles == []) :
+        LOG.error('Failed to find or retrieve any GRIB files, aborting.')
+        sys.exit(1)
+
+    # Transcode the NCEP GRIB files into ADL NCEP-ANC-Int
+    gridBlobFiles = ANC.create_NCEP_grid_blobs(gribFiles)
+    if (gridBlobFiles == []) :
+        LOG.error('Failed to convert NCEP GRIB  files to blobs, aborting.')
+        sys.exit(1)
 
     # Create a list of algorithm module "pointers"
     algorithms = []
@@ -2774,244 +1106,45 @@ def _granulate_ANC(inDir,geoDicts, gridBlobFiles):
             ANC_objects[shortName].shipOutToFile()
 
 
-def _grid2Gran(dataLat, dataLon, gridData, gridLat, gridLon):
-    '''Granulates a gridded dataset using an input geolocation'''
-
-    nData = np.int64(dataLat.size)
-    gridRows = np.int32(gridLat.shape[0])
-    gridCols = np.int32(gridLat.shape[1])
-
-    data = np.ones(np.shape(dataLat),dtype=np.float64)* -999.9
-    dataIdx  = np.ones(np.shape(dataLat),dtype=np.int64) * -99999
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-
-    libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')
-    LOG.debug("Gridding and granulation library file: %s" % (libFile))
-    lib = ctypes.cdll.LoadLibrary(libFile)
-    grid2gran = lib.grid2gran_nearest
-    grid2gran.restype = None
-    grid2gran.argtypes = [
-            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
-            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
-            ndpointer(ctypes.c_double,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
-            ctypes.c_int64,
-            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
-            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
-            ndpointer(ctypes.c_double,ndim=2,shape=(gridRows,gridCols),flags='C_CONTIGUOUS'),
-            ndpointer(ctypes.c_int64,ndim=1,shape=(nData),flags='C_CONTIGUOUS'),
-            ctypes.c_int32,
-            ctypes.c_int32
-            ]
-
-    '''
-    int snapGrid_ctypes(double *lat, 
-                    double *lon, 
-                    double *data, 
-                    long nData, 
-                    double *gridLat,
-                    double *gridLon,
-                    double *gridData,
-                    long *gridDataIdx,
-                    int nGridRows,
-                    int nGridCols
-                    )
-    '''
-
-    LOG.debug("Calling C routine grid2gran()...")
-
-    retVal = grid2gran(dataLat,
-                       dataLon,
-                       data,
-                       nData,
-                       gridLat,
-                       gridLon,
-                       gridData,
-                       dataIdx,
-                       gridRows,
-                       gridCols)
-
-    LOG.debug("Returning from C routine grid2gran()")
-
-    return data,dataIdx
-
-
-def _retrieve_NISE_files_and_convert(geoDicts):
-    ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-
-    niseFiles = []
-
-    for geoDict in geoDicts:
-        timeObj = geoDict['ObservedStartTime']
-        dateStamp = timeObj.strftime("%Y%j")
-
-        try :
-            LOG.info('Retrieving NISE files for %s ...' % (dateStamp))
-            cmdStr = '%s/get_anc_cspp_nise.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
-            LOG.info('\t%s' % (cmdStr))
-            args = shlex.split(cmdStr)
-            LOG.debug('\t%s' % (repr(args)))
-
-            procRetVal = 0
-            procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            procObj.wait()
-            procRetVal = procObj.returncode
-
-            procOutput = procObj.stdout.readlines()
-            #procOutput = procObj.stdout.read()
-
-            # FIXME : How to get this output to have linebreaks when using readlines()
-            #LOG.debug(procOutput)
-            
-            for lines in procOutput:
-                if CSPP_RT_ANC_CACHE_DIR in lines :
-                    lines = string.replace(lines,'\n','')
-                    niseFiles.append(lines)
-
-            # TODO : On error, jump to a cleanup routine
-            if not (procRetVal == 0) :
-                LOG.error('Retrieval of NISE files failed for %s.' % (dateStamp))
-                #sys.exit(procRetVal)
-
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
-
-    # Uniqify the list of NISE files
-    niseFiles = list(set(niseFiles))
-    niseFiles.sort()
-
-    # Convert the NISE HDFEOS file to HDF5
-    newNiseFiles = []
-    for files in niseFiles:
-        niseDir = path.dirname(files)
-        niseName = path.basename(files)
-        new_niseName = string.replace(niseName,'HDFEOS','h5')
-        new_niseName = path.join(niseDir,new_niseName)
-
-        if not path.exists(new_niseName):
-
-            try :
-                LOG.debug('Converting HDFEOS NISE file\n\t%s\nto HDF5...\n\t%s' % (files,new_niseName))
-                cmdStr = '%s/common/COTS/hdf5/hdf5-1.8.4/bin/h4toh5 %s %s' % (CSPP_RT_HOME,files,new_niseName)
-                LOG.debug('\t%s' % (cmdStr))
-                args = shlex.split(cmdStr)
-                LOG.debug('\t%s' % (repr(args)))
-
-                procRetVal = 0
-                procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                procObj.wait()
-                procRetVal = procObj.returncode
-                procOutput = procObj.stdout.read()
-                LOG.debug(procOutput)
-
-                newNiseFiles.append(new_niseName)
-
-            except Exception, err:
-                LOG.warn( "%s" % (str(err)))
-        else :
-            LOG.info('NISE file %s exists, skipping.' % (new_niseName))
-            newNiseFiles.append(new_niseName)
-
-    return newNiseFiles
-
-
-def _retrieve_NISE_files(geoDicts):
-    ''' Download the NISE Snow/Ice files which cover the dates of the geolocation files.'''
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-
-    niseFiles = []
-
-    for geoDict in geoDicts:
-        timeObj = geoDict['ObservedStartTime']
-        dateStamp = timeObj.strftime("%Y%j")
-
-        try :
-            LOG.info('Retrieving NISE files for %s ...' % (dateStamp))
-            cmdStr = '%s/get_anc_cspp_nise.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
-            LOG.debug('\t%s' % (cmdStr))
-            args = shlex.split(cmdStr)
-
-            procRetVal = 0
-            procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            procObj.wait()
-            procRetVal = procObj.returncode
-
-            procOutput = procObj.stdout.readlines()
-            #procOutput = procObj.stdout.read()
-
-            # FIXME : How to get this output to have linebreaks when using readlines()
-            #LOG.debug(procOutput)
-            
-            for lines in procOutput:
-                if CSPP_RT_ANC_CACHE_DIR in lines :
-                    lines = string.replace(lines,'\n','')
-                    niseFiles.append(lines)
-
-            # TODO : On error, jump to a cleanup routine
-            if not (procRetVal == 0) :
-                LOG.error('Retrieval of NISE files failed for %s.' % (dateStamp))
-                #sys.exit(procRetVal)
-
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
-
-    # Uniqify the list of NISE files
-    niseFiles = list(set(niseFiles))
-    niseFiles.sort()
-
-    for niseFile in niseFiles :
-        LOG.info('Retrieved NISE file: %r' % (niseFile))
-
-    return niseFiles
-
-
 # Look through new log files for completed messages
 # based on CrIS SDR original
-def check_log_files(work_dir, pid, xml):
-    """
-    Find the log file
-    Look for success
-    Return True if found
-    Display log message and hint if problem occurred
-    """
-    # retrieve exe name and log path from lw file
-    logpat = path.join(work_dir, "log", "*%d*.log" % pid)
+#def check_log_files(work_dir, pid, xml):
+    #"""
+    #Find the log file
+    #Look for success
+    #Return True if found
+    #Display log message and hint if problem occurred
+    #"""
+    ## retrieve exe name and log path from lw file
+    #logpat = path.join(work_dir, "log", "*%d*.log" % pid)
 
-    n_err=0
-    for logFile in glob(logpat):
-        LOG.debug( "Checking Log file " +logFile +" for errors.")
-        n_err += adl_log.scan_log_file(COMMON_LOG_CHECK_TABLE, logFile)
+    #n_err=0
+    #for logFile in glob(logpat):
+        #LOG.debug( "Checking Log file " +logFile +" for errors.")
+        #n_err += adl_log.scan_log_file(COMMON_LOG_CHECK_TABLE, logFile)
 
-    if n_err == 0 :
-        LOG.debug(" Log: "+ logFile + " "+ xml + " Completed successfully" )
-        return True
-    else :
-        LOG.error( " Log: "+ logFile +" " + xml + " Completed unsuccessfully" )
-        return False
+    #if n_err == 0 :
+        #LOG.debug(" Log: "+ logFile + " "+ xml + " Completed successfully" )
+        #return True
+    #else :
+        #LOG.error( " Log: "+ logFile +" " + xml + " Completed unsuccessfully" )
+        #return False
 
 
-def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
+#def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
     """Run each VIIRS EDR MASKS XML input in sequence
     return the list of granule IDs which crashed, and list of granule ids which did not create output
     """
-    crashed_runs = set()
-    no_output_runs = set()
-    geo_problem_runs = set()
-    bad_log_runs = set()
-    first = True
+    #crashed_runs = set()
+    #no_output_runs = set()
+    #geo_problem_runs = set()
+    #bad_log_runs = set()
+    #first = True
 
     # obtain pre-existing granule list
-    modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
-    cmaskPattern = path.join(work_dir, 'IICMO*.h5')
-    activeFiresPattern = path.join(work_dir, 'AVAFO*.h5')
+    #modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
+    #cmaskPattern = path.join(work_dir, 'IICMO*.h5')
+    #activeFiresPattern = path.join(work_dir, 'AVAFO*.h5')
     # TODO : Enable for VIIRS AOT
     #aotIpPattern = path.join(work_dir, 'IVAOT*.h5')
     #aotEdrPattern = path.join(work_dir, 'VAOOO*.h5')
@@ -3021,14 +1154,14 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
     
     # Get the N_GranuleID and filename of existing cmask files in the work_dir ? ...
-    cmask_prior_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing IICMO granules... %s' % (repr(cmask_prior_granules)))
-    cmask_prior_granules = set(cmask_prior_granules.keys())
-    LOG.debug(' Set of existing IICMO granules... %s' % (repr(cmask_prior_granules)))
+    #cmask_prior_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH)
+    #LOG.debug('Existing IICMO granules... %s' % (repr(cmask_prior_granules)))
+    #cmask_prior_granules = set(cmask_prior_granules.keys())
+    #LOG.debug(' Set of existing IICMO granules... %s' % (repr(cmask_prior_granules)))
 
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Active fires files
-    activeFires_prior_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH)
-    activeFires_prior_granules = set(activeFires_prior_granules.keys())
+    ## Get the (N_GranuleID,hdfFileName) pairs for the existing Active fires files
+    #activeFires_prior_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH)
+    #activeFires_prior_granules = set(activeFires_prior_granules.keys())
 
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol IP files
     # TODO : Enable for VIIRS AOT
@@ -3045,129 +1178,129 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     #suspMatEDR_prior_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH)
     #suspMatEDR_prior_granules = set(suspMatEDR_prior_granules.keys())
 
-    for granule_id, xml in xml_files_to_process:
+    #for granule_id, xml in xml_files_to_process:
 
-        t1 = time()
+        #t1 = time()
         
-        cmd = [ADL_VIIRS_MASKS_EDR, xml]
-        # TODO : Enable for VIIRS AOT
-        #cmd = [ADL_VIIRS_AEROSOL_EDR, xml]
+        #cmd = [ADL_VIIRS_MASKS_EDR, xml]
+        ## TODO : Enable for VIIRS AOT
+        ##cmd = [ADL_VIIRS_AEROSOL_EDR, xml]
         
-        if setup_only:
-            print ' '.join(cmd)
-        else:
-            LOG.debug('executing "%s"' % ' '.join(cmd))
-            LOG.debug('additional environment variables: %s' % repr(additional_env))
-            try:
-                pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
-                LOG.debug("%r ran as pid %d" % (cmd, pid))
-                if not check_log_files(work_dir, pid, xml):
-                    bad_log_runs.add(granule_id)
+        #if setup_only:
+            #print ' '.join(cmd)
+        #else:
+            #LOG.debug('executing "%s"' % ' '.join(cmd))
+            #LOG.debug('additional environment variables: %s' % repr(additional_env))
+            #try:
+                #pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
+                #LOG.debug("%r ran as pid %d" % (cmd, pid))
+                #if not check_log_files(work_dir, pid, xml):
+                    #bad_log_runs.add(granule_id)
 
-            except CalledProcessError as oops:
-                LOG.debug(traceback.format_exc())
-                LOG.error('ProEdrViirsMasksController.exe failed on %r: %r. Continuing...' % (xml, oops))
-                crashed_runs.add(granule_id)
-            first = False
+            #except CalledProcessError as oops:
+                #LOG.debug(traceback.format_exc())
+                #LOG.error('ProEdrViirsMasksController.exe failed on %r: %r. Continuing...' % (xml, oops))
+                #crashed_runs.add(granule_id)
+            #first = False
 
-            # check new IICMO output granules
-            cmask_new_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH, state=cmask_ID)
-            LOG.debug('new IICMO granules after this run: %s' % (repr(cmask_new_granules)))
-            if granule_id not in cmask_new_granules:
-                LOG.warning('no IICMO HDF5 output for %s' % (granule_id))
-                no_output_runs.add(granule_id)
-            else:
-                filename = cmask_new_granules[granule_id]
-
-            # check new AVAFO output granules
-            afires_new_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH, state=afires_ID)
-            LOG.debug('new AVAFO granules after this run: %s' % (repr(afires_new_granules)))
-            if granule_id not in afires_new_granules:
-                LOG.warning('no AVAFO HDF5 output for %s' % (granule_id))
-                no_output_runs.add(granule_id)
-            else:
-                filename = afires_new_granules[granule_id]
-
-            # TODO : Enable for VIIRS AOT
-            # check new IVAOT output granules
-            #aotIp_new_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH, state=aotIp_ID)
-            #LOG.debug('new IVAOT granules after this run: %s' % repr(aotIp_new_granules))
-            #if granule_id not in aotIp_new_granules:
-                #LOG.warning('no IVAOT HDF5 output for %s' % granule_id)
+            ## check new IICMO output granules
+            #cmask_new_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH, state=cmask_ID)
+            #LOG.debug('new IICMO granules after this run: %s' % (repr(cmask_new_granules)))
+            #if granule_id not in cmask_new_granules:
+                #LOG.warning('no IICMO HDF5 output for %s' % (granule_id))
                 #no_output_runs.add(granule_id)
             #else:
-                #filename = aotIp_new_granules[granule_id]
+                #filename = cmask_new_granules[granule_id]
 
-            # TODO : Enable for VIIRS AOT
-            # check new VAOOO output granules
-            #aotEdr_new_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH, state=aotEdr_ID)
-            #LOG.debug('new VAOOO granules after this run: %s' % repr(aotEdr_new_granules))
-            #if granule_id not in aotEdr_new_granules:
-                #LOG.warning('no VAOOO HDF5 output for %s' % granule_id)
+            ## check new AVAFO output granules
+            #afires_new_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH, state=afires_ID)
+            #LOG.debug('new AVAFO granules after this run: %s' % (repr(afires_new_granules)))
+            #if granule_id not in afires_new_granules:
+                #LOG.warning('no AVAFO HDF5 output for %s' % (granule_id))
                 #no_output_runs.add(granule_id)
             #else:
-                #filename = aotEdr_new_granules[granule_id]
+                #filename = afires_new_granules[granule_id]
 
-            # TODO : Enable for VIIRS AOT
-            # check new VSUMO output granules
-            #suspMatEdr_new_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH, state=suspMatEdr_ID)
-            #LOG.debug('new VSUMO granules after this run: %s' % repr(suspMatEdr_new_granules))
-            #if granule_id not in suspMatEdr_new_granules:
-                #LOG.warning('no VSUMO HDF5 output for %s' % granule_id)
-                #no_output_runs.add(granule_id)
-            #else:
-                #filename = suspMatEdr_new_granules[granule_id]
+            ## TODO : Enable for VIIRS AOT
+            ## check new IVAOT output granules
+            ##aotIp_new_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH, state=aotIp_ID)
+            ##LOG.debug('new IVAOT granules after this run: %s' % repr(aotIp_new_granules))
+            ##if granule_id not in aotIp_new_granules:
+                ##LOG.warning('no IVAOT HDF5 output for %s' % granule_id)
+                ##no_output_runs.add(granule_id)
+            ##else:
+                ##filename = aotIp_new_granules[granule_id]
 
-        t2 = time()
-        LOG.info ( "Controller ran in %f seconds." % (t2-t1))
+            ## TODO : Enable for VIIRS AOT
+            ## check new VAOOO output granules
+            ##aotEdr_new_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH, state=aotEdr_ID)
+            ##LOG.debug('new VAOOO granules after this run: %s' % repr(aotEdr_new_granules))
+            ##if granule_id not in aotEdr_new_granules:
+                ##LOG.warning('no VAOOO HDF5 output for %s' % granule_id)
+                ##no_output_runs.add(granule_id)
+            ##else:
+                ##filename = aotEdr_new_granules[granule_id]
 
-    LOG.debug("cmask_ID.values() = %r" % (cmask_ID.values()))
-    LOG.debug("set(cmask_ID.values()) = %r" % (set(cmask_ID.values())))
-    LOG.debug("cmask_prior_granules = %r" % (cmask_prior_granules))
-    cmask_granules_made = set(cmask_ID.values()) - cmask_prior_granules
+            ## TODO : Enable for VIIRS AOT
+            ## check new VSUMO output granules
+            ##suspMatEdr_new_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH, state=suspMatEdr_ID)
+            ##LOG.debug('new VSUMO granules after this run: %s' % repr(suspMatEdr_new_granules))
+            ##if granule_id not in suspMatEdr_new_granules:
+                ##LOG.warning('no VSUMO HDF5 output for %s' % granule_id)
+                ##no_output_runs.add(granule_id)
+            ##else:
+                ##filename = suspMatEdr_new_granules[granule_id]
 
-    LOG.debug("afires_ID.values() = %r" % (afires_ID.values()))
-    LOG.debug("set(afires_ID.values()) = %r" % (set(afires_ID.values())))
-    LOG.debug("activeFires_prior_granules = %r" % (activeFires_prior_granules))
-    activeFires_granules_made = set(afires_ID.values()) - activeFires_prior_granules
+        #t2 = time()
+        #LOG.info ( "Controller ran in %f seconds." % (t2-t1))
 
-    # TODO : Enable for VIIRS AOT
-    #LOG.debug("aotIp_ID.values() = \n%r" % (aotIp_ID.values()))
-    #LOG.debug("set(aotIp_ID.values()) = \n%r" % (set(aotIp_ID.values())))
-    #LOG.debug("aerosolIP_prior_granules = \n%r" % (aerosolIP_prior_granules))
-    #aerosolIP_granules_made = set(aotIp_ID.values()) - aerosolIP_prior_granules
+    #LOG.debug("cmask_ID.values() = %r" % (cmask_ID.values()))
+    #LOG.debug("set(cmask_ID.values()) = %r" % (set(cmask_ID.values())))
+    #LOG.debug("cmask_prior_granules = %r" % (cmask_prior_granules))
+    #cmask_granules_made = set(cmask_ID.values()) - cmask_prior_granules
 
-    # TODO : Enable for VIIRS AOT
-    #LOG.debug("aotEdr_ID.values() = \n%r" % (aotEdr_ID.values()))
-    #LOG.debug("set(aotEdr_ID.values()) = \n%r" % (set(aotEdr_ID.values())))
-    #LOG.debug("aerosolEDR_prior_granules = \n%r" % (aerosolEDR_prior_granules))
-    #aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
+    #LOG.debug("afires_ID.values() = %r" % (afires_ID.values()))
+    #LOG.debug("set(afires_ID.values()) = %r" % (set(afires_ID.values())))
+    #LOG.debug("activeFires_prior_granules = %r" % (activeFires_prior_granules))
+    #activeFires_granules_made = set(afires_ID.values()) - activeFires_prior_granules
 
-    # TODO : Enable for VIIRS AOT
-    #LOG.debug("suspMatEdr_ID.values() = \n%r" % (suspMatEdr_ID.values()))
-    #LOG.debug("set(suspMatEdr_ID.values()) = \n%r" % (set(suspMatEdr_ID.values())))
-    #LOG.debug("suspMatEDR_prior_granules = \n%r" % (suspMatEDR_prior_granules))
-    #suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
+    ## TODO : Enable for VIIRS AOT
+    ##LOG.debug("aotIp_ID.values() = \n%r" % (aotIp_ID.values()))
+    ##LOG.debug("set(aotIp_ID.values()) = \n%r" % (set(aotIp_ID.values())))
+    ##LOG.debug("aerosolIP_prior_granules = \n%r" % (aerosolIP_prior_granules))
+    ##aerosolIP_granules_made = set(aotIp_ID.values()) - aerosolIP_prior_granules
+
+    ## TODO : Enable for VIIRS AOT
+    ##LOG.debug("aotEdr_ID.values() = \n%r" % (aotEdr_ID.values()))
+    ##LOG.debug("set(aotEdr_ID.values()) = \n%r" % (set(aotEdr_ID.values())))
+    ##LOG.debug("aerosolEDR_prior_granules = \n%r" % (aerosolEDR_prior_granules))
+    ##aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
+
+    ## TODO : Enable for VIIRS AOT
+    ##LOG.debug("suspMatEdr_ID.values() = \n%r" % (suspMatEdr_ID.values()))
+    ##LOG.debug("set(suspMatEdr_ID.values()) = \n%r" % (set(suspMatEdr_ID.values())))
+    ##LOG.debug("suspMatEDR_prior_granules = \n%r" % (suspMatEDR_prior_granules))
+    ##suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
 
 
-    LOG.info('cmask granules created: %s' %( ', '.join(list(cmask_granules_made))))
-    LOG.info('activeFires granules created: %s' % (', '.join(list(activeFires_granules_made))))
-    #LOG.info('aerosolIP granules created: %s' % ', '.join(list(aerosolIP_granules_made)))
-    #LOG.info('aerosolEDR granules created: %s' % ', '.join(list(aerosolEDR_granules_made)))
-    #LOG.info('suspMatEDR granules created: %s' % ', '.join(list(suspMatEDR_granules_made)))
+    #LOG.info('cmask granules created: %s' %( ', '.join(list(cmask_granules_made))))
+    #LOG.info('activeFires granules created: %s' % (', '.join(list(activeFires_granules_made))))
+    ##LOG.info('aerosolIP granules created: %s' % ', '.join(list(aerosolIP_granules_made)))
+    ##LOG.info('aerosolEDR granules created: %s' % ', '.join(list(aerosolEDR_granules_made)))
+    ##LOG.info('suspMatEDR granules created: %s' % ', '.join(list(suspMatEDR_granules_made)))
 
-    if no_output_runs:
-        LOG.info('granules that failed to generate output: %s' % (', '.join(no_output_runs)))
-    if geo_problem_runs:
-        LOG.warning('granules which had no N_Geo_Ref: %s' % ', '.join(geo_problem_runs))
-    if crashed_runs:
-        LOG.warning('granules that crashed ADL: %s' % (', '.join(crashed_runs)))
-    if bad_log_runs:
-        LOG.warning('granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
-    if not cmask_granules_made:
-        LOG.warning('no HDF5 SDRs were created')
+    #if no_output_runs:
+        #LOG.info('granules that failed to generate output: %s' % (', '.join(no_output_runs)))
+    #if geo_problem_runs:
+        #LOG.warning('granules which had no N_Geo_Ref: %s' % ', '.join(geo_problem_runs))
+    #if crashed_runs:
+        #LOG.warning('granules that crashed ADL: %s' % (', '.join(crashed_runs)))
+    #if bad_log_runs:
+        #LOG.warning('granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
+    #if not cmask_granules_made:
+        #LOG.warning('no HDF5 SDRs were created')
 
-    return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
+    #return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
 
 
 def _cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
@@ -3422,9 +1555,9 @@ def main():
 
     LOG.debug("\nGetting geolocation information...")
 
-    LOG.debug("\n%13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime'))
+    LOG.info("%13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime'))
     for dicts in granules_to_process :
-        LOG.debug("%15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
+        LOG.info("%15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
 
     # Expand any user specifiers in the various paths
 
@@ -3456,44 +1589,9 @@ def main():
 
         LOG.info('Retrieving and granulating ancillary data...')
 
-        # TODO : Clarify what this "allow_cache_update" is for?
-        allow_cache_update = True
-        # Search for dynamic ancillary data (GRIB and NISE) for the granules we intend to process.
-        # - If it's not in the cache already, download it.
-        # - Softlink those into the workspace
-        # FUTURE: This currently doesn't operate correctly without this, since we rely on the cache scripts
-        #   to tell us where to find the ancillary data whether it was downloaded or not.
-        if allow_cache_update:
-            LOG.info("Downloading GRIB and NISE ancillary into cache")
-            gribFiles = _retrieve_grib_files(anc_granules_to_process)
-            LOG.debug('dynamic ancillary GRIB files: %s' % repr(gribFiles))
-            if (gribFiles == []) :
-                LOG.error('Failed to find or retrieve any GRIB files, aborting...')
-                return -1
-
-            niseFiles = _retrieve_NISE_files(anc_granules_to_process)
-            LOG.debug('dynamic ancillary NISE files: %s' % repr(niseFiles))
-            if (niseFiles == []) :
-                LOG.error('Failed to find or retrieve any NISE files, aborting...')
-                return -1
-
-            all_dyn_anc = list(gribFiles) #+ list(niseFiles)
-            LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
-
-
-        # Setup GRC files (FIXME: Fold this into GridIP code).
-
-        _getGRC(work_dir,anc_granules_to_process)
-
-        # Transcode the NCEP GRIB files into NCEP global grid blob files
-
-        gridBlobFiles = _create_NCEP_gridBlobs(gribFiles)
-
-        LOG.debug("gridBlobFiles: %r" % (gridBlobFiles))
-
         # Granulate the VIIRS ANC data
 
-        _granulate_ANC(work_dir,anc_granules_to_process,gridBlobFiles)
+        _granulate_ANC(work_dir,anc_granules_to_process)
 
         # Granulate the VIIRS GridIP data
 
@@ -3511,33 +1609,56 @@ def main():
 
     if not options.skipAlgorithm :
 
-        # build XML configuration files for jobs that can be run
-        LOG.debug("Building XML files for %d granules" % len(granules_to_process))
+        import Algorithms
+
+        # Ordered list of required algorithms (to be passed in)
+        algList = ['VCM']
+        #algList = ['VCM','AOT']
+
+        # Create a list of algorithm module "pointers"
+        algorithms = []
+        for alg in algList :
+            algName = Algorithms.modules[alg]
+            algorithms.append(getattr(Algorithms,algName))
+
+        for alg in algorithms :
+
+            # build XML configuration files for jobs that can be run
+            LOG.info("Building %s XML files for %d granules" % \
+                    (alg.AlgorithmString,len(granules_to_process)))
+
+            # Generate the VIIRS Cloud Mask/Active Fires LW xml files for each N_Granule_ID...
+            xml_files_to_process = alg.generate_viirs_edr_xml(work_dir, granules_to_process)
         
-        # Generate the VIIRS Cloud Mask/Active Fires LW xml files for each N_Granule_ID...
-        xml_files_to_process = generate_viirs_masks_edr_xml(work_dir, granules_to_process)
+            # Generate the VIIRS Cloud Mask/Active Fires LW xml files for each N_Granule_ID...
+            #xml_files_to_process = generate_viirs_masks_edr_xml(work_dir, granules_to_process)
 
-        # TODO : Enable for VIIRS AOT
-        # Generate the VIIRS Aerosol Optical Thickness LW xml files for each N_Granule_ID...
-        #xml_files_to_process = generate_viirs_aerosol_edr_xml(work_dir, granules_to_process)
+            # TODO : Enable for VIIRS AOT
+            # Generate the VIIRS Aerosol Optical Thickness LW xml files for each N_Granule_ID...
+            #xml_files_to_process = generate_viirs_aerosol_edr_xml(work_dir, granules_to_process)
 
-        LOG.info('%d granules to process: %s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process)))
+            LOG.info('%d granules to process: %s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process)))
 
-        LOG.info("Running VIIRS EDR Masks on XML files")
-        crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = run_xml_files(work_dir, xml_files_to_process, setup_only = False, WORK_DIR = work_dir, LINKED_ANCILLARY = work_dir, ADL_HOME=ADL_HOME)
+            LOG.info("Running VIIRS EDR Masks on XML files")
+            crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = \
+                    alg.run_xml_files(work_dir, xml_files_to_process, \
+                    setup_only = False, WORK_DIR = work_dir, \
+                    LINKED_ANCILLARY = work_dir, ADL_HOME=ADL_HOME)
 
-        ## considered a noncritical problem if there were any crashed runs, runs that produced no output,
-        ## runs where Geo failed, or runs where ADL logs indicated a problem
-        noncritical_problem = crashed_runs or no_output_runs or geo_problem_runs or bad_log_runs
+            ## considered a noncritical problem if there were any crashed runs, runs that produced no output,
+            ## runs where Geo failed, or runs where ADL logs indicated a problem
+            noncritical_problem = crashed_runs or no_output_runs or geo_problem_runs or bad_log_runs
 
-        ## print final disposition message and get return code
-        environment_error=False
-        rc = get_return_code(unpacking_problems, len(xml_files_to_process), len(no_output_runs), noncritical_problem, environment_error)
+            ## print final disposition message and get return code
+            environment_error=False
+            rc = get_return_code(unpacking_problems, len(xml_files_to_process), \
+                    len(no_output_runs), noncritical_problem, environment_error)
 
         ## if no errors or only non-critical errors: clean up
         if rc == 0 and not options.cspp_debug:
             LOG.debug("Cleaning up workspace...")
-            _cleanup(work_dir, 'edr_viirs_masks*.xml', 'ProEdrViirsMasksController.exe_*', log_dir, anc_dir, perf_dir)
+            _cleanup(work_dir, 'edr_viirs_masks*.xml', 'ProEdrViirsMasksController.exe_*', \
+                    log_dir, anc_dir, perf_dir)
 
             # TODO : Enable for VIIRS AOT
             #_cleanup(work_dir, 'edr_viirs_aerosol*.xml', 'ProEdrViirsAerosolController.exe_*', log_dir, anc_dir, perf_dir)

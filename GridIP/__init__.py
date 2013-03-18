@@ -20,6 +20,7 @@ __docformat__ = 'Epytext'
 
 
 #import ProCmnPhysConst
+from GridRowColumn        import GridRowColumn
 from LandWaterMask        import LandWaterMask
 from QuarterlySurfaceType import QuarterlySurfaceType
 from QstLwm               import QstLwm
@@ -27,6 +28,8 @@ from NbarNdvi17Day        import NbarNdvi17Day
 from SnowIceCover         import SnowIceCover
 
 classNames = {}
+classNames['VIIRS-MOD-GRC'] = 'GridRowColumn'
+classNames['VIIRS-MOD-GRC-TC'] = 'GridRowColumn'
 classNames['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'] = 'LandWaterMask'
 classNames['VIIRS-GridIP-VIIRS-Qst-Mod-Gran'] = 'QuarterlySurfaceType'
 classNames['VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran'] = 'QstLwm'

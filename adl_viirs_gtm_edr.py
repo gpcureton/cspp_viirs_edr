@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-$Id:$
+$Id$
 
 Purpose: Run the VIIRS SDR using Raytheon ADL 3.1 or 4.0
 

@@ -309,3 +309,191 @@ def shipOutToFile(ANCobj):
     ascFile.close()
     ascTemplateFile.close()
 
+
+def retrieve_NCEP_grib_files(geoDicts):
+    ''' Download the GRIB files which cover the dates of the geolocation files.'''
+
+    import shlex, subprocess
+    from subprocess import CalledProcessError, call
+
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+
+    gribFiles = []
+
+    for geoDict in geoDicts:
+        timeObj = geoDict['ObservedStartTime']
+        dateStamp = timeObj.strftime("%Y%m%d")
+        seconds = repr(int(round(timeObj.second + float(timeObj.microsecond)/1000000.)))
+        deciSeconds = int(round(float(timeObj.microsecond)/100000.))
+        deciSeconds = repr(0 if deciSeconds > 9 else deciSeconds)
+        startTimeStamp = "%s%s" % (timeObj.strftime("%H%M%S"),deciSeconds)
+
+        timeObj = geoDict['ObservedEndTime']
+        seconds = repr(int(round(timeObj.second + float(timeObj.microsecond)/1000000.)))
+        deciSeconds = int(round(float(timeObj.microsecond)/100000.))
+        deciSeconds = repr(0 if deciSeconds > 9 else deciSeconds)
+        endTimeStamp = "%s%s" % (timeObj.strftime("%H%M%S"),deciSeconds)
+
+        timeObj = geoDict['UnpackTime']
+        unpackTimeStamp = timeObj.strftime("%Y%m%d%H%M%S%f")
+
+        granuleName = "GMODO_npp_d%s_t%s_e%s_b00014_c%s.h5" % (dateStamp,startTimeStamp,endTimeStamp,unpackTimeStamp)
+
+        try :
+            LOG.info('Retrieving NCEP files for %s ...' % (granuleName))
+            cmdStr = '%s/cspp_retrieve_gdas_gfs.csh %s' % (ANC_SCRIPTS_PATH,granuleName)
+            LOG.debug('\t%s' % (cmdStr))
+            args = shlex.split(cmdStr)
+
+            procRetVal = 0
+            procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            procObj.wait()
+            procRetVal = procObj.returncode
+
+            procOutput = procObj.stdout.readlines()
+            #procOutput = procObj.stdout.read()
+
+            # FIXME : How to get this output to have linebreaks when using readlines()
+            #LOG.debug(procOutput)
+            
+            for lines in procOutput:
+                if "GDAS/GFS file" in lines :
+                    lines = string.replace(lines,'GDAS/GFS file 1: ','')
+                    lines = string.replace(lines,'GDAS/GFS file 2: ','')
+                    lines = string.replace(lines,'\n','')
+                    gribFiles.append(lines)
+
+            # TODO : On error, jump to a cleanup routine
+            if not (procRetVal == 0) :
+                LOG.error('Retrieval of ancillary files failed for %s.' % (granuleName))
+                #sys.exit(procRetVal)
+
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
+
+    # Uniqify the list of GRIB files
+    gribFiles = list(set(gribFiles))
+    gribFiles.sort()
+
+    for gribFile in gribFiles :
+        LOG.info('Retrieved GRIB file: %r' % (gribFile))
+
+    return gribFiles
+
+
+def create_NCEP_grid_blobs(gribFiles):
+    '''Converts NCEP GRIB files into NCEP blobs'''
+
+    from NCEPtoBlob import NCEPclass
+    from thermo import rh_to_mr
+    rh_to_mr_vec = np.vectorize(rh_to_mr)
+    from copy import deepcopy
+
+    blobFiles = []
+
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    csppPython = os.getenv('PY')
+    
+
+    for files in gribFiles :
+        gribPath = path.dirname(files)
+        gribFile = path.basename(files)
+        gribBlob = "%s_blob.le" % (gribFile)
+        gribBlob = path.join(gribPath,gribBlob)
+
+        if not path.exists(gribBlob):
+            try :
+                LOG.info('Transcoding %s to %s ...' % \
+                        (path.basename(files),path.basename(gribBlob)))
+
+                NCEPxml = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
+
+                # Create the grib object and populate with the grib file data
+                NCEPobj = NCEPclass(gribFile=files)
+
+                # Convert surface pressure from Pa to mb or hPa ...
+                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+                # Ref: applyScalingFactor(currentBuffer, GRID_SIZE, 0.01);
+                NCEPobj.NCEPmessages['surfacePressure'].data /= 100.
+
+                # Convert total column ozone from DU or kg m**-2 to Atm.cm ...
+                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+                # Code: const float DOBSON_TO_ATMSCM_SCALING_FACTOR = .001;
+                # Code: applyScalingFactor(currentBuffer, GRID_SIZE,DOBSON_TO_ATMSCM_SCALING_FACTOR);
+                NCEPobj.NCEPmessages['totalColumnOzone'].data /= 1000.
+
+                # Convert total precipitable water kg m^{-2} to cm ...
+                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+                # Code: applyScalingFactor(currentBuffer, GRID_SIZE, .10);
+                NCEPobj.NCEPmessages['totalPrecipitableWater'].data /= 10.
+
+                # Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}
+                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+                # Code: void IngMsdNCEP_Converter::applyWaterVaporMixingRatio()
+                # Code: destination[i] = 1000 * (destination[i]/ (1-destination[i]));
+                moistureObj = NCEPobj.NCEPmessages['waterVaporMixingRatioLayers'].messageLevelData
+
+                temperatureObj = NCEPobj.NCEPmessages['temperatureLayers'].messageLevelData
+
+                # Compute the 100mb mixing ratio in g/kg
+                if moistureObj['100'].name == 'Specific humidity':
+                    specHumidity_100mb = moistureObj['100'].data
+                    mixingRatio_100mb = 1000. * specHumidity_100mb/(1. - specHumidity_100mb)
+                elif  moistureObj['100'].name == 'Relative humidity':
+                    relativeHumidity_100mb = moistureObj['100'].data
+                    temperature_100mb = temperatureObj['100'].data
+                    mixingRatio_100mb = rh_to_mr_vec(relativeHumidity_100mb,100.,temperature_100mb)
+                else :
+                    pass
+
+                for level,levelIdx in NCEPobj.NCEP_LAYER_LEVELS.items() : 
+                    levelStrIdx = level[:-2]
+                    pressure = NCEPobj.NCEP_LAYER_VALUES[levelIdx]
+
+                    if pressure < 100. :
+                        # Copy the 100mb message object to this pressure, and assign the correct
+                        # mixing ratio
+                        moistureObj[levelStrIdx] = deepcopy(moistureObj['100'])
+                        moistureObj[levelStrIdx].level = levelStrIdx
+
+                        # Compute the mixing ratio in g/kg
+                        mixingRatio = np.maximum(mixingRatio_100mb,0.003) * ((pressure/100.)**3.)
+                        mixingRatio = np.maximum(mixingRatio_100mb,0.003)
+                    else :
+                        # Compute the mixing ratio in g/kg
+                        if moistureObj[levelStrIdx].name == 'Specific humidity':
+                            specHumidity = moistureObj[levelStrIdx].data 
+                            mixingRatio = 1000. * specHumidity/(1. - specHumidity)
+                        elif  moistureObj[levelStrIdx].name == 'Relative humidity':
+                            relativeHumidity = moistureObj[levelStrIdx].data
+                            temperature = temperatureObj[levelStrIdx].data
+                            mixingRatio = rh_to_mr_vec(relativeHumidity,pressure,temperature)
+                        else :
+                            pass
+
+                    moistureObj[levelStrIdx].data = mixingRatio
+
+                # Write the contents of the NCEPobj object to an ADL blob file
+                endian = adl_blob.LITTLE_ENDIAN
+                procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
+
+                #blobFiles.append(gribBlob)
+                if not (procRetVal == 0) :
+                    LOG.error('Transcoding of ancillary files failed for %s.' % (files))
+                    sys.exit(procRetVal)
+                else :
+                    LOG.debug('Finished creating NCEP GRIB blob %s' % (gribBlob))
+                    blobFiles.append(gribBlob)
+
+            except Exception, err:
+                LOG.warn( "%s" % (str(err)))
+        else :
+            LOG.info('NCEP global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
+            blobFiles.append(gribBlob)
+
+    return blobFiles
+
