@@ -2,24 +2,24 @@
 <?xml-stylesheet type="text/xsl" href="Style.xml"?>
 <NPOESSDataProduct schemaVersion="1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 xsi:noNamespaceSchemaLocation="pro_xml.xsd">
-<ProductName>VIIRS Quarterly Surface Type GridIP VIIRS Moderate Gran</ProductName>
-<CollectionShortName>VIIRS-GridIP-VIIRS-Qst-Mod-Gran</CollectionShortName>
+<ProductName>VIIRS Land Water Mask GridIP VIIRS Moderate Gran</ProductName>
+<CollectionShortName>VIIRS-GridIP-VIIRS-Lwm-Mod-Gran</CollectionShortName>
 <NumberOfProductData>2</NumberOfProductData>
-<ProductStructName>ViirsGipQstGran</ProductStructName>
+<ProductStructName>ViirsGipLwmGran</ProductStructName>
 <ShellStatus>0</ShellStatus>
 <ProductType>GridIP-Gran</ProductType>
 <GenerateCppStructures>true</GenerateCppStructures>
 <GenerateFortranStructures>false</GenerateFortranStructures>
 <ScaledProduct>false</ScaledProduct>
 <UnscaledProduct>false</UnscaledProduct>
-<ProductGroupName>GIP_QST_GRAN</ProductGroupName>
+<ProductGroupName>GIP_LWM_GRAN</ProductGroupName>
 <ProductData>
-<DataName>igbp</DataName>
+<DataName>landWaterMask</DataName>
 <ProductFieldType>Regular</ProductFieldType>
 <NumberOfDimensions>0</NumberOfDimensions>
 <NumberOfFields>1</NumberOfFields>
 <Field>
-<Name>igbp</Name>
+<Name>landWaterMask</Name>
 <FieldOffset>0</FieldOffset>
 <NumberOfDimensions>2</NumberOfDimensions>
 <Dimension>
@@ -49,7 +49,7 @@ xsi:noNamespaceSchemaLocation="pro_xml.xsd">
 </DataSize>
 <NumberOfData>1</NumberOfData>
 <Datum>
-<Name>igbp</Name>
+<Name>landWaterMask</Name>
 <Offset>0</Offset>
 <Scale>
 <Dynamic>0</Dynamic>
@@ -91,78 +91,38 @@ xsi:noNamespaceSchemaLocation="pro_xml.xsd">
 <Name>SOUB_UINT8_FILL</Name>
 <Value>248</Value>
 </FillValue>
-<NumberOfEntriesInLegend>18</NumberOfEntriesInLegend>
+<NumberOfEntriesInLegend>8</NumberOfEntriesInLegend>
 <LegendEntry>
-<Name>evergreen needleleaf forest</Name>
+<Name>DEM_SHALLOW_OCEAN</Name>
 <Value>1</Value>
 </LegendEntry>
 <LegendEntry>
-<Name>evergreen broadleaf forest</Name>
+<Name>DEM_LAND</Name>
 <Value>2</Value>
 </LegendEntry>
 <LegendEntry>
-<Name>deciduous needleleaf forest</Name>
+<Name>DEM_COASTLINE</Name>
 <Value>3</Value>
 </LegendEntry>
 <LegendEntry>
-<Name>deciduous broadleaf forest</Name>
+<Name>DEM_SHALLOW_INLAND_WATER</Name>
 <Value>4</Value>
 </LegendEntry>
 <LegendEntry>
-<Name>mixed forests</Name>
+<Name>DEM_EPHEMERAL_WATER</Name>
 <Value>5</Value>
 </LegendEntry>
 <LegendEntry>
-<Name>closed shrubland</Name>
+<Name>DEM_DEEP_INLAND_WATER</Name>
 <Value>6</Value>
 </LegendEntry>
 <LegendEntry>
-<Name>open shrublands</Name>
+<Name>DEM_MOD_CONT_OCEAN</Name>
 <Value>7</Value>
 </LegendEntry>
 <LegendEntry>
-<Name>woody savannas</Name>
+<Name>DEM_DEEP_OCEAN</Name>
 <Value>8</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>savannas</Name>
-<Value>9</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>grasslands</Name>
-<Value>10</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>permanent wetlands</Name>
-<Value>11</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>croplands</Name>
-<Value>12</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>urban and built-up</Name>
-<Value>13</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>cropland/natural vegetation mosaic</Name>
-<Value>14</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>snow and ice</Name>
-<Value>15</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>barren or sparsely vegetated</Name>
-<Value>16</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>water</Name>
-<Value>17</Value>
-</LegendEntry>
-<LegendEntry>
-<Name>Fill</Name>
-<Value>31</Value>
 </LegendEntry>
 </Datum>
 </Field>
