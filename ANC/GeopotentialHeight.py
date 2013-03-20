@@ -59,7 +59,7 @@ def ingest():
     '''
     print "Ingesting the ancillary %s" % (sourcename[1])
 
-def granulate():
+def granulate(self,ANC_objects):
     '''
     Granulate the ancillary dataset.
     '''

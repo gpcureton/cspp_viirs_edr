@@ -325,7 +325,7 @@ class TerrainGeopotentialHeight() :
         return data,dataIdx
 
 
-    def granulate(self):
+    def granulate(self,ANC_objects):
         '''
         Granulate the ancillary dataset.
         '''

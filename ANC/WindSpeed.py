@@ -92,14 +92,10 @@ class WindSpeed() :
         '''
 
         dsetName = self.blobDatasetName[0]
-        uWind = getattr(ancBlob,dsetName).astype(self.dataType)
+        self.uWind = getattr(ancBlob,dsetName).astype(self.dataType)
 
         dsetName = self.blobDatasetName[1]
-        vWind = getattr(ancBlob,dsetName).astype(self.dataType)
-        
-        windSpeed = np.sqrt(uWind*uWind + vWind*vWind)
-
-        self.gridData = windSpeed
+        self.vWind = getattr(ancBlob,dsetName).astype(self.dataType)
 
 
     def setGeolocationInfo(self,dicts):
@@ -330,7 +326,7 @@ class WindSpeed() :
         return data,dataIdx
 
 
-    def granulate(self):
+    def granulate(self,ANC_objects):
         '''
         Granulate the ancillary dataset.
         '''
@@ -344,11 +340,13 @@ class WindSpeed() :
         longitude = self.longitude
 
         # Flip so that lats are (-90 ... 90)
-        gridData = self.gridData[::-1,:]
+        uWind = self.uWind[::-1,:]
+        vWind = self.vWind[::-1,:]
 
         if self.num180Crossings != 2 :
 
-            gridData = np.roll(gridData,360)
+            uWind = np.roll(uWind,360)
+            vWind = np.roll(vWind,360)
             gridLon,gridLat = np.meshgrid(lons,lats)
 
             LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
@@ -368,24 +366,38 @@ class WindSpeed() :
             LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
 
-        LOG.debug("min of gridData  = %r"%(np.min(gridData)))
-        LOG.debug("max of gridData  = %r"%(np.max(gridData)))
+        LOG.debug("min of uWind  = %r"%(np.min(uWind)))
+        LOG.debug("max of uWind  = %r"%(np.max(uWind)))
+        LOG.debug("min of vWind  = %r"%(np.min(vWind)))
+        LOG.debug("max of vWind  = %r"%(np.max(vWind)))
 
+        # Separately granulate the U and V wind magnitudes
         t1 = time()
-        data,dataIdx = self._grid2Gran_bilinearInterp(np.ravel(latitude),
+        uData,dataIdx = self._grid2Gran_bilinearInterp(np.ravel(latitude),
                                   np.ravel(longitude),
-                                  gridData.astype(np.float64),
+                                  uWind.astype(np.float64),
+                                  gridLat,
+                                  gridLon)
+
+        vData,dataIdx = self._grid2Gran_bilinearInterp(np.ravel(latitude),
+                                  np.ravel(longitude),
+                                  vWind.astype(np.float64),
                                   gridLat,
                                   gridLon)
         t2 = time()
         elapsedTime = t2-t1
         LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
 
-        data = data.reshape(latitude.shape)
+        uData = uData.reshape(latitude.shape)
+        vData = vData.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
 
-        LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
+        LOG.debug("Shape of granulated %s uData is %s" % (self.collectionShortName,np.shape(uData)))
+        LOG.debug("Shape of granulated %s vData is %s" % (self.collectionShortName,np.shape(vData)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
+
+        # Combine the granulated U and V wind magnitudes into omnidirectional wind speed...
+        data = np.sqrt(uData*uData + vData*vData)
 
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.

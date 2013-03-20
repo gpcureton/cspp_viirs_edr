@@ -328,7 +328,7 @@ class OpticalDepth() :
         return data,dataIdx
 
 
-    def granulate(self):
+    def granulate(self,ANC_objects):
         '''
         Granulate the ancillary dataset.
         '''
@@ -404,7 +404,8 @@ class OpticalDepth() :
         shipOutToFile(self)
 
 
-    def __retrieve_NAAPS_grib_files(geoDicts):
+
+    def retrieve_NAAPS_grib_files(geoDicts):
         ''' Download the NAAPS GRIB files which cover the dates of the geolocation files.'''
 
         CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
@@ -478,7 +479,7 @@ class OpticalDepth() :
         return gribFiles
 
 
-    def __create_NAAPS_gridBlobs(gribFiles):
+    def create_NAAPS_gridBlobs(gribFiles):
         '''Converts NAAPS GRIB files into NAAPS blobs'''
 
         from copy import deepcopy
@@ -531,7 +532,8 @@ class OpticalDepth() :
         LOG.info('Returning NAAPS GRIB blob file names %r' % (blobFiles))
         return blobFiles
 
-    def __granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
+
+    def granulate_NAAPS_gridBlobs(inDir,geoDicts, gridBlobFiles):
         '''Granulates the input gridded blob files into the required NAAPS granulated datasets.'''
 
         global ancEndian 

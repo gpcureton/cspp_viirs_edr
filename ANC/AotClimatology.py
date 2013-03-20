@@ -58,7 +58,7 @@ def ingest():
     Ingest the ancillary dataset.
     '''
 
-def granulate():
+def granulate(self,ANC_objects):
     '''
     Granulate the ancillary dataset.
     '''

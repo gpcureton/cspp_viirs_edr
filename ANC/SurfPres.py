@@ -59,30 +59,23 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 
-ANC_collectionShortNames = [
-                            'VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran',
-                            'VIIRS-ANC-Sp-Humd-Surf-Mod-Gran',
-                            'VIIRS-ANC-Surf-Ht-Mod-Gran',
-                            'VIIRS-ANC-Temp-Surf2M-Mod-Gran'
-                          ]
-
-# NCEP Surface Pressure Controller
-#NCEP_shortNameToXmlName['VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran'] = 'VIIRS_ANC_GEOPOT_HT_LEV_MOD_GRAN.xml'
-#NCEP_shortNameToXmlName['VIIRS-ANC-Sp-Humd-Surf-Mod-Gran'] = 'VIIRS_ANC_SP_HUMD_SURF_MOD_GRAN.xml'
-#NCEP_shortNameToXmlName['VIIRS-ANC-Surf-Ht-Mod-Gran'] = 'VIIRS_ANC_SURF_HT_MOD_GRAN.xml'
-#NCEP_shortNameToXmlName['VIIRS-ANC-Temp-Surf2M-Mod-Gran'] = 'VIIRS_ANC_TEMP_SURF2M_MOD_GRAN.xml'
-
 class SurfPres() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
         self.collectionShortName = 'VIIRS-ANC-Press-Surf-Mod-Gran'
         self.xmlName = 'VIIRS_ANC_PRESS_SURF_MOD_GRAN.xml'
         self.blobDatasetName = 'surfacePressure'
-        self.dataType = 'float64'
         self.dataType = 'float32'
         self.sourceType = 'NCEP_ANC_Int'
         self.sourceList = ['']
         self.trimObj = ViirsData.ViirsTrimTable()
+
+        self.ANC_collectionShortNames = [
+                                    'VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran', #- Surface Geopotential Height
+                                    'VIIRS-ANC-Sp-Humd-Surf-Mod-Gran',  #- Surface Specific Humidity
+                                    'VIIRS-ANC-Surf-Ht-Mod-Gran',       #- Surface Terrain Height
+                                    'VIIRS-ANC-Temp-Surf2M-Mod-Gran'    #- Surface Air Temperature
+                                  ]
 
         if inDir is None :
             self.inDir = path.abspath(path.curdir)
@@ -105,6 +98,7 @@ class SurfPres() :
         Ingest the ancillary dataset.
         '''
         self.gridData = getattr(ancBlob,self.blobDatasetName).astype(self.dataType)
+        self.gridBlob = ancBlob
 
 
     def setGeolocationInfo(self,dicts):
@@ -115,7 +109,6 @@ class SurfPres() :
         CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
         CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-        csppPython = os.getenv('PY')
     
         ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
@@ -125,8 +118,8 @@ class SurfPres() :
         geo_Collection_ShortName = dicts['N_Collection_Short_Name']
         N_Granule_ID = dicts['N_Granule_ID']
         ObservedStartTimeObj = dicts['ObservedStartTime']
-        geoFiles = glob('%s/%s*' % (self.inDir,URID))
-        geoFiles.sort()
+        geoAscFileName = dicts['_filename']
+        geoBlobFileName = string.replace(geoAscFileName,'asc',geo_Collection_ShortName)
 
         LOG.debug("\n###########################")
         LOG.debug("  Geolocation Information  ")
@@ -135,7 +128,8 @@ class SurfPres() :
         LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
-        LOG.debug("geoFiles : %r" % (geoFiles))
+        LOG.debug("geoAscFileName : %r" % (geoAscFileName))
+        LOG.debug("geoBlobFileName : %r" % (geoBlobFileName))
         LOG.debug("###########################\n")
 
         # Do we have terrain corrected geolocation?
@@ -159,20 +153,19 @@ class SurfPres() :
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
         if path.exists(geoXmlFile):
-            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
 
         # Open the geolocation blob and get the latitude and longitude
 
         endian = self.sdrEndian
 
-        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoBlobFileName, endian=endian)
         geoBlobArrObj = geoBlobObj.as_arrays()
 
         # Get scan_mode to find any bad scans
 
-        scanMode = geoBlobArrObj.scan_mode[:]
-        badScanIdx = np.where(scanMode==254)[0]
-        LOG.debug("Bad Scans: %r" % (badScanIdx))
+        scanMode = getattr(geoBlobArrObj,'scan_mode').astype('uint8')
+        LOG.debug("Scan Mode = %r" % (scanMode))
 
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.
@@ -203,12 +196,13 @@ class SurfPres() :
 
         # Check if the geolocation is in radians, convert to degrees
         if 'RGEO' in geo_Collection_ShortName :
-            LOG.debug("Geolocation is in radians, convert to degrees...")
+            LOG.info("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
             latMin,latMax = np.min(latitude),np.max(latitude)
             latRange = latMax-latMin
+
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
@@ -219,11 +213,11 @@ class SurfPres() :
 
         geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][latitude.dtype.name]
         latitude = ma.array(latitude,mask=latMask,fill_value=geoFillValue)
-        self.latitude = latitude.filled()
+        latitude = latitude.filled()
 
         geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][longitude.dtype.name]
         longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
-        self.longitude = longitude.filled()
+        longitude = longitude.filled()
 
         # Record the corners, taking care to exclude any bad scans...
         nDetectors = 16
@@ -247,6 +241,8 @@ class SurfPres() :
         self.lonMax    = lonMax
         self.lonRange  = lonRange
         self.scanMode  = scanMode
+        self.latitude  = latitude
+        self.longitude = longitude        
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -254,14 +250,15 @@ class SurfPres() :
         # Parse the geolocation asc file to get struct information which will be 
         # written to the ancillary asc files
 
-        geoAscFileName = path.join(self.inDir,URID+".asc")
+        LOG.debug("geolocation asc filename : %s"%(geoAscFileName))
+
         LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
+
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
         self.GRingLongitudeStr = getAscStructs(geoAscFile,"GRingLongitude",12)
 
@@ -331,10 +328,56 @@ class SurfPres() :
         return data,dataIdx
 
 
-    def granulate(self):
+    def granulate(self,ANC_objects):
         '''
         Granulate the ancillary dataset.
         '''
+
+        import ANC
+
+        # Get the geolocation information
+        geoDict = self.geoDict
+        inDir = self.inDir
+
+        # Obtain the required ANC collection shortnames for this algorithm
+        collectionShortNames = []
+        for shortName in self.ANC_collectionShortNames :
+            LOG.info("Adding %s to the list of required collection short names..." \
+                    %(shortName))
+            collectionShortNames.append(shortName)        
+
+        # Create a dict of ANC class instances, which will handle ingest and 
+        # granulation
+        #ANC_objects = {}
+        for shortName in collectionShortNames :
+            className = ANC.classNames[shortName]
+            ANC_objects[shortName] = getattr(ANC,className)(inDir=inDir)
+            LOG.info("ANC_objects[%s].blobDatasetName = %r" % (shortName,ANC_objects[shortName].blobDatasetName))
+
+        # Ingest the ANC gridded data and copy to the gridData attribute of the ANC objects
+        for shortName in collectionShortNames :
+            if ANC_objects[shortName].sourceType == 'NCEP_ANC_Int' :
+                ANC_objects[shortName].sourceList = self.sourceList
+                ANC_objects[shortName].ingest(ancBlob=self.gridBlob)
+            else :
+                ANC_objects[shortName].ingest()
+            LOG.info("Ingesting ANC_objects gridded  %s" % (shortName))
+
+        # Loop through the required ANC datasets and create the blobs.
+        for shortName in collectionShortNames :
+        
+            LOG.debug("Processing dataset %s for %s" % (ANC_objects[shortName].blobDatasetName,shortName))
+
+            # Set the geolocation information in this ancillary object for the current granule...
+            ANC_objects[shortName].setGeolocationInfo(geoDict)
+
+            # Granulate the gridded data in this ancillary object for the current granule...
+            ANC_objects[shortName].granulate(ANC_objects)
+            #ANC_objects[shortName].shipOutToFile()
+
+        # Now that we have the prerequisite data, granulate and terrain-correct the NCEP
+        # surface pressure...
+
         LOG.info("Granulating %s ..." % (self.collectionShortName))
 
         degInc = 0.5
@@ -368,10 +411,13 @@ class SurfPres() :
             LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
             LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
-
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))
         LOG.debug("max of gridData  = %r"%(np.max(gridData)))
 
+        # Get the natural logarithm of the NCEP surface pressure
+        gridData = np.log(gridData)
+
+        # Granulate...
         t1 = time()
         data,dataIdx = self._grid2Gran_bilinearInterp(np.ravel(latitude),
                                   np.ravel(longitude),
@@ -387,6 +433,30 @@ class SurfPres() :
 
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
+
+
+        # Correct the NCEP surface pressure
+        from ProCmnPhysConst import MOIST_AIR_LAPSE_RATE, GRAVITY, DRYGAS
+
+        # Exponentiate the logarithm of the surface pressure...
+        surfacePressure = np.exp(data)
+
+        # Compute the virtual temperature
+        surfaceTemperature = ANC_objects['VIIRS-ANC-Temp-Surf2M-Mod-Gran'].data
+        surfaceHumidity = ANC_objects['VIIRS-ANC-Sp-Humd-Surf-Mod-Gran'].data
+        virtualTemperature = surfaceTemperature / (1. - (0.6 * surfaceHumidity))
+
+        # Compute the difference between the terrain the the geoid
+        geopotentialHeight = ANC_objects['VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran'].data
+        terrainHeight = ANC_objects['VIIRS-ANC-Surf-Ht-Mod-Gran'].data
+        heightDifference = terrainHeight - geopotentialHeight
+
+        # Compute the mean virtual temperature
+        meanVirtualTemperature = virtualTemperature - (MOIST_AIR_LAPSE_RATE * (heightDifference/2.))
+
+        # Compute terrain corrected surface pressure
+        data = surfacePressure * (np.exp(-1.*heightDifference * (GRAVITY/(DRYGAS * meanVirtualTemperature))))
+
 
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
