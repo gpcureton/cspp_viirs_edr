@@ -726,92 +726,6 @@ def generate_viirs_aerosol_edr_xml(work_dir, granule_seq):
     return to_process
 
 
-def _granulate_GridIP(inDir,geoDicts):
-    '''Granulates the input gridded static data into the required GridIP granulated datasets.'''
-
-    import GridIP
-    import Algorithms
-    global ancEndian 
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    
-    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
-
-    # Ordered list of required algorithms (to be passed in)
-    algList = ['VCM']
-    #algList = ['VCM','AOT']
-    
-    # Collection shortnames of the required GridIP static ancillary datasets
-    # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
-
-    # Create a list of algorithm module "pointers"
-    algorithms = []
-    for alg in algList :
-        algName = Algorithms.modules[alg]
-        algorithms.append(getattr(Algorithms,algName))
-
-    # Obtain the required GridIP collection shortnames for each algorithm
-    collectionShortNames = []
-    for alg in algorithms :
-        for shortName in alg.GridIP_collectionShortNames :
-            LOG.info("Adding %s to the list of required collection short names..." \
-                    %(shortName))
-            collectionShortNames.append(shortName)
-
-    # Remove duplicate shortNames
-    collectionShortNames = list(set(collectionShortNames))
-    LOG.info("collectionShortNames = %r" %(collectionShortNames))
-
-    # Create a dict of GridIP class instances, which will handle ingest and granulation.
-    GridIP_objects = {}
-    for shortName in collectionShortNames :
-        className = GridIP.classNames[shortName]
-        GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir)
-        LOG.info("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
-        if (np.shape(GridIP_objects[shortName].collectionShortName) != () ):
-            LOG.info("    GridIP_objects[%s].collectionShortName = %r" % (shortName,GridIP_objects[shortName].collectionShortName))
-            LOG.info("    GridIP_objects[%s].xmlName = %r" % (shortName,GridIP_objects[shortName].xmlName))
-            GridIP_objects[shortName].collectionShortName = shortName
-            GridIP_objects[shortName].xmlName = GridIP_objects[shortName].xmlName[shortName]
-            LOG.info("New GridIP_objects[%s].collectionShortName = %r" % (shortName,GridIP_objects[shortName].collectionShortName))
-            LOG.info("New GridIP_objects[%s].xmlName = %r" % (shortName,GridIP_objects[shortName].xmlName))
-
-    #sys.exit(0)
-
-    # Loop through the required GridIP datasets and create the blobs.
-    granIdKey = lambda x: (x['N_Granule_ID'])
-    for dicts in sorted(geoDicts,key=granIdKey):
-        for shortName in collectionShortNames :
-        
-            LOG.info("Processing dataset %s for %s" % (GridIP_objects[shortName].blobDatasetName,shortName))
-
-            # Set the geolocation information in this ancillary object for the current granule...
-            GridIP_objects[shortName].setGeolocationInfo(dicts)
-
-            LOG.debug("min,max,range of latitude: %f %f %f" % (\
-                    GridIP_objects[shortName].latMin,\
-                    GridIP_objects[shortName].latMax,\
-                    GridIP_objects[shortName].latRange))
-            LOG.debug("min,max,range of longitude: %f %f %f" % (\
-                    GridIP_objects[shortName].lonMin,\
-                    GridIP_objects[shortName].lonMax,\
-                    GridIP_objects[shortName].lonRange))
-
-            LOG.debug("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
-            LOG.debug("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
-
-            # Subset the gridded data for this ancillary object to cover the required lat/lon range.
-            GridIP_objects[shortName].subset()
-
-            # Granulate the gridded data in this ancillary object for the current granule...
-            GridIP_objects[shortName].granulate(GridIP_objects)
-
-            # Shipout the granulated data in this ancillary object to a blob/asc pair.
-            GridIP_objects[shortName].shipOutToFile()
-
-
 def _getURID() :
     '''
     Create a new URID to be used in making the asc filenames
@@ -1010,7 +924,7 @@ def _setupAuxillaryFiles(inDir):
             raise
 
 
-def _granulate_ANC(inDir,geoDicts):
+def _granulate_ANC(inDir,geoDicts,algList):
     '''Granulates the input gridded blob files into the required ANC granulated datasets.'''
 
     import ANC
@@ -1023,10 +937,6 @@ def _granulate_ANC(inDir,geoDicts):
     
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-    # Ordered list of required algorithms (to be passed in)
-    algList = ['VCM']
-    #algList = ['VCM','AOT']
-    
     # Download the required NCEP grib files
     LOG.info("Downloading NCEP GRIB ancillary into cache...")
     gribFiles = ANC.retrieve_NCEP_grib_files(geoDicts)
@@ -1041,6 +951,19 @@ def _granulate_ANC(inDir,geoDicts):
         LOG.error('Failed to convert NCEP GRIB  files to blobs, aborting.')
         sys.exit(1)
 
+    # Open the NCEP gridded blob file
+    # FIXME : Should be using two NCEP blob files, and averaging
+    ncepXmlFile = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
+    gridBlobFile = gridBlobFiles[0]
+
+    if path.exists(ncepXmlFile):
+        LOG.debug("We are using for %s: %s,%s" %('NCEP-ANC-Int',ncepXmlFile,gridBlobFile))
+    
+    endian = ancEndian
+    ncepBlobObj = adl_blob.map(ncepXmlFile,gridBlobFile, endian=endian)
+    ncepBlobArrObj = ncepBlobObj.as_arrays()
+    LOG.debug("%s...\n%r" % (gridBlobFile,ncepBlobArrObj._fields))
+    
     # Create a list of algorithm module "pointers"
     algorithms = []
     for alg in algList :
@@ -1066,20 +989,15 @@ def _granulate_ANC(inDir,geoDicts):
         className = ANC.classNames[shortName]
         ANC_objects[shortName] = getattr(ANC,className)(inDir=inDir)
         LOG.info("ANC_objects[%s].blobDatasetName = %r" % (shortName,ANC_objects[shortName].blobDatasetName))
+        # Just in case the same ANC class handles more than one collection short name
+        if (np.shape(ANC_objects[shortName].collectionShortName) != () ):
+            LOG.info("    ANC_objects[%s].collectionShortName = %r" % (shortName,ANC_objects[shortName].collectionShortName))
+            LOG.info("    ANC_objects[%s].xmlName = %r" % (shortName,ANC_objects[shortName].xmlName))
+            ANC_objects[shortName].collectionShortName = shortName
+            ANC_objects[shortName].xmlName = ANC_objects[shortName].xmlName[shortName]
+            LOG.info("New ANC_objects[%s].collectionShortName = %r" % (shortName,ANC_objects[shortName].collectionShortName))
+            LOG.info("New ANC_objects[%s].xmlName = %r" % (shortName,ANC_objects[shortName].xmlName))
 
-    # Open the NCEP gridded blob file
-    # FIXME : Should be using two NCEP blob files, and averaging
-    ncepXmlFile = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
-    gridBlobFile = gridBlobFiles[0]
-
-    if path.exists(ncepXmlFile):
-        LOG.debug("We are using for %s: %s,%s" %('NCEP-ANC-Int',ncepXmlFile,gridBlobFile))
-    
-    endian = ancEndian
-    ncepBlobObj = adl_blob.map(ncepXmlFile,gridBlobFile, endian=endian)
-    ncepBlobArrObj = ncepBlobObj.as_arrays()
-    LOG.debug("%s...\n%r" % (gridBlobFile,ncepBlobArrObj._fields))
-    
     # Ingest the ANC gridded data and copy to the gridData attribute of the ANC objects
     for shortName in collectionShortNames :
         if ANC_objects[shortName].sourceType == 'NCEP_ANC_Int' :
@@ -1100,239 +1018,79 @@ def _granulate_ANC(inDir,geoDicts):
             ANC_objects[shortName].setGeolocationInfo(dicts)
 
             # Granulate the gridded data in this ancillary object for the current granule...
-            ANC_objects[shortName].granulate()
+            ANC_objects[shortName].granulate(ANC_objects)
 
             # Shipout the granulated data in this ancillary object to a blob/asc pair.
             ANC_objects[shortName].shipOutToFile()
 
 
-# Look through new log files for completed messages
-# based on CrIS SDR original
-#def check_log_files(work_dir, pid, xml):
-    #"""
-    #Find the log file
-    #Look for success
-    #Return True if found
-    #Display log message and hint if problem occurred
-    #"""
-    ## retrieve exe name and log path from lw file
-    #logpat = path.join(work_dir, "log", "*%d*.log" % pid)
+def _granulate_GridIP(inDir,geoDicts,algList):
+    '''Granulates the input gridded static data into the required GridIP granulated datasets.'''
 
-    #n_err=0
-    #for logFile in glob(logpat):
-        #LOG.debug( "Checking Log file " +logFile +" for errors.")
-        #n_err += adl_log.scan_log_file(COMMON_LOG_CHECK_TABLE, logFile)
+    import GridIP
+    import Algorithms
+    global ancEndian 
 
-    #if n_err == 0 :
-        #LOG.debug(" Log: "+ logFile + " "+ xml + " Completed successfully" )
-        #return True
-    #else :
-        #LOG.error( " Log: "+ logFile +" " + xml + " Completed unsuccessfully" )
-        #return False
-
-
-#def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS EDR MASKS XML input in sequence
-    return the list of granule IDs which crashed, and list of granule ids which did not create output
-    """
-    #crashed_runs = set()
-    #no_output_runs = set()
-    #geo_problem_runs = set()
-    #bad_log_runs = set()
-    #first = True
-
-    # obtain pre-existing granule list
-    #modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
-    #cmaskPattern = path.join(work_dir, 'IICMO*.h5')
-    #activeFiresPattern = path.join(work_dir, 'AVAFO*.h5')
-    # TODO : Enable for VIIRS AOT
-    #aotIpPattern = path.join(work_dir, 'IVAOT*.h5')
-    #aotEdrPattern = path.join(work_dir, 'VAOOO*.h5')
-    #suspMatEdrPattern = path.join(work_dir, 'VSUMO*.h5')
-
-    # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
-    # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     
-    # Get the N_GranuleID and filename of existing cmask files in the work_dir ? ...
-    #cmask_prior_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH)
-    #LOG.debug('Existing IICMO granules... %s' % (repr(cmask_prior_granules)))
-    #cmask_prior_granules = set(cmask_prior_granules.keys())
-    #LOG.debug(' Set of existing IICMO granules... %s' % (repr(cmask_prior_granules)))
+    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-    ## Get the (N_GranuleID,hdfFileName) pairs for the existing Active fires files
-    #activeFires_prior_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH)
-    #activeFires_prior_granules = set(activeFires_prior_granules.keys())
+    # Collection shortnames of the required GridIP static ancillary datasets
+    # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
 
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol IP files
-    # TODO : Enable for VIIRS AOT
-    #aerosolIP_prior_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH)
-    #aerosolIP_prior_granules = set(aerosolIP_prior_granules.keys())
+    # Create a list of algorithm module "pointers"
+    algorithms = []
+    for alg in algList :
+        algName = Algorithms.modules[alg]
+        algorithms.append(getattr(Algorithms,algName))
 
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol EDR files
-    # TODO : Enable for VIIRS AOT
-    #aerosolEDR_prior_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH)
-    #aerosolEDR_prior_granules = set(aerosolEDR_prior_granules.keys())
+    # Obtain the required GridIP collection shortnames for each algorithm
+    collectionShortNames = []
+    for alg in algorithms :
+        for shortName in alg.GridIP_collectionShortNames :
+            LOG.info("Adding %s to the list of required collection short names..." \
+                    %(shortName))
+            collectionShortNames.append(shortName)
 
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Suspended Matter EDR files
-    # TODO : Enable for VIIRS AOT
-    #suspMatEDR_prior_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH)
-    #suspMatEDR_prior_granules = set(suspMatEDR_prior_granules.keys())
+    # Remove duplicate shortNames
+    collectionShortNames = list(set(collectionShortNames))
+    LOG.info("collectionShortNames = %r" %(collectionShortNames))
 
-    #for granule_id, xml in xml_files_to_process:
+    # Create a dict of GridIP class instances, which will handle ingest and granulation.
+    GridIP_objects = {}
+    for shortName in collectionShortNames :
+        className = GridIP.classNames[shortName]
+        GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir)
+        LOG.info("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
+        # Just in case the same GridIP class handles more than one collection short name
+        if (np.shape(GridIP_objects[shortName].collectionShortName) != () ):
+            LOG.info("    GridIP_objects[%s].collectionShortName = %r" % (shortName,GridIP_objects[shortName].collectionShortName))
+            LOG.info("    GridIP_objects[%s].xmlName = %r" % (shortName,GridIP_objects[shortName].xmlName))
+            GridIP_objects[shortName].collectionShortName = shortName
+            GridIP_objects[shortName].xmlName = GridIP_objects[shortName].xmlName[shortName]
+            LOG.info("New GridIP_objects[%s].collectionShortName = %r" % (shortName,GridIP_objects[shortName].collectionShortName))
+            LOG.info("New GridIP_objects[%s].xmlName = %r" % (shortName,GridIP_objects[shortName].xmlName))
 
-        #t1 = time()
+    # Loop through the required GridIP datasets and create the blobs.
+    granIdKey = lambda x: (x['N_Granule_ID'])
+    for dicts in sorted(geoDicts,key=granIdKey):
+        for shortName in collectionShortNames :
         
-        #cmd = [ADL_VIIRS_MASKS_EDR, xml]
-        ## TODO : Enable for VIIRS AOT
-        ##cmd = [ADL_VIIRS_AEROSOL_EDR, xml]
-        
-        #if setup_only:
-            #print ' '.join(cmd)
-        #else:
-            #LOG.debug('executing "%s"' % ' '.join(cmd))
-            #LOG.debug('additional environment variables: %s' % repr(additional_env))
-            #try:
-                #pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
-                #LOG.debug("%r ran as pid %d" % (cmd, pid))
-                #if not check_log_files(work_dir, pid, xml):
-                    #bad_log_runs.add(granule_id)
+            LOG.info("Processing dataset %s for %s" % (GridIP_objects[shortName].blobDatasetName,shortName))
 
-            #except CalledProcessError as oops:
-                #LOG.debug(traceback.format_exc())
-                #LOG.error('ProEdrViirsMasksController.exe failed on %r: %r. Continuing...' % (xml, oops))
-                #crashed_runs.add(granule_id)
-            #first = False
+            # Set the geolocation information in this ancillary object for the current granule...
+            GridIP_objects[shortName].setGeolocationInfo(dicts)
 
-            ## check new IICMO output granules
-            #cmask_new_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH, state=cmask_ID)
-            #LOG.debug('new IICMO granules after this run: %s' % (repr(cmask_new_granules)))
-            #if granule_id not in cmask_new_granules:
-                #LOG.warning('no IICMO HDF5 output for %s' % (granule_id))
-                #no_output_runs.add(granule_id)
-            #else:
-                #filename = cmask_new_granules[granule_id]
+            # Subset the gridded data for this ancillary object to cover the required lat/lon range.
+            GridIP_objects[shortName].subset()
 
-            ## check new AVAFO output granules
-            #afires_new_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH, state=afires_ID)
-            #LOG.debug('new AVAFO granules after this run: %s' % (repr(afires_new_granules)))
-            #if granule_id not in afires_new_granules:
-                #LOG.warning('no AVAFO HDF5 output for %s' % (granule_id))
-                #no_output_runs.add(granule_id)
-            #else:
-                #filename = afires_new_granules[granule_id]
+            # Granulate the gridded data in this ancillary object for the current granule...
+            GridIP_objects[shortName].granulate(GridIP_objects)
 
-            ## TODO : Enable for VIIRS AOT
-            ## check new IVAOT output granules
-            ##aotIp_new_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH, state=aotIp_ID)
-            ##LOG.debug('new IVAOT granules after this run: %s' % repr(aotIp_new_granules))
-            ##if granule_id not in aotIp_new_granules:
-                ##LOG.warning('no IVAOT HDF5 output for %s' % granule_id)
-                ##no_output_runs.add(granule_id)
-            ##else:
-                ##filename = aotIp_new_granules[granule_id]
-
-            ## TODO : Enable for VIIRS AOT
-            ## check new VAOOO output granules
-            ##aotEdr_new_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH, state=aotEdr_ID)
-            ##LOG.debug('new VAOOO granules after this run: %s' % repr(aotEdr_new_granules))
-            ##if granule_id not in aotEdr_new_granules:
-                ##LOG.warning('no VAOOO HDF5 output for %s' % granule_id)
-                ##no_output_runs.add(granule_id)
-            ##else:
-                ##filename = aotEdr_new_granules[granule_id]
-
-            ## TODO : Enable for VIIRS AOT
-            ## check new VSUMO output granules
-            ##suspMatEdr_new_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH, state=suspMatEdr_ID)
-            ##LOG.debug('new VSUMO granules after this run: %s' % repr(suspMatEdr_new_granules))
-            ##if granule_id not in suspMatEdr_new_granules:
-                ##LOG.warning('no VSUMO HDF5 output for %s' % granule_id)
-                ##no_output_runs.add(granule_id)
-            ##else:
-                ##filename = suspMatEdr_new_granules[granule_id]
-
-        #t2 = time()
-        #LOG.info ( "Controller ran in %f seconds." % (t2-t1))
-
-    #LOG.debug("cmask_ID.values() = %r" % (cmask_ID.values()))
-    #LOG.debug("set(cmask_ID.values()) = %r" % (set(cmask_ID.values())))
-    #LOG.debug("cmask_prior_granules = %r" % (cmask_prior_granules))
-    #cmask_granules_made = set(cmask_ID.values()) - cmask_prior_granules
-
-    #LOG.debug("afires_ID.values() = %r" % (afires_ID.values()))
-    #LOG.debug("set(afires_ID.values()) = %r" % (set(afires_ID.values())))
-    #LOG.debug("activeFires_prior_granules = %r" % (activeFires_prior_granules))
-    #activeFires_granules_made = set(afires_ID.values()) - activeFires_prior_granules
-
-    ## TODO : Enable for VIIRS AOT
-    ##LOG.debug("aotIp_ID.values() = \n%r" % (aotIp_ID.values()))
-    ##LOG.debug("set(aotIp_ID.values()) = \n%r" % (set(aotIp_ID.values())))
-    ##LOG.debug("aerosolIP_prior_granules = \n%r" % (aerosolIP_prior_granules))
-    ##aerosolIP_granules_made = set(aotIp_ID.values()) - aerosolIP_prior_granules
-
-    ## TODO : Enable for VIIRS AOT
-    ##LOG.debug("aotEdr_ID.values() = \n%r" % (aotEdr_ID.values()))
-    ##LOG.debug("set(aotEdr_ID.values()) = \n%r" % (set(aotEdr_ID.values())))
-    ##LOG.debug("aerosolEDR_prior_granules = \n%r" % (aerosolEDR_prior_granules))
-    ##aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
-
-    ## TODO : Enable for VIIRS AOT
-    ##LOG.debug("suspMatEdr_ID.values() = \n%r" % (suspMatEdr_ID.values()))
-    ##LOG.debug("set(suspMatEdr_ID.values()) = \n%r" % (set(suspMatEdr_ID.values())))
-    ##LOG.debug("suspMatEDR_prior_granules = \n%r" % (suspMatEDR_prior_granules))
-    ##suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
-
-
-    #LOG.info('cmask granules created: %s' %( ', '.join(list(cmask_granules_made))))
-    #LOG.info('activeFires granules created: %s' % (', '.join(list(activeFires_granules_made))))
-    ##LOG.info('aerosolIP granules created: %s' % ', '.join(list(aerosolIP_granules_made)))
-    ##LOG.info('aerosolEDR granules created: %s' % ', '.join(list(aerosolEDR_granules_made)))
-    ##LOG.info('suspMatEDR granules created: %s' % ', '.join(list(suspMatEDR_granules_made)))
-
-    #if no_output_runs:
-        #LOG.info('granules that failed to generate output: %s' % (', '.join(no_output_runs)))
-    #if geo_problem_runs:
-        #LOG.warning('granules which had no N_Geo_Ref: %s' % ', '.join(geo_problem_runs))
-    #if crashed_runs:
-        #LOG.warning('granules that crashed ADL: %s' % (', '.join(crashed_runs)))
-    #if bad_log_runs:
-        #LOG.warning('granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
-    #if not cmask_granules_made:
-        #LOG.warning('no HDF5 SDRs were created')
-
-    #return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
-
-
-def _cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
-    """upon successful run, clean out work directory"""
-
-    LOG.info("cleaning up work directory...")
-    for fn in glob(path.join(work_dir, '????????-?????-????????-????????.*')):
-        LOG.debug('removing %s' % (fn))
-        os.unlink(fn)
-
-    LOG.info("Removing task xml files...")
-    for fn in glob(path.join(work_dir, xml_glob)):
-        LOG.debug('removing task file %s' % (fn))
-        os.unlink(fn)
-
-    LOG.info("Removing log directories %s ..."%(log_dir_glob))
-    for dirname in glob(path.join(work_dir,log_dir_glob)):
-        LOG.debug('removing logs in %s' % (dirname))
-        try :
-            rmtree(dirname, ignore_errors=False)
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
-
-    # FIXME : Cannot seem to remove the log directory, complains that the dir is not empty.
-    LOG.info("Removing other directories ...")
-    for dirname in more_dirs:
-        fullDirName = path.join(work_dir,dirname)
-        LOG.debug('removing %s' % (fullDirName))
-        try :
-            rmtree(fullDirName, ignore_errors=False)
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
+            # Shipout the granulated data in this ancillary object to a blob/asc pair.
+            GridIP_objects[shortName].shipOutToFile()
 
 
 def main():
@@ -1573,6 +1331,12 @@ def main():
     LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
     LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
 
+    # Ordered list of required algorithms (to be passed in)
+
+    #algList = ['VCM']
+    algList = ['AOT']
+    #algList = ['VCM','AOT']
+
     # Link in auxillary files
 
     if not options.skipAuxLinking :
@@ -1591,14 +1355,15 @@ def main():
 
         # Granulate the VIIRS ANC data
 
-        _granulate_ANC(work_dir,anc_granules_to_process)
+        _granulate_ANC(work_dir,anc_granules_to_process,algList)
 
         # Granulate the VIIRS GridIP data
 
-        _granulate_GridIP(work_dir,anc_granules_to_process)
+        _granulate_GridIP(work_dir,anc_granules_to_process,algList)
 
         t2 = time()
-        LOG.info( "Generation of VIIRS Masks ancillary data took %f seconds." % (t2-t1))
+
+        LOG.info( "Generation of VIIRS ancillary data took %f seconds." % (t2-t1))
 
     else :
 
@@ -1610,10 +1375,6 @@ def main():
     if not options.skipAlgorithm :
 
         import Algorithms
-
-        # Ordered list of required algorithms (to be passed in)
-        algList = ['VCM']
-        #algList = ['VCM','AOT']
 
         # Create a list of algorithm module "pointers"
         algorithms = []
@@ -1655,10 +1416,16 @@ def main():
                     len(no_output_runs), noncritical_problem, environment_error)
 
         ## if no errors or only non-critical errors: clean up
+        LOG.info("Return code : %d" % (rc))
         if rc == 0 and not options.cspp_debug:
-            LOG.debug("Cleaning up workspace...")
-            _cleanup(work_dir, 'edr_viirs_masks*.xml', 'ProEdrViirsMasksController.exe_*', \
-                    log_dir, anc_dir, perf_dir)
+            LOG.info("Cleaning up workspace...")
+
+            for alg in algorithms :
+
+                algorithmXmlGlob = '%s*.xml' % (alg.algorithmLWxml)
+                algorithmLogGlob = '%s_*' % (alg.controllerBinary)
+
+                alg.cleanup(work_dir, algorithmXmlGlob, algorithmLogGlob, log_dir)
 
             # TODO : Enable for VIIRS AOT
             #_cleanup(work_dir, 'edr_viirs_aerosol*.xml', 'ProEdrViirsAerosolController.exe_*', log_dir, anc_dir, perf_dir)
