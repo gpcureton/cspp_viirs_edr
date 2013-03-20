@@ -24,32 +24,17 @@ __docformat__ = 'Epytext'
 import os, sys, logging, traceback
 from os import path,uname,environ
 import string
-import re
-import uuid
 from subprocess import CalledProcessError, call
 from glob import glob
 from time import time
-from datetime import datetime,timedelta
+from shutil import rmtree
 
-from scipy import round_
-
-import numpy as np
-from numpy import ma
-import copy
-from bisect import bisect_left,bisect_right
-
-import ctypes
-from numpy.ctypeslib import ndpointer
-
-import ViirsData
-
-from NCEPtoBlob import NCEPclass
+from Utils import check_log_files
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
-import adl_asc
-from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
-from adl_common import sh, anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
+#import adl_asc
+#from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
+from adl_common import sh, unpack, env, h5_xdr_inventory
 from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
 # log file scanning
@@ -69,19 +54,17 @@ ANC_collectionShortNames = [
                            'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
                            'VIIRS-ANC-Wind-Speed-Mod-Gran',
                            'VIIRS-ANC-Wind-Direction-Mod-Gran',
-                           'VIIRS-ANC-Press-Surf-Mod-Gran',
                            'VIIRS-ANC-Tot-Col-Mod-Gran',
+                           'VIIRS-ANC-Press-Surf-Mod-Gran',
                            'VIIRS-ANC-Optical-Depth-Mod-Gran'
                           ]
 
-GridIP_collectionShortNames = [
-                            'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran',
-                            'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran',
-                            'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
-                          ]
+GridIP_collectionShortNames = []
 
 controllerBinary = 'ProEdrViirsAerosolController.exe'
 ADL_VIIRS_AEROSOL_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe'))
+
+algorithmLWxml = 'edr_viirs_aerosol'
 
 # Attribute paths for Aerosol EDR and IP
 attributePaths = {}
@@ -139,11 +122,11 @@ xmlTemplate = """<InfTkConfig>
 
 
 def generate_viirs_edr_xml(work_dir, granule_seq):
-    "generate XML files for VIIRS Aerosol IP granule generation"
+    "generate XML files for VIIRS Masks EDR granule generation"
     to_process = []
     for gran in granule_seq:
         name = gran['N_Granule_ID']
-        fnxml = 'edr_viirs_aerosol_%s.xml' % (name)
+        fnxml = '%s_%s.xml' % (algorithmLWxml,name)
         LOG.debug('writing XML file %r' % (fnxml))
         fpxml = file(path.join(work_dir, fnxml), 'wt')
         fpxml.write(xmlTemplate % gran)
@@ -151,29 +134,35 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
     return to_process
 
 
-# Look through new log files for completed messages
-# based on CrIS SDR original
-def check_log_files(work_dir, pid, xml):
-    """
-    Find the log file
-    Look for success
-    Return True if found
-    Display log message and hint if problem occurred
-    """
-    # retrieve exe name and log path from lw file
-    logpat = path.join(work_dir, "log", "*%d*.log" % pid)
+def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
+    """upon successful run, clean out work directory"""
 
-    n_err=0
-    for logFile in glob(logpat):
-        LOG.debug( "Checking Log file " +logFile +" for errors.")
-        n_err += adl_log.scan_log_file(COMMON_LOG_CHECK_TABLE, logFile)
+    LOG.info("Cleaning up work directory...")
+    for fn in glob(path.join(work_dir, '????????-?????-????????-????????.*')):
+        LOG.debug('removing %s' % (fn))
+        os.unlink(fn)
 
-    if n_err == 0 :
-        LOG.debug(" Log: "+ logFile + " "+ xml + " Completed successfully" )
-        return True
-    else :
-        LOG.error( " Log: "+ logFile +" " + xml + " Completed unsuccessfully" )
-        return False
+    LOG.info("Removing task xml files...")
+    for fn in glob(path.join(work_dir, xml_glob)):
+        LOG.debug('removing task file %s' % (fn))
+        os.unlink(fn)
+
+    LOG.info("Removing log directories %s ..."%(log_dir_glob))
+    for dirname in glob(path.join(work_dir,log_dir_glob)):
+        LOG.debug('removing logs in %s' % (dirname))
+        try :
+            rmtree(dirname, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
+
+    LOG.info("Removing other directories ...")
+    for dirname in more_dirs:
+        fullDirName = path.join(work_dir,dirname)
+        LOG.debug('removing %s' % (fullDirName))
+        try :
+            rmtree(fullDirName, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
 
 
 def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
@@ -199,17 +188,22 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     aerosolIP_prior_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH)
     LOG.debug('Existing IVAOT granules... %s' % (repr(cmask_prior_granules)))
 
+    aerosolIP_prior_granules = set(aerosolIP_prior_granules.keys())
+    LOG.debug('Set of existing IVAOT granules... %s' % (repr(aerosolIP_prior_granules)))
+
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol EDR files
     aerosolEDR_prior_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH)
     LOG.debug('Existing VAOOO granules... %s' % (repr(cmask_prior_granules)))
 
+    aerosolEDR_prior_granules = set(aerosolEDR_prior_granules.keys())
+    LOG.debug('Set of existing VAOOO granules... %s' % (repr(aerosolEDR_prior_granules)))
+    
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Suspended Matter EDR files
     suspMatEDR_prior_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH)
     LOG.debug('Existing VSUMO granules... %s' % (repr(cmask_prior_granules)))
 
-    aerosolIP_prior_granules = set(aerosolIP_prior_granules.keys())
-    aerosolEDR_prior_granules = set(aerosolEDR_prior_granules.keys())
     suspMatEDR_prior_granules = set(suspMatEDR_prior_granules.keys())
+    LOG.debug('Set of existing VSUMO granules... %s' % (repr(suspMatEDR_prior_granules)))
 
 
     for granule_id, xml in xml_files_to_process:
@@ -231,7 +225,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
 
             except CalledProcessError as oops:
                 LOG.debug(traceback.format_exc())
-                LOG.error('ProEdrViirsAerosolController.exe failed on %r: %r. Continuing...' % (xml, oops))
+                LOG.error('%s failed on %r: %r. Continuing...' % (controllerBinary, xml, oops))
                 crashed_runs.add(granule_id)
             first = False
 
