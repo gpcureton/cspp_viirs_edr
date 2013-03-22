@@ -124,26 +124,13 @@ LOG = logging.getLogger(sourcename[1])
 from adl_common import configure_logging
 from adl_common import _test_logging as test_logging
 
-# locations of executables in ADL
-ADL_VIIRS_MASKS_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsMasksController.exe'))
-ADL_VIIRS_AEROSOL_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe'))
-ADL_VIIRS_SST_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsSstController.exe'))
+import Algorithms
 
 # we're not likely to succeed in processing using geolocation smaller than this many bytes
 MINIMUM_SDR_BLOB_SIZE = 81000000
 
 # maximum delay between granule end time and next granule start time to consider them contiguous
 MAX_CONTIGUOUS_DELTA=timedelta(seconds = 2)
-
-# Attribute paths for Masks EDR and IP
-MOD_GEO_TC_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
-CM_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0/N_Granule_ID'
-AF_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-AF-EDR/VIIRS-AF-EDR_Gran_0/N_Granule_ID'
-
-# Attribute paths for Aerosol EDR and IP
-AOT_IP_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0/N_Granule_ID'
-AOT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-EDR/VIIRS-Aeros-EDR_Gran_0/N_Granule_ID'
-SUSMAT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-SusMat-EDR/VIIRS-SusMat-EDR_Gran_0/N_Granule_ID'
 
 CSPP_RT_ANC_HOME = path.abspath(os.getenv('CSPP_RT_ANC_HOME'))
 
@@ -173,273 +160,6 @@ def set_anc_endian(inputEndianness) :
         ancEndian = adl_blob.LITTLE_ENDIAN
     else :
         LOG.error('Invalid value for the VIIRS ancillary endianness : %s ' % (inputEndianness))
-
-# QST type value enumerations to be used with the igbp field
-#IGBP_dict = {
-    #'IGBP_EVERNEEDLE'    : 1,
-    #'IGBP_EVERBROAD'     : 2,
-    #'IGBP_DECIDNEEDLE'   : 3,
-    #'IGBP_DECIDBROAD'    : 4,
-    #'IGBP_MIXEDFOREST'   : 5,
-    #'IGBP_CLOSEDSHRUBS'  : 6,
-    #'IGBP_OPENSHRUBS'    : 7,
-    #'IGBP_WOODYSAVANNA'  : 8,
-    #'IGBP_SAVANNA'       : 9,
-    #'IGBP_GRASSLAND'     : 10,
-    #'IGBP_WETLANDS'      : 11,
-    #'IGBP_CROPLANDS'     : 12,
-    #'IGBP_URBAN'         : 13,
-    #'IGBP_CROPNATMOSAIC' : 14,
-    #'IGBP_SNOWICE'       : 15,
-    #'IGBP_BARREN'        : 16,
-    #'IGBP_WATERBODIES'   : 17,
-    #'IGBP_UNCLASSIFIED'  : 30,
-    #'IGBP_FILL'          : 31,
-    #'IGBP_MIN'           : 1,
-    #'IGBP_MAX'           : 17
-#}
-
-# QST Land Water Mask type value enumerations to be used with the qstlwm field
-#QSTLWM_list = [
-    #'EVERGREEN_NEEDLELEAF_FOREST', 'EVERGREEN_BROADLEAF_FORESTS', 'DECIDUOUS_NEEDLELEAF_FORESTS', 'DECIDUOUS_BROADLEAF_FORESTS', 'MIXED_FORESTS', 'CLOSED_SHRUBLANDS', 'OPEN_SHRUBLANDS', 'WOODY_SAVANNAS', 'SAVANNAS', 'GRASSLANDS', 'PERMANENT_WETLANDS', 'CROPLANDS', 'URBAN_AND_BUILDUP_LANDS', 'CROPLAND_NATURAL_VEGETATION', 'SNOW_AND_ICE', 'BARREN_OR_SPARSELY_VEGETATED', 'OCEAN_SEA', 'INLAND_WATER', 'COASTAL_WATER', 'UNCLASSIFIED_LAND', 'FILL_VALUE'
-#]
-#QSTLWM_dict = {
-    #'EVERGREEN_NEEDLELEAF_FOREST'  : 1,
-    #'EVERGREEN_BROADLEAF_FORESTS'  : 2,
-    #'DECIDUOUS_NEEDLELEAF_FORESTS' : 3,
-    #'DECIDUOUS_BROADLEAF_FORESTS'  : 4,
-    #'MIXED_FORESTS'                : 5,
-    #'CLOSED_SHRUBLANDS'            : 6,
-    #'OPEN_SHRUBLANDS'              : 7,
-    #'WOODY_SAVANNAS'               : 8,
-    #'SAVANNAS'                     : 9,
-    #'GRASSLANDS'                   : 10,
-    #'PERMANENT_WETLANDS'           : 11,
-    #'CROPLANDS'                    : 12,
-    #'URBAN_AND_BUILDUP_LANDS'      : 13, 
-    #'CROPLAND_NATURAL_VEGETATION'  : 14,
-    #'SNOW_AND_ICE'                 : 15,
-    #'BARREN_OR_SPARSELY_VEGETATED' : 16,
-    #'OCEAN_SEA'                    : 17,
-    #'INLAND_WATER'                 : 18,
-    #'COASTAL_WATER'                : 19,
-    #'UNCLASSIFIED_LAND'            : 20,
-    #'FILL_VALUE'                   : 255
-#}
-
-# Digital Elevation Model (DEM) land sea mask types
-#DEM_list = ['DEM_SHALLOW_OCEAN','DEM_LAND','DEM_COASTLINE','DEM_SHALLOW_INLAND_WATER','DEM_EPHEMERAL_WATER','DEM_DEEP_INLAND_WATER','DEM_MOD_CONT_OCEAN','DEM_DEEP_OCEAN']
-#DEM_dict = {
-    #'DEM_SHALLOW_OCEAN'        : 0,
-    #'DEM_LAND'                 : 1,
-    #'DEM_COASTLINE'            : 2,
-    #'DEM_SHALLOW_INLAND_WATER' : 3,
-    #'DEM_EPHEMERAL_WATER'      : 4,
-    #'DEM_DEEP_INLAND_WATER'    : 5,
-    #'DEM_MOD_CONT_OCEAN'       : 6,
-    #'DEM_DEEP_OCEAN'           : 7
-#}
-
-#DEM_to_QSTLWM = np.array([
-    #QSTLWM_dict['OCEAN_SEA'],                    # DEM 0 : QSTLWM 17
-    #QSTLWM_dict['EVERGREEN_NEEDLELEAF_FOREST'],  # DEM 1 : QSTLWM  1
-    #QSTLWM_dict['COASTAL_WATER'],                # DEM 2 : QSTLWM 19
-    #QSTLWM_dict['INLAND_WATER'],                 # DEM 3 : QSTLWM 18
-    #QSTLWM_dict['SAVANNAS'],                     # DEM 4 : QSTLWM  9
-    #QSTLWM_dict['OCEAN_SEA'],                    # DEM 5 : QSTLWM 17
-    #QSTLWM_dict['OCEAN_SEA'],                    # DEM 6 : QSTLWM 17
-    #QSTLWM_dict['OCEAN_SEA']                     # DEM 7 : QSTLWM 17
-#],dtype=('uint8'))
-
-
-#def index(a, x):
-    #'''Locate the leftmost value exactly equal to x'''
-    #i = bisect_left(a, x)
-    #if i != len(a) and a[i] == x:
-        #return i
-    #raise ValueError
-
-#def find_lt(a, x):
-    #'''Find rightmost value less than x'''
-    #i = bisect_left(a, x)
-    #if i:
-        #return a[i-1]
-    #raise ValueError
-
-#def find_le(a, x):
-    #'''Find rightmost value less than or equal to x'''
-    #i = bisect_right(a, x)
-    #if i:
-        #return a[i-1]
-    #raise ValueError
-
-#def find_gt(a, x):
-    #'''Find leftmost value greater than x'''
-    #i = bisect_right(a, x)
-    #if i != len(a):
-        #return a[i]
-    #raise ValueError
-
-#def find_ge(a, x):
-    #'''Find leftmost item greater than or equal to x'''
-    #i = bisect_left(a, x)
-    #if i != len(a):
-        #return a[i]
-    #raise ValueError
-
-#def toJulianDate(inTime):
-    #'''
-    #Takes time in regular yyyymmdd format and returns time string in Julian yyyyddd format.
-    #'''
-    #inTime = str(inTime)
-    #try :
-        #return time.strftime("%Y%j",time.strptime(inTime, "%Y%m%d"))
-    #except :
-        #LOG.error("Incorrect data format (%s). Should conform to yyyymmdd." % (inTime))
-        #return 1
-
-#def fromJulianDate(inTime):
-    #'''
-    #Takes time in Julian yyyyddd format and returns time string in regular yyyymmdd format .
-    #'''
-    #inTime = str(inTime)
-    #try :
-        #return time.strftime("%Y%m%d",time.strptime(inTime,"%Y%j"))
-    #except :
-        #LOG.error("Incorrect data format (%s). Should conform to yyyyddd." % (inTime))
-        #return 1
-
-#----------------------------------------------------------------------------
-# Finds the places where the boundary points that will make up a polygon
-# cross the dateline.
-#
-# This method is heavily based on the AltNN NNfind_crossings() method
-#----------------------------------------------------------------------------
-'''
-def findDatelineCrossings(latCrnList,lonCrnList):
-
-    #-------------------------------------------------------------------------
-    # NOTE:  This loop will find the place(s) where the boundary crosses 180
-    # degrees longitude.  It will also record the index after the crossing
-    # for the first two crossings.
-    # 
-    # NOTE:  Since the last point in the boundary is equal to the first point
-    # in the boundary, there is no chance of a crossing between the last
-    # and first points.
-    #
-    # initialize the number of crossings to zero
-    # for loop over the boundary
-    #    if the longitudes cross the 180 degree line, then
-    #       increment the number of crossings
-    #       if this is first crossing, then
-    #          save the index after the crossing
-    #       else if this is the second crossing
-    #          save the index after the second crossing
-    #       endif
-    #    endif
-    # end for loop
-    #-------------------------------------------------------------------------
-
-    status = 0
-    numCrosses = 0
-
-    # For an ascending granule, the corner points are numbered [0,1,3,2], from the southeast
-    # corner moving anti-clockwise.
-
-    LOG.debug("latCrnList = %r " % (latCrnList))
-    LOG.debug("lonCrnList = %r " % (lonCrnList))
-
-    for idx1,idx2 in zip([1,3,2],[0,1,3]):
-        
-        # Convert the longitudes to radians, and calculate the 
-        # absolute difference
-        lon1 = np.radians(lonCrnList[idx1])
-        lon2 = np.radians(lonCrnList[idx2])
-        lonDiff = np.fabs( lon1 - lon2 )
-        
-        if ( np.fabs(lonDiff) > np.pi ):
-
-            # We have a crossing, incrememnt the number of crossings
-            numCrosses += 1
-            
-            if(numCrosses == 1):
-
-                # This was the first crossing
-                cross1Idx_ = idx1
-
-            elif(numCrosses == 2):
-
-                # This was the second crossing
-                cross2Idx_ = idx1
-
-            else :
-
-                # we should never get here
-                return -1
-
-    num180Crossings_ = numCrosses
-
-    # now determine the minimum and maximum latitude
-    maxLat_ = latCrnList[0]
-    minLat_ = maxLat_
-
-    for idx in [1,3,2]:
-        if(latCrnList[idx] > maxLat_):
-            # if current lat is bigger than maxLat_, make the current point the
-            # maximum
-            maxLat_ = latCrnList[idx]
-
-        if(latCrnList[idx] < minLat_):
-            # if current lat is smaller than minLat_, make the current point the
-            # minimum
-            minLat_ = latCrnList[idx]
-
-    return num180Crossings_,minLat_,maxLat_
-
-    return num180Crossings_
-'''
-
-#def isDatelineCrossed(latCrnList,lonCrnList):
-
-    #dateLineCrossed = []
-    #ascendingNode = []
-    #descendingNode = []
-
-    #LOG.debug("Determining granule dateline crossings...")
-
-    #for granLats,granLons in zip(latCrnList,lonCrnList):
-        #LOG.debug("Processing granule...")
-        #isDatelineCrosser = False
-        #isAscendingNode = False
-        #isDecendingNode = False
-
-        ## TODO : Use the ADL method of determining dateline crossings
-        #numCrossings = findDatelineCrossings(granLats,granLons)
-        #LOG.debug("Number of dataline crossings %d" % (numCrossings))
-
-        ## Ascending node ? ...
-        #if (granLats[2] > granLats[0]):
-            #LOG.debug("Ascending node...")
-            #isAscendingNode = True
-            ## Dateline crosser ? ...
-            #if (granLons[0] < granLons[3]):
-                #LOG.debug("Dateline crosser...\n")
-                #isDatelineCrosser = True
-
-        ## Descending node ? ...
-        #if (granLats[0] > granLats[2]):
-            #LOG.debug("Descending node...")
-            #isDecendingNode = True
-            ## Dateline crosser ? ...
-            #if (granLons[1] < granLons[2]):
-                #LOG.debug("Dateline crosser...\n")
-                #isDatelineCrosser = True
-
-        #dateLineCrossed.append(isDatelineCrosser)
-        #ascendingNode.append(isAscendingNode)
-        #descendingNode.append(isDecendingNode)
-
-    #return dateLineCrossed,ascendingNode,descendingNode
 
 
 def _create_input_file_globs(inputFiles):
@@ -489,7 +209,9 @@ def _create_input_file_globs(inputFiles):
 
 
 def _skim_viirs_sdr(collectionShortName,work_dir):
-    "skim for VIIRS SDR data meeting minimum requirements"
+    """
+    Skim for VIIRS SDR data meeting minimum requirements
+    """
     for info in skim_dir(work_dir, N_Collection_Short_Name=collectionShortName):
         print info
         path = info['BlobPath']
@@ -538,7 +260,7 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
             seq.clear()
     # leftovers! yum!
     if seq:
-        LOG.info('contiguous sequence has %d granules' % (len(seq)))
+        LOG.info('Leftover contiguous sequence has %d granules' % (len(seq)))
         yield tuple(sorted(seq.values(), key=start_time_key))
 
 
@@ -557,10 +279,11 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
     if len(geoGroupList)==0:
         return
 
+    # Loop through the contigous granule groups 
     for group in _contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)):
         ##- for VIIRS, we can process everything but the first and last granule
         ##- for CrIS, use [4:-4]
-        LOG.debug('contiguous granule group: %r' % (group,))
+        LOG.info('Contiguous granule group of length: %r' % (len(group),))
 
         if not crossGran :
             startGran,endGran = None,None
@@ -574,159 +297,9 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
                 #pass
             LOG.info('Processing opportunity: %r at %s with uuid %s' % (gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
             yield gran
- 
-# XML template for ProEdrViirsMasksController.exe
-#XML_TMPL_VIIRS_MASKS_EDR = """<InfTkConfig>
-  #<idpProcessName>ProEdrViirsMasksController.exe</idpProcessName>
-  #<siSoftwareId />
-  #<isRestart>FALSE</isRestart>
-  #<useExtSiWriter>FALSE</useExtSiWriter>
-  #<debugLogLevel>LOW</debugLogLevel>
-  #<debugLevel>DBG_HIGH</debugLevel>
-  #<dbgDest>D_FILE</dbgDest>
-  #<enablePerf>FALSE</enablePerf>
-  #<perfPath>${WORK_DIR}/perf</perfPath>
-  #<dbgPath>${WORK_DIR}/log</dbgPath>
-  #<initData>
-     #<domain>OPS</domain>
-     #<subDomain>SUBDOMAIN</subDomain>
-     #<startMode>INF_STARTMODE_COLD</startMode>
-     #<executionMode>INF_EXEMODE_PRIMARY</executionMode>
-     #<healthTimeoutPeriod>30</healthTimeoutPeriod>
-  #</initData>
-  #<lockinMem>FALSE</lockinMem>
-  #<rootDir>${WORK_DIR}</rootDir>
-  #<inputPath>${WORK_DIR}</inputPath>
-  #<outputPath>${WORK_DIR}</outputPath>
-  #<dataStartIET>0000000000000000</dataStartIET>
-  #<dataEndIET>1111111111111111</dataEndIET>
-  #<actualScans>47</actualScans>
-  #<previousActualScans>48</previousActualScans>
-  #<nextActualScans>48</nextActualScans> 
-  #<usingMetadata>TRUE</usingMetadata>
-  #<configGuideName>ProEdrViirsMasksController_GuideList.cfg</configGuideName>
-
-  #<task>
-    #<taskType>EDR</taskType>
-    #<taskDetails1>%(N_Granule_ID)s</taskDetails1>
-    #<taskDetails2>%(N_Granule_Version)s</taskDetails2>
-    #<taskDetails3>NPP</taskDetails3>
-    #<taskDetails4>VIIRS</taskDetails4>
-  #</task>
-#</InfTkConfig>
-#"""
-
-# XML template for ProEdrViirsAerosolController.exe
-XML_TMPL_VIIRS_AEROSOL_EDR = """<InfTkConfig>
-  <idpProcessName>ProEdrViirsAerosolController.exe</idpProcessName>
-  <siSoftwareId></siSoftwareId>
-  <isRestart>FALSE</isRestart>
-  <useExtSiWriter>FALSE</useExtSiWriter>
-  <debugLogLevel>LOW</debugLogLevel>
-  <debugLevel>DBG_LOW</debugLevel>
-  <dbgDest>D_FILE</dbgDest>
-  <enablePerf>FALSE</enablePerf>
-  <perfPath>${WORK_DIR}/perf</perfPath>
-  <dbgPath>${WORK_DIR}/log</dbgPath>
-  <initData>
-     <domain>OPS</domain>
-     <subDomain>SUBDOMAIN</subDomain>
-     <startMode>INF_STARTMODE_COLD</startMode>
-     <executionMode>INF_EXEMODE_PRIMARY</executionMode>
-     <healthTimeoutPeriod>30</healthTimeoutPeriod>
-  </initData>
-  <lockinMem>FALSE</lockinMem>
-  <rootDir>${WORK_DIR}</rootDir>
-  <inputPath>${WORK_DIR}</inputPath>
-  <outputPath>${WORK_DIR}</outputPath>
-  <dataStartIET>0000000000000000</dataStartIET>
-  <dataEndIET>1111111111111111</dataEndIET>
-  <actualScans>0</actualScans>
-  <previousActualScans>0</previousActualScans>
-  <nextActualScans>0</nextActualScans> 
-  <usingMetadata>TRUE</usingMetadata>
-  <configGuideName>ProEdrViirsAerosolController_GuideList.cfg</configGuideName>
-
-  <task>
-    <taskType>EDR</taskType>
-    <taskDetails1>%(N_Granule_ID)s</taskDetails1>
-    <taskDetails2>%(N_Granule_Version)s</taskDetails2>
-    <taskDetails3>NPP</taskDetails3>
-    <taskDetails4>VIIRS</taskDetails4>
-  </task>
-
-</InfTkConfig>
-"""
-
-XML_TMPL_VIIRS_MASKS_EDR_ADL41 = """<InfTkConfig>
-  <idpProcessName>ProEdrViirsMasksController.exe</idpProcessName>
-  <siSoftwareId></siSoftwareId>
-  <isRestart>FALSE</isRestart>
-  <useExtSiWriter>FALSE</useExtSiWriter>
-  <debugLogLevel>NORMAL</debugLogLevel>
-  <debugLevel>DBG_LOW</debugLevel>
-  <dbgDest>D_FILE</dbgDest>
-  <enablePerf>FALSE</enablePerf>
-  <perfPath>${ADL_HOME}/log</perfPath>
-  <dbgPath>${ADL_HOME}/log</dbgPath>
-  <initData>
-     <domain>OPS</domain>
-     <subDomain>SUBDOMAIN</subDomain>
-     <startMode>INF_STARTMODE_COLD</startMode>
-     <executionMode>INF_EXEMODE_PRIMARY</executionMode>
-     <healthTimeoutPeriod>30</healthTimeoutPeriod>
-  </initData>
-  <lockinMem>FALSE</lockinMem>
-  <rootDir>${WORK_DIR}/log</rootDir>
-  <inputPath>${ADL_HOME}/data/input/withMetadata/ProEdrViirsMasksControllerInputs:${WORK_DIR}</inputPath>
-  <outputPath>${ADL_HOME}/data/output/withMetadata/ProEdrViirsMasksControllerOutputs</outputPath>
-  <dataStartIET>0</dataStartIET>
-  <dataEndIET>0</dataEndIET>
-  <actualScans>0</actualScans>
-  <previousActualScans>0</previousActualScans>
-  <nextActualScans>0</nextActualScans> 
-  <usingMetadata>TRUE</usingMetadata>
-  <configGuideName>ProEdrViirsMasksController_GuideListsrm.cfg</configGuideName>
-
-  <task>
-    <taskType>EDR</taskType>
-    <taskDetails1>NPP001212025477</taskDetails1>
-    <taskDetails2>A1</taskDetails2>
-    <taskDetails3>NPP</taskDetails3>
-    <taskDetails4>VIIRS</taskDetails4>
-  </task>
-
-</InfTkConfig>
-
-"""
-
-#def generate_viirs_masks_edr_xml(work_dir, granule_seq):
-    #"generate XML files for VIIRS Masks EDR granule generation"
-    #to_process = []
-    #for gran in granule_seq:
-        #name = gran['N_Granule_ID']
-        #fnxml = 'edr_viirs_masks_%s.xml' % (name)
-        #LOG.debug('writing XML file %r' % (fnxml))
-        #fpxml = file(path.join(work_dir, fnxml), 'wt')
-        #fpxml.write(XML_TMPL_VIIRS_MASKS_EDR % gran)
-        #to_process.append([name,fnxml])
-    #return to_process
 
 
-def generate_viirs_aerosol_edr_xml(work_dir, granule_seq):
-    "generate XML files for VIIRS Masks EDR granule generation"
-    to_process = []
-    for gran in granule_seq:
-        name = gran['N_Granule_ID']
-        fnxml = 'edr_viirs_aerosol_%s.xml' % (name)
-        LOG.debug('writing XML file %r' % (fnxml))
-        fpxml = file(path.join(work_dir, fnxml), 'wt')
-        fpxml.write(XML_TMPL_VIIRS_AEROSOL_EDR % gran)
-        to_process.append([name,fnxml])
-    return to_process
-
-
-def _getURID() :
+def __getURID() :
     '''
     Create a new URID to be used in making the asc filenames
     '''
@@ -773,27 +346,6 @@ def _setupAuxillaryFiles(inDir):
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-    #print "CSPP_RT_HOME =          %r" % (CSPP_RT_HOME)
-    #print "CSPP_RT_ANC_CACHE_DIR = %r" % (CSPP_RT_ANC_CACHE_DIR)
-    #print "ANC_SCRIPTS_PATH =      %r" % (ANC_SCRIPTS_PATH)
-    #print "ADL_ASC_TEMPLATES =     %r" % (ADL_ASC_TEMPLATES)
-    #print "ADL_HOME =              %r" % (ADL_HOME)
-
-    #auxillaryCollShortNames = ['VIIRS-CM-IP-AC-Int','VIIRS-AF-EDR-AC-Int','VIIRS-Aeros-EDR-AC-Int','NAAPS-ANC-Int','AOT-ANC','VIIRS-AOT-LUT','VIIRS-AOT-Sunglint-LUT','VIIRS-AF-EDR-DQTT','VIIRS-Aeros-EDR-DQTT','VIIRS-SusMat-EDR-DQTT']
-    #auxillaryAscTemplateFile = ['VIIRS-CM-IP-AC-Template.asc','VIIRS-AF-EDR-AC-Template.asc','VIIRS-Aeros-EDR-AC-Template.asc','NAAPS-ANC-Inc-Template.asc','AOT-ANC-Template.asc',']
-    #auxillaryBlobTemplateFile = ['template.VIIRS-CM-IP-AC','template.VIIRS-AF-EDR-AC','template.VIIRS-Aeros-EDR-AC','template.NAAPS-ANC-Int','template.AOT-ANC']
-    #auxillaryPaths = ['ViirsEdrMasks_Aux','ViirsEdrMasks_Aux','ViirsEdrMasks_Aux','NAAPS-ANC-Int','ViirsEdrMasks_Aux']
-
-    #auxillaryCollShortNames = ['VIIRS-CM-IP-AC',
-                               #'VIIRS-AF-EDR-AC',
-                               #'VIIRS-AF-EDR-DQTT',
-                               #'VIIRS-Aeros-EDR-AC',
-                               #'VIIRS-Aeros-EDR-DQTT',
-                               #'NAAPS-ANC-Int',
-                               #'AOT-ANC',
-                               #'VIIRS-AOT-LUT',
-                               #'VIIRS-AOT-Sunglint-LUT',
-                               #'VIIRS-SusMat-EDR-DQTT']
 
     auxillaryCollShortNames = ['VIIRS-CM-IP-AC-Int',
                                'VIIRS-AF-EDR-AC-Int',
@@ -866,7 +418,7 @@ def _setupAuxillaryFiles(inDir):
 
         # Create a new URID to be used in making the asc filenames
 
-        URID_dict = _getURID()
+        URID_dict = __getURID()
 
         URID = URID_dict['URID']
         creationDate_nousecStr = URID_dict['creationDate_nousecStr']
@@ -964,6 +516,39 @@ def _granulate_ANC(inDir,geoDicts,algList):
     ncepBlobArrObj = ncepBlobObj.as_arrays()
     LOG.debug("%s...\n%r" % (gridBlobFile,ncepBlobArrObj._fields))
     
+    # Get the NAAPS AOT if required...
+    if 'AOT' in algList :
+        # Download the required NCEP grib files
+        LOG.info("Downloading NAAPS GRIB ancillary into cache...")
+        #gribFiles = ANC.retrieve_NAAPS_grib_files(geoDicts)
+        #LOG.debug('Dynamic ancillary GRIB files: %s' % repr(gribFiles))
+        #if (gribFiles == []) :
+            #LOG.error('Failed to find or retrieve any GRIB files, aborting.')
+            #sys.exit(1)
+
+        # Transcode the NAAPS GRIB files into ADL NAAPS-ANC-Int
+        #gridBlobFiles = ANC.create_NAAPS_grid_blobs(gribFiles)
+        #if (gridBlobFiles == []) :
+            #LOG.error('Failed to convert NAAPS GRIB  files to blobs, aborting.')
+            #sys.exit(1)
+
+        # Open the NAAPS gridded blob file
+        # FIXME : Should be using two NAAPS blob files, and averaging
+        naapsXmlFile = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
+        naapsGridBlobFile = glob(path.join(inDir,"*.NAAPS-ANC-Int"))[0]
+
+        if path.exists(naapsXmlFile):
+            LOG.info("We are using for %s: %s,%s" %('NAAPS-ANC-Int',naapsXmlFile,naapsGridBlobFile))
+        
+        # This is a BIG endian grid blob, usually will be little endian.
+        naapsBlobObj = adl_blob.map(naapsXmlFile,naapsGridBlobFile, endian=adl_blob.BIG_ENDIAN)
+        naapsBlobArrObj = naapsBlobObj.as_arrays()
+        LOG.info("%s...\n%r" % (naapsGridBlobFile,naapsBlobArrObj._fields))
+
+    # Get the Ice Concentration (Weights) if required...
+    if 'SST' in algList :
+        LOG.info("Downloading NCEP MMAB GRIB Ice Concentration into cache...")
+
     # Create a list of algorithm module "pointers"
     algorithms = []
     for alg in algList :
@@ -1003,6 +588,9 @@ def _granulate_ANC(inDir,geoDicts,algList):
         if ANC_objects[shortName].sourceType == 'NCEP_ANC_Int' :
             ANC_objects[shortName].sourceList = gridBlobFiles
             ANC_objects[shortName].ingest(ancBlob=ncepBlobArrObj)
+        elif ANC_objects[shortName].sourceType == 'NAAPS_ANC_Int' :
+            ANC_objects[shortName].sourceList = [naapsGridBlobFile]
+            ANC_objects[shortName].ingest(ancBlob=naapsBlobArrObj)
         else :
             ANC_objects[shortName].ingest()
         LOG.info("Ingesting ANC_objects gridded  %s" % (shortName))
@@ -1230,14 +818,6 @@ def main():
     if not path.isdir(log_dir):
         LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
-    #perf_dir = path.join(work_dir, 'perf')
-    #if not path.isdir(perf_dir):
-        #LOG.debug('creating directory %s' % (perf_dir))
-        #os.makedirs(perf_dir)
-    #anc_dir = path.join(work_dir, 'linked_data')
-    #if not path.isdir(anc_dir):
-        #LOG.debug('creating directory %s' % (anc_dir))
-        #os.makedirs(anc_dir)
 
     # Unpack HDF5 VIIRS SDRs in the input directory to the work directory
     unpacking_problems = 0
@@ -1262,43 +842,103 @@ def main():
 
     LOG.debug("Unpacking problems = %d" % (unpacking_problems))
 
+    # Ordered list of required algorithms (to be passed in)
+    #algList = ['VCM']
+    algList = ['AOT']
+    #algList = ['SST']
+
+    # Determine the ordered list of algs to satisfy the required 
+    # algorithm's dependencies.
+    thisAlg = algList[0]
+    thisAlgPreReqs = copy.copy(Algorithms.prerequisites[thisAlg])
+    thisAlgPreReqs.append(thisAlg)
+    algList = thisAlgPreReqs
+    LOG.info("Required algorithms: %r" % (algList))
+
+    # Determine the number of VIIRS SDR cross granules required to 
+    # process the algorithm chain.
+    cumulativeCrossGranules = {}
+    for alg in algList :
+        crossSum = Algorithms.crossGranules[alg]
+        for preReq in Algorithms.prerequisites[alg]:
+            if preReq is None :
+                pass
+            else :
+                crossSum += Algorithms.crossGranules[preReq]
+        cumulativeCrossGranules[alg] = crossSum
+
+    for alg in algList :
+        LOG.info("We require %d cross granules for %s" % (cumulativeCrossGranules[alg],alg))
+    LOG.info("")
+
+
+    # Create a list of algorithm module "pointers"
+    algorithms = []
+    for alg in algList :
+        algName = Algorithms.modules[alg]
+        algorithms.append(getattr(Algorithms,algName))
+
     # Read through ascii metadata and build up information table
-    LOG.info('Sifting through metadata to find VIIRS SDR processing candidates')
+    LOG.info('Sifting through geolocation metadata to find VIIRS SDR processing candidates...')
     geolocationShortNames = ['VIIRS-MOD-RGEO-TC','VIIRS-MOD-RGEO','VIIRS-MOD-GEO-TC','VIIRS-MOD-GEO']
     anc_granules_to_process = None
-    granules_to_process = None
 
+    # Determine the candidate geolocation granules for which to generate ancillary.
+    # Hint: ... Make ALL THE ANCILLARY! :-)
     for geoType in geolocationShortNames :
-        LOG.info("Searching for VIIRS geolocation %s for ancillary granule IDs..." % (geoType))
+        LOG.info("Searching for candidate %s geolocation granules for VIIRS ancillary..." % (geoType))
         anc_granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType,crossGran=None,work_dir=work_dir)))
-
         if anc_granules_to_process :
-            LOG.info("Searching for VIIRS geolocation %s for product granule IDs..." % (geoType))
-            granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType,crossGran=1,   work_dir=work_dir)))
-        
-        if granules_to_process :
             break
         else :
-            LOG.info("\tNo granules for VIIRS geolocation %s" % (geoType))
+            LOG.info("\tNo %s geolocation granules for VIIRS ancillary" % (geoType))
+    LOG.info("")
 
+    # Determine the candidate geolocation granules for which we can generate VIIRS products.
+    for alg in algorithms :
+        for geoType in geolocationShortNames :
+            LOG.info("Searching for candidate %s geolocation granules for VIIRS %s ..." % (geoType,alg.AlgorithmName))
+            crossGranules = cumulativeCrossGranules[alg.AlgorithmString]
+            alg.granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType, \
+                    crossGran=crossGranules,work_dir=work_dir)))
+            if alg.granules_to_process :
+                LOG.info("")
+                break
+            else :
+                LOG.info("\tNo %s geolocation granules for VIIRS %s" % (geoType,alg.AlgorithmName))
+        if not alg.granules_to_process :
+            LOG.info("")
+        
+    # A key for sorting lists of granule dictionaries according to N_Granule_ID
+    granIdKey = lambda x: (x['N_Granule_ID'])
+
+    if anc_granules_to_process :
+        #LOG.info("")
+        LOG.info("We have %d candidate granules for ancillary." % (len(anc_granules_to_process)))
+        LOG.info("  %13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime'))
+        for dicts in sorted(anc_granules_to_process,key=granIdKey) :
+            LOG.info("  %15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
+
+    for alg in algorithms :
+        if alg.granules_to_process :
+            LOG.info("")
+            LOG.info("We have %d candidate granules for %s" % (len(alg.granules_to_process),alg.AlgorithmName))
+            LOG.info("  %13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime'))
+            for dicts in sorted(alg.granules_to_process,key=granIdKey) :
+                LOG.info("  %15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
+        else :
+            LOG.info("We have %d candidate granules for %s" % (len(alg.granules_to_process),alg.AlgorithmName))
+            num_xml_files_to_process = 0
+            num_no_output_runs = 0
+            noncritical_problem = False
+            environment_error = False
+            return get_return_code(unpacking_problems, num_xml_files_to_process, \
+                    num_no_output_runs, noncritical_problem, environment_error)
+
+    LOG.info("")
     LOG.info('Finished sifting through metadata to find VIIRS SDR processing candidates')
 
-    if granules_to_process :
-        granIdKey = lambda x: (x['N_Granule_ID'])
-
-        ancGransID = ', '.join(x['N_Granule_ID'] for x in sorted(anc_granules_to_process,key=granIdKey))
-        LOG.info("Ancillary granule IDs: %s"%(ancGransID))
-
-        prodGransID = ', '.join(x['N_Granule_ID'] for x in sorted(granules_to_process,key=granIdKey))
-        LOG.info("Product granule IDs: %s"%(', '.join(x['N_Granule_ID'] for x in granules_to_process)))
-    else :
-        LOG.error("Found no granules to process!")
-        num_xml_files_to_process = 0
-        num_no_output_runs = 0
-        noncritical_problem = False
-        environment_error = False
-        return get_return_code(unpacking_problems, num_xml_files_to_process, num_no_output_runs, noncritical_problem, environment_error)
-
+    
     # Set the VIIRS SDR endianness from the input option...
 
     global sdrEndian
@@ -1308,14 +948,6 @@ def main():
 
     global ancEndian
     set_anc_endian(options.anc_Endianness)
-
-    # Get some information about the geolocation files
-
-    LOG.debug("\nGetting geolocation information...")
-
-    LOG.info("%13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime'))
-    for dicts in granules_to_process :
-        LOG.info("%15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
 
     # Expand any user specifiers in the various paths
 
@@ -1330,12 +962,6 @@ def main():
     LOG.debug("CSPP_RT_ANC_TILE_PATH:  %s" % (CSPP_RT_ANC_TILE_PATH))
     LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
     LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
-
-    # Ordered list of required algorithms (to be passed in)
-
-    #algList = ['VCM']
-    algList = ['AOT']
-    #algList = ['VCM','AOT']
 
     # Link in auxillary files
 
@@ -1374,8 +1000,6 @@ def main():
 
     if not options.skipAlgorithm :
 
-        import Algorithms
-
         # Create a list of algorithm module "pointers"
         algorithms = []
         for alg in algList :
@@ -1386,21 +1010,16 @@ def main():
 
             # build XML configuration files for jobs that can be run
             LOG.info("Building %s XML files for %d granules" % \
-                    (alg.AlgorithmString,len(granules_to_process)))
+                    (alg.AlgorithmString,len(alg.granules_to_process)))
 
-            # Generate the VIIRS Cloud Mask/Active Fires LW xml files for each N_Granule_ID...
-            xml_files_to_process = alg.generate_viirs_edr_xml(work_dir, granules_to_process)
+            # Generate the VIIRS LW xml files for each N_Granule_ID for this algorithm.
+            xml_files_to_process = alg.generate_viirs_edr_xml(work_dir, alg.granules_to_process)
         
-            # Generate the VIIRS Cloud Mask/Active Fires LW xml files for each N_Granule_ID...
-            #xml_files_to_process = generate_viirs_masks_edr_xml(work_dir, granules_to_process)
+            LOG.info('%d granules to process: %s' % \
+                    (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' \
+                    for (name,xmlfile) in xml_files_to_process)))
 
-            # TODO : Enable for VIIRS AOT
-            # Generate the VIIRS Aerosol Optical Thickness LW xml files for each N_Granule_ID...
-            #xml_files_to_process = generate_viirs_aerosol_edr_xml(work_dir, granules_to_process)
-
-            LOG.info('%d granules to process: %s' % (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' for (name,xmlfile) in xml_files_to_process)))
-
-            LOG.info("Running VIIRS EDR Masks on XML files")
+            LOG.info("Running VIIRS %s ..." % (alg.AlgorithmName))
             crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = \
                     alg.run_xml_files(work_dir, xml_files_to_process, \
                     setup_only = False, WORK_DIR = work_dir, \
@@ -1415,6 +1034,11 @@ def main():
             rc = get_return_code(unpacking_problems, len(xml_files_to_process), \
                     len(no_output_runs), noncritical_problem, environment_error)
 
+            # If this alg failed, return error code and exit
+            if rc != 0 :
+                LOG.warn("Non-zero error code %d for %s, aborting." % (rc, alg.AlgorithmName))
+                return rc
+
         ## if no errors or only non-critical errors: clean up
         LOG.info("Return code : %d" % (rc))
         if rc == 0 and not options.cspp_debug:
@@ -1427,14 +1051,11 @@ def main():
 
                 alg.cleanup(work_dir, algorithmXmlGlob, algorithmLogGlob, log_dir)
 
-            # TODO : Enable for VIIRS AOT
-            #_cleanup(work_dir, 'edr_viirs_aerosol*.xml', 'ProEdrViirsAerosolController.exe_*', log_dir, anc_dir, perf_dir)
-
         return rc
     
     else :
 
-        LOG.info('Skipping execution of VIIRS Masks Controller.')
+        LOG.info("Skipping execution of VIIRS %s ..." % (alg.AlgorithmName))
 
 
 if __name__=='__main__':

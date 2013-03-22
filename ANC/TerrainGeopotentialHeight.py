@@ -43,8 +43,6 @@ from numpy.ctypeslib import ndpointer
 
 import ViirsData
 
-from NCEPtoBlob import NCEPclass
-
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
 import adl_asc

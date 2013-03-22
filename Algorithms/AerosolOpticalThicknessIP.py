@@ -49,6 +49,8 @@ except :
 
 AlgorithmString = 'AOT'
 
+AlgorithmName = 'Aerosol Optical Thickness IP'
+
 ANC_collectionShortNames = [
                            'VIIRS-ANC-Preci-Wtr-Mod-Gran',
                            'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
@@ -79,13 +81,14 @@ AOT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-EDR/VIIRS-Aeros-EDR_Gr
 SUSMAT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-SusMat-EDR/VIIRS-SusMat-EDR_Gran_0/N_Granule_ID'
 
 # XML template for ProEdrViirsAerosolController.exe
-xmlTemplate = """<InfTkConfig>
+# from ADL/cfg/dynamic/withMetadata/ProEdrViirsAerosolControllerLwFile.xml
+xmlTemplate_old = """<InfTkConfig>
   <idpProcessName>ProEdrViirsAerosolController.exe</idpProcessName>
   <siSoftwareId></siSoftwareId>
   <isRestart>FALSE</isRestart>
   <useExtSiWriter>FALSE</useExtSiWriter>
   <debugLogLevel>LOW</debugLogLevel>
-  <debugLevel>DBG_LOW</debugLevel>
+  <debugLevel>DBG_HIGH</debugLevel>
   <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
   <perfPath>${WORK_DIR}/perf</perfPath>
@@ -120,6 +123,46 @@ xmlTemplate = """<InfTkConfig>
 </InfTkConfig>
 """
 
+xmlTemplate = """<InfTkConfig>
+  <idpProcessName>ProEdrViirsAerosolController.exe</idpProcessName>
+  <siSoftwareId></siSoftwareId>
+  <isRestart>FALSE</isRestart>
+  <useExtSiWriter>FALSE</useExtSiWriter>
+  <debugLogLevel>LOW</debugLogLevel>
+  <debugLevel>DBG_HIGH</debugLevel>
+  <dbgDest>D_FILE</dbgDest>
+  <enablePerf>FALSE</enablePerf>
+  <perfPath>${WORK_DIR}/perf</perfPath>
+  <dbgPath>${WORK_DIR}/log</dbgPath>
+  <initData>
+     <domain>OPS</domain>
+     <subDomain>SUBDOMAIN</subDomain>
+     <startMode>INF_STARTMODE_COLD</startMode>
+     <executionMode>INF_EXEMODE_PRIMARY</executionMode>
+     <healthTimeoutPeriod>30</healthTimeoutPeriod>
+  </initData>
+  <lockinMem>FALSE</lockinMem>
+  <rootDir>${WORK_DIR}</rootDir>
+  <inputPath>${WORK_DIR}</inputPath>
+  <outputPath>${WORK_DIR}</outputPath>
+  <dataStartIET>0</dataStartIET>
+  <dataEndIET>0</dataEndIET>
+  <actualScans>0</actualScans>
+  <previousActualScans>0</previousActualScans>
+  <nextActualScans>0</nextActualScans>
+  <usingMetadata>TRUE</usingMetadata>
+  <configGuideName>ProEdrViirsAerosolController_GuideList.cfg</configGuideName>
+
+  <task>
+    <taskType>EDR</taskType>
+    <taskDetails1>%(N_Granule_ID)s</taskDetails1>
+    <taskDetails2>%(N_Granule_Version)s</taskDetails2>
+    <taskDetails3>NPP</taskDetails3>
+    <taskDetails4>VIIRS</taskDetails4>
+  </task>
+
+</InfTkConfig>
+"""
 
 def generate_viirs_edr_xml(work_dir, granule_seq):
     "generate XML files for VIIRS Masks EDR granule generation"
@@ -134,37 +177,6 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
     return to_process
 
 
-def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
-    """upon successful run, clean out work directory"""
-
-    LOG.info("Cleaning up work directory...")
-    for fn in glob(path.join(work_dir, '????????-?????-????????-????????.*')):
-        LOG.debug('removing %s' % (fn))
-        os.unlink(fn)
-
-    LOG.info("Removing task xml files...")
-    for fn in glob(path.join(work_dir, xml_glob)):
-        LOG.debug('removing task file %s' % (fn))
-        os.unlink(fn)
-
-    LOG.info("Removing log directories %s ..."%(log_dir_glob))
-    for dirname in glob(path.join(work_dir,log_dir_glob)):
-        LOG.debug('removing logs in %s' % (dirname))
-        try :
-            rmtree(dirname, ignore_errors=False)
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
-
-    LOG.info("Removing other directories ...")
-    for dirname in more_dirs:
-        fullDirName = path.join(work_dir,dirname)
-        LOG.debug('removing %s' % (fullDirName))
-        try :
-            rmtree(fullDirName, ignore_errors=False)
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
-
-
 def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
     """Run each VIIRS EDR AEROSOL XML input in sequence.
        Return the list of granule IDs which crashed, 
@@ -177,6 +189,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     first = True
 
     # obtain pre-existing granule list
+    modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
     aotIpPattern = path.join(work_dir, 'IVAOT*.h5')
     aotEdrPattern = path.join(work_dir, 'VAOOO*.h5')
     suspMatEdrPattern = path.join(work_dir, 'VSUMO*.h5')
@@ -186,21 +199,21 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
 
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol IP files
     aerosolIP_prior_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing IVAOT granules... %s' % (repr(cmask_prior_granules)))
+    LOG.debug('Existing IVAOT granules... %s' % (repr(aerosolIP_prior_granules)))
 
     aerosolIP_prior_granules = set(aerosolIP_prior_granules.keys())
     LOG.debug('Set of existing IVAOT granules... %s' % (repr(aerosolIP_prior_granules)))
 
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol EDR files
     aerosolEDR_prior_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing VAOOO granules... %s' % (repr(cmask_prior_granules)))
+    LOG.debug('Existing VAOOO granules... %s' % (repr(aerosolEDR_prior_granules)))
 
     aerosolEDR_prior_granules = set(aerosolEDR_prior_granules.keys())
     LOG.debug('Set of existing VAOOO granules... %s' % (repr(aerosolEDR_prior_granules)))
     
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Suspended Matter EDR files
     suspMatEDR_prior_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing VSUMO granules... %s' % (repr(cmask_prior_granules)))
+    LOG.debug('Existing VSUMO granules... %s' % (repr(suspMatEDR_prior_granules)))
 
     suspMatEDR_prior_granules = set(suspMatEDR_prior_granules.keys())
     LOG.debug('Set of existing VSUMO granules... %s' % (repr(suspMatEDR_prior_granules)))
@@ -296,6 +309,37 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         LOG.warning('No Suspended Matter EDR HDF5 files were created')
 
     return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
+
+
+def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
+    """upon successful run, clean out work directory"""
+
+    LOG.info("Cleaning up work directory...")
+    for fn in glob(path.join(work_dir, '????????-?????-????????-????????.*')):
+        LOG.debug('removing %s' % (fn))
+        os.unlink(fn)
+
+    LOG.info("Removing task xml files...")
+    for fn in glob(path.join(work_dir, xml_glob)):
+        LOG.debug('removing task file %s' % (fn))
+        os.unlink(fn)
+
+    LOG.info("Removing log directories %s ..."%(log_dir_glob))
+    for dirname in glob(path.join(work_dir,log_dir_glob)):
+        LOG.debug('removing logs in %s' % (dirname))
+        try :
+            rmtree(dirname, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
+
+    LOG.info("Removing other directories ...")
+    for dirname in more_dirs:
+        fullDirName = path.join(work_dir,dirname)
+        LOG.debug('removing %s' % (fullDirName))
+        try :
+            rmtree(fullDirName, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
 
 
 def aggregate(fileGlob):

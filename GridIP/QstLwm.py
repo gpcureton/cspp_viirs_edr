@@ -19,6 +19,8 @@ __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
 __version__ = '$Id$'
 __docformat__ = 'Epytext'
 
+
+
 import os, sys, logging, traceback
 from os import path,uname,environ
 import string
@@ -162,7 +164,7 @@ class QstLwm() :
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoAscFileName : %r" % (geoAscFileName))
-        LOG.debug("geoBlobFileName : %r" % (geoAscFileName))
+        LOG.debug("geoBlobFileName : %r" % (geoBlobFileName))
         LOG.debug("###########################\n")
 
         # Do we have terrain corrected geolocation?
@@ -192,13 +194,11 @@ class QstLwm() :
 
         endian = self.sdrEndian
 
-        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
         geoBlobObj = adl_blob.map(geoXmlFile,geoBlobFileName, endian=endian)
         geoBlobArrObj = geoBlobObj.as_arrays()
 
         # Get scan_mode to find any bad scans
 
-        #scanMode = geoBlobArrObj.scan_mode[:]
         scanMode = getattr(geoBlobArrObj,'scan_mode').astype('uint8')
         LOG.debug("Scan Mode = %r" % (scanMode))
 
@@ -287,9 +287,9 @@ class QstLwm() :
         self.lonMin    = lonMin
         self.lonMax    = lonMax
         self.lonRange  = lonRange
+        self.scanMode  = scanMode
         self.latitude  = latitude
         self.longitude = longitude
-        self.scanMode  = scanMode
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -392,7 +392,9 @@ class QstLwm() :
 
 
     def granulate(self,GridIP_objects):
-        '''Granulates the IGBP and LWM datasets, and combines them create the QSTLWM data.'''
+        '''
+        Granulates the IGBP and LWM datasets, and combines them create the QSTLWM data.
+        '''
 
         import GridIP
 

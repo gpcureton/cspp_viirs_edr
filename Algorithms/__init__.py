@@ -19,13 +19,19 @@ __docformat__ = 'Epytext'
 
 import CloudMaskIP
 import AerosolOpticalThicknessIP
+import SeaSurfaceTemperatureEDR
 
 modules = {}
 modules['VCM'] = 'CloudMaskIP'
 modules['AOT'] = 'AerosolOpticalThicknessIP'
-modules['SST'] = 'SeaSurfaceTemperatureIP'
+modules['SST'] = 'SeaSurfaceTemperatureEDR'
+
+crossGranules = {}
+crossGranules['VCM'] = 1
+crossGranules['AOT'] = 1
+crossGranules['SST'] = 0
 
 prerequisites = {}
-prerequisites['VCM'] = []
+prerequisites['VCM'] = [None]
 prerequisites['AOT'] = ['VCM']
 prerequisites['SST'] = ['VCM','AOT']

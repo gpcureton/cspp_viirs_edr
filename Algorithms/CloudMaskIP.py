@@ -49,6 +49,8 @@ except :
 
 AlgorithmString = 'VCM'
 
+AlgorithmName = 'Cloud Mask IP'
+
 ANC_collectionShortNames = [
                            'VIIRS-ANC-Preci-Wtr-Mod-Gran',
                            'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
@@ -82,6 +84,7 @@ CM_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0/N_Granul
 AF_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-AF-EDR/VIIRS-AF-EDR_Gran_0/N_Granule_ID'
 
 # XML template for ProEdrViirsMasksController.exe
+# from ADL/cfg/dynamic/withMetadata/ProEdrViirsMasksControllerLwFile.xml
 xmlTemplate = """<InfTkConfig>
   <idpProcessName>ProEdrViirsMasksController.exe</idpProcessName>
   <siSoftwareId />
@@ -136,37 +139,6 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
     return to_process
 
 
-def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
-    """upon successful run, clean out work directory"""
-
-    LOG.info("Cleaning up work directory...")
-    for fn in glob(path.join(work_dir, '????????-?????-????????-????????.*')):
-        LOG.debug('removing %s' % (fn))
-        os.unlink(fn)
-
-    LOG.info("Removing task xml files...")
-    for fn in glob(path.join(work_dir, xml_glob)):
-        LOG.debug('removing task file %s' % (fn))
-        os.unlink(fn)
-
-    LOG.info("Removing log directories %s ..."%(log_dir_glob))
-    for dirname in glob(path.join(work_dir,log_dir_glob)):
-        LOG.debug('removing logs in %s' % (dirname))
-        try :
-            rmtree(dirname, ignore_errors=False)
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
-
-    LOG.info("Removing other directories ...")
-    for dirname in more_dirs:
-        fullDirName = path.join(work_dir,dirname)
-        LOG.debug('removing %s' % (fullDirName))
-        try :
-            rmtree(fullDirName, ignore_errors=False)
-        except Exception, err:
-            LOG.warn( "%s" % (str(err)))
-
-
 def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
     """Run each VIIRS EDR MASKS XML input in sequence.
        Return the list of granule IDs which crashed, 
@@ -186,7 +158,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
     # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
     
-    # Get the N_GranuleID and filename of existing cmask files in the work_dir ? ...
+    # Get the (N_GranuleID,hdfFileName) pairs for the existing Cloud Mask IP files
     cmask_prior_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH)
     LOG.debug('Existing IICMO granules... %s' % (repr(cmask_prior_granules)))
 
@@ -274,6 +246,37 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         LOG.warning('No Active Fires ARP HDF5 files were created')
 
     return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
+
+
+def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
+    """upon successful run, clean out work directory"""
+
+    LOG.info("Cleaning up work directory...")
+    for fn in glob(path.join(work_dir, '????????-?????-????????-????????.*')):
+        LOG.debug('removing %s' % (fn))
+        os.unlink(fn)
+
+    LOG.info("Removing task xml files...")
+    for fn in glob(path.join(work_dir, xml_glob)):
+        LOG.debug('removing task file %s' % (fn))
+        os.unlink(fn)
+
+    LOG.info("Removing log directories %s ..."%(log_dir_glob))
+    for dirname in glob(path.join(work_dir,log_dir_glob)):
+        LOG.debug('removing logs in %s' % (dirname))
+        try :
+            rmtree(dirname, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
+
+    LOG.info("Removing other directories ...")
+    for dirname in more_dirs:
+        fullDirName = path.join(work_dir,dirname)
+        LOG.debug('removing %s' % (fullDirName))
+        try :
+            rmtree(fullDirName, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
 
 
 def aggregate(fileGlob):

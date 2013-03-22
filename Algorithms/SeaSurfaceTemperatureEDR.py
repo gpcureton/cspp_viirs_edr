@@ -3,7 +3,7 @@
 """
 SeaSurfaceTemperatureEDR.py
 
- * DESCRIPTION:  Class containing data relevent to the VIIRS Cloud Mask IP. 
+ * DESCRIPTION:  Class containing data relevent to the VIIRS Sea Surface Temperature EDR. 
 
 Created by Geoff Cureton on 2013-02-27.
 Copyright (c) 2013 University of Wisconsin SSEC. All rights reserved.
