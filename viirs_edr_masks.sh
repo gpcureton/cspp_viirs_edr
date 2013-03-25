@@ -72,6 +72,10 @@ Options:
     -i INPUTFILES, --input_files=INPUTFILES
                         The fully qualified path to the input files. 
                         May be a directory or a file glob.
+
+    --alg=ALG           The VIIRS algorithm to run.
+                        Possible values are...
+                        'VCM','AOT','SST'
     
   Extra Options:
     These options may be used to customize behaviour of this program.
@@ -89,6 +93,8 @@ Options:
     --skip_algorithm    Skip running the VIIRS Masks algorithm.
     
     --debug             Enable debug mode on ADL and avoid cleaning workspace
+
+    --no_chain          Do not run prerequisite algorithms.
     
     --sdr_endianness=SDR_ENDIANNESS
                         The input VIIRS SDR endianness.
@@ -127,6 +133,7 @@ EOF
 #
 
 INPUT_FILES_OPT=
+ALG_OPT=
 WORK_DIR_OPT=
 SKIP_SDR_UNPACK_OPT=
 SKIP_ANCILLARY_OPT=
@@ -134,11 +141,12 @@ SKIP_ALGORITHM_OPT=
 ANC_ENDIANNESS_OPT=
 SDR_ENDIANNESS_OPT=
 DEBUG_OPT=
+CHAIN_OPT=
 VERBOSITY_OPT=
 
 #echo $@
 
-OPTS=`getopt -o "i:w:dvh" -l "input_files:,work_directory:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,debug,verbose,help" -- "$@"`
+OPTS=`getopt -o "i:w:dvh" -l "input_files:,alg:,work_directory:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,debug,no_chain,verbose,help" -- "$@"`
 
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
@@ -164,6 +172,12 @@ do
             haveFlag=1
             shift 2;;
 
+        --alg)
+            ALG_OPT="--alg=$2"
+            echo "Setting ALG_OPT"
+            haveFlag=1
+            shift 2;;
+
         -w|--work_directory)
             WORK_DIR_OPT="--work_directory=$2"
             #echo "Setting WORK_DIR_OPT"
@@ -172,7 +186,7 @@ do
 
         --sdr_endianness)
             SDR_ENDIANNESS_OPT="--sdr_endianness=$2"
-            echo "Setting SDR_ENDIANNESS_OPT"
+            #echo "Setting SDR_ENDIANNESS_OPT"
             haveFlag=1
             shift 2;;
 
@@ -208,6 +222,12 @@ do
 
         -d|--debug)
             DEBUG_OPT="--debug"
+            #echo "Setting DEBUG_OPT"
+            haveFlag=1
+            shift ;;
+
+        --no_chain)
+            CHAIN_OPT="--no_chain"
             #echo "Setting DEBUG_OPT"
             haveFlag=1
             shift ;;
@@ -249,6 +269,7 @@ then
 fi
 
 #echo "INPUT_FILES_OPT      = "$INPUT_FILES_OPT
+#echo "ALG_OPT              = "$ALG_OPT
 #echo "WORK_DIR_OPT         = "$WORK_DIR_OPT
 #echo "SKIP_SDR_UNPACK_OPT  = "$SKIP_SDR_UNPACK_OPT
 #echo "SKIP_AUX_LINKING_OPT = "$SKIP_AUX_LINKING_OPT
@@ -257,6 +278,7 @@ fi
 #echo "SDR_ENDIANNESS_OPT   = "$SDR_ENDIANNESS_OPT
 #echo "ANC_ENDIANNESS_OPT   = "$ANC_ENDIANNESS_OPT
 #echo "DEBUG_OPT            = "$DEBUG_OPT
+#echo "CHAIN_OPT            = "$CHAIN_OPT
 #echo "VERBOSITY_OPT        = "$VERBOSITY_OPT
 
 
@@ -267,6 +289,7 @@ GDB=''
 
 #echo "$PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr_masks.py \
     #$INPUT_FILES_OPT \
+    #$ALG_OPT \
     #$WORK_DIR_OPT \
     #$SKIP_SDR_UNPACK_OPT \
     #$SKIP_AUX_LINKING_OPT \
@@ -282,6 +305,7 @@ GDB=''
 
 $PY $CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py \
     $INPUT_FILES_OPT \
+    $ALG_OPT \
     $WORK_DIR_OPT \
     $SKIP_SDR_UNPACK_OPT \
     $SKIP_AUX_LINKING_OPT \
@@ -290,6 +314,7 @@ $PY $CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py \
     $SDR_ENDIANNESS_OPT \
     $ANC_ENDIANNESS_OPT \
     $DEBUG_OPT \
+    $CHAIN_OPT \
     $VERBOSITY_OPT
 
 ##############################
