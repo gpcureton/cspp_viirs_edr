@@ -352,7 +352,7 @@ def _setupAuxillaryFiles(inDir):
                                'VIIRS-AF-EDR-DQTT-Int',
                                'VIIRS-Aeros-EDR-AC-Int',
                                'VIIRS-Aeros-EDR-DQTT-Int',
-                               'NAAPS-ANC-Int',
+                               #'NAAPS-ANC-Int',
                                'AOT-ANC',
                                'VIIRS-AOT-LUT',
                                'VIIRS-AOT-Sunglint-LUT',
@@ -363,7 +363,7 @@ def _setupAuxillaryFiles(inDir):
                                 'VIIRS-AF-EDR-DQTT-Int_Template.asc',
                                 'VIIRS-Aeros-EDR-AC-Int_Template.asc',
                                 'VIIRS-Aeros-EDR-DQTT-Int_Template.asc',
-                                'NAAPS-ANC-Int_Template.asc',
+                                #'NAAPS-ANC-Int_Template.asc',
                                 'AOT-ANC_Template.asc',
                                 'VIIRS-AOT-LUT_Template.asc',
                                 'VIIRS-AOT-Sunglint-LUT_Template.asc',
@@ -374,7 +374,7 @@ def _setupAuxillaryFiles(inDir):
                                  'template.VIIRS-AF-EDR-DQTT-Int',
                                  'template.VIIRS-Aeros-EDR-AC-Int',
                                  'template.VIIRS-Aeros-EDR-DQTT-Int',
-                                 'template.NAAPS-ANC-Int',
+                                 #'template.NAAPS-ANC-Int',
                                  'template.AOT-ANC',
                                  'template.VIIRS-AOT-LUT',
                                  'template.VIIRS-AOT-Sunglint-LUT',
@@ -385,7 +385,7 @@ def _setupAuxillaryFiles(inDir):
                       'luts/viirs',
                       'luts/viirs',
                       'luts/viirs',
-                      'NAAPS-ANC-Int',
+                      #'NAAPS-ANC-Int',
                       'luts/viirs',
                       'luts/viirs',
                       'luts/viirs',
@@ -531,6 +531,10 @@ def _granulate_ANC(inDir,geoDicts,algList):
         #if (gridBlobFiles == []) :
             #LOG.error('Failed to convert NAAPS GRIB  files to blobs, aborting.')
             #sys.exit(1)
+
+        # Link in the canned NAAPS gridded file
+        NAAPSblobFile = path.join(CSPP_RT_ANC_CACHE_DIR,'NAAPS-ANC-Int','template.NAAPS-ANC-Int')
+        os.symlink(NAAPSblobFile, 'template.NAAPS-ANC-Int')
 
         # Open the NAAPS gridded blob file
         # FIXME : Should be using two NAAPS blob files, and averaging
@@ -684,6 +688,7 @@ def _granulate_GridIP(inDir,geoDicts,algList):
 def main():
 
     endianChoices = ['little','big']
+    algorithmChoices = ['VCM','AOT','SST']
 
     description = '''Run the ADL VIIRS EDR Masks Controller.'''
     usage = "usage: %prog [mandatory args] [options]"
@@ -701,6 +706,17 @@ def main():
                       dest="inputFiles",
                       type="string",
                       help="The fully qualified path to the input files. May be a directory or a file glob.")
+
+    mandatoryGroup.add_option('--alg',
+                      action="store",
+                      dest="algorithm",
+                      type="choice",
+                      #default='little',
+                      choices=algorithmChoices,
+                      help='''The VIIRS algorithm to run.\n\n
+                              Possible values are...
+                              %s.
+                           ''' % (algorithmChoices.__str__()[1:-1]))
 
     parser.add_option_group(mandatoryGroup)
 
@@ -742,6 +758,12 @@ def main():
                       default=False,
                       help="Enable debug mode on ADL and avoid cleaning workspace")
 
+    optionalGroup.add_option('--no_chain',
+                      action="store_true",
+                      dest="noAlgChain",
+                      default=False,
+                      help="Do not run prerequisite algorithms.")
+
     optionalGroup.add_option('--sdr_endianness',
                       action="store",
                       dest="sdr_Endianness",
@@ -779,13 +801,14 @@ def main():
     # Check that all of the mandatory options are given. If one or more 
     # are missing, print error message and exit...
 
-    mandatories = ['inputFiles']
-    mand_errors = ["Missing mandatory argument [-i input_files --input_files=input_files]"]
+    mandatories = ['inputFiles','algorithm']
+    mand_errors = ["Missing mandatory argument [-i input_files --input_files=input_files]",
+                   "Missing mandatory argument [--alg=%r ]"%(algorithmChoices)]
     isMissingMand = False
     for m,m_err in zip(mandatories,mand_errors):
         if not options.__dict__[m]:
             isMissingMand = True
-            print m_err
+            parser.error(m_err)
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
@@ -843,34 +866,39 @@ def main():
     LOG.debug("Unpacking problems = %d" % (unpacking_problems))
 
     # Ordered list of required algorithms (to be passed in)
-    #algList = ['VCM']
-    algList = ['AOT']
-    #algList = ['SST']
+    algList = [options.algorithm]
 
     # Determine the ordered list of algs to satisfy the required 
     # algorithm's dependencies.
-    thisAlg = algList[0]
-    thisAlgPreReqs = copy.copy(Algorithms.prerequisites[thisAlg])
-    thisAlgPreReqs.append(thisAlg)
-    algList = thisAlgPreReqs
+    if not options.noAlgChain : 
+        LOG.info("We ARE chaining algorithms...")
+        thisAlg = algList[0]
+        thisAlgPreReqs = copy.copy(Algorithms.prerequisites[thisAlg])
+        thisAlgPreReqs.append(thisAlg)
+        algList = thisAlgPreReqs
+    else :
+        LOG.info("We are NOT chaining algorithms...")
+
     LOG.info("Required algorithms: %r" % (algList))
 
     # Determine the number of VIIRS SDR cross granules required to 
     # process the algorithm chain.
     cumulativeCrossGranules = {}
     for alg in algList :
-        crossSum = Algorithms.crossGranules[alg]
-        for preReq in Algorithms.prerequisites[alg]:
-            if preReq is None :
-                pass
-            else :
-                crossSum += Algorithms.crossGranules[preReq]
-        cumulativeCrossGranules[alg] = crossSum
+        if not options.noAlgChain : 
+            crossSum = Algorithms.crossGranules[alg]
+            for preReq in Algorithms.prerequisites[alg]:
+                if preReq is None :
+                    pass
+                else :
+                    crossSum += Algorithms.crossGranules[preReq]
+            cumulativeCrossGranules[alg] = crossSum
+        else :
+            cumulativeCrossGranules[alg] = Algorithms.crossGranules[alg]
 
     for alg in algList :
         LOG.info("We require %d cross granules for %s" % (cumulativeCrossGranules[alg],alg))
     LOG.info("")
-
 
     # Create a list of algorithm module "pointers"
     algorithms = []

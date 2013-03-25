@@ -82,12 +82,12 @@ SUSMAT_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-SusMat-EDR/VIIRS-SusMat-E
 
 # XML template for ProEdrViirsAerosolController.exe
 # from ADL/cfg/dynamic/withMetadata/ProEdrViirsAerosolControllerLwFile.xml
-xmlTemplate_old = """<InfTkConfig>
+xmlTemplate = """<InfTkConfig>
   <idpProcessName>ProEdrViirsAerosolController.exe</idpProcessName>
   <siSoftwareId></siSoftwareId>
   <isRestart>FALSE</isRestart>
   <useExtSiWriter>FALSE</useExtSiWriter>
-  <debugLogLevel>LOW</debugLogLevel>
+  <debugLogLevel>HIGH</debugLogLevel>
   <debugLevel>DBG_HIGH</debugLevel>
   <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
@@ -106,9 +106,9 @@ xmlTemplate_old = """<InfTkConfig>
   <outputPath>${WORK_DIR}</outputPath>
   <dataStartIET>0000000000000000</dataStartIET>
   <dataEndIET>1111111111111111</dataEndIET>
-  <actualScans>0</actualScans>
-  <previousActualScans>0</previousActualScans>
-  <nextActualScans>0</nextActualScans> 
+  <actualScans>47</actualScans>
+  <previousActualScans>48</previousActualScans>
+  <nextActualScans>48</nextActualScans> 
   <usingMetadata>TRUE</usingMetadata>
   <configGuideName>ProEdrViirsAerosolController_GuideList.cfg</configGuideName>
 
@@ -123,7 +123,7 @@ xmlTemplate_old = """<InfTkConfig>
 </InfTkConfig>
 """
 
-xmlTemplate = """<InfTkConfig>
+xmlTemplate_new = """<InfTkConfig>
   <idpProcessName>ProEdrViirsAerosolController.exe</idpProcessName>
   <siSoftwareId></siSoftwareId>
   <isRestart>FALSE</isRestart>
