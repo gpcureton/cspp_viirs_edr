@@ -110,8 +110,8 @@ class TerrainGeopotentialHeight() :
             # Fill the required pixel trim rows in the granulated NCEP data with 
             # the ONBOARD_PT_FILL value for the correct data type
 
-            fillValue = self.trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]        
-            LOG.debug("ONGROUND_PT_FILL for %s is %r" %(data.dtype.name,fillValue))
+            fillValue = self.trimObj.sdrTypeFill['ONGROUND_PT_FILL'][self.dataType]        
+            LOG.debug("ONGROUND_PT_FILL for %s is %r" %(self.dataType,fillValue))
 
             data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
             self.data = data.filled()

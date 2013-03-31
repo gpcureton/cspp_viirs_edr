@@ -57,7 +57,7 @@ try :
 except :
     LOG = logging.getLogger('SurfPres')
 
-from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
+from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile, plotArr
 
 class SurfPres() :
 
@@ -98,6 +98,9 @@ class SurfPres() :
         Ingest the ancillary dataset.
         '''
         self.gridData = getattr(ancBlob,self.blobDatasetName).astype(self.dataType)
+
+        # Get the full NCEP gridded blob so that we can get other NCEP datasets that 
+        # are used to terrain correct the geoid surface pressure stored in self.gridData
         self.gridBlob = ancBlob
 
 
@@ -121,7 +124,7 @@ class SurfPres() :
         geoAscFileName = dicts['_filename']
         geoBlobFileName = string.replace(geoAscFileName,'asc',geo_Collection_ShortName)
 
-        LOG.debug("\n###########################")
+        LOG.debug("###########################")
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
@@ -130,7 +133,7 @@ class SurfPres() :
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoAscFileName : %r" % (geoAscFileName))
         LOG.debug("geoBlobFileName : %r" % (geoBlobFileName))
-        LOG.debug("###########################\n")
+        LOG.debug("###########################")
 
         # Do we have terrain corrected geolocation?
 
@@ -158,6 +161,7 @@ class SurfPres() :
         # Open the geolocation blob and get the latitude and longitude
 
         endian = self.sdrEndian
+        LOG.debug("SDR Endianness is %s" %(endian))
 
         geoBlobObj = adl_blob.map(geoXmlFile,geoBlobFileName, endian=endian)
         geoBlobArrObj = geoBlobObj.as_arrays()
@@ -351,7 +355,8 @@ class SurfPres() :
         #ANC_objects = {}
         for shortName in collectionShortNames :
             className = ANC.classNames[shortName]
-            ANC_objects[shortName] = getattr(ANC,className)(inDir=inDir)
+            ANC_objects[shortName] = getattr(ANC,className)(inDir=inDir, \
+                    sdrEndian=self.sdrEndian,ancEndian=self.ancEndian)
             LOG.info("ANC_objects[%s].blobDatasetName = %r" % (shortName,ANC_objects[shortName].blobDatasetName))
 
         # Ingest the ANC gridded data and copy to the gridData attribute of the ANC objects
@@ -434,9 +439,11 @@ class SurfPres() :
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
+        # Plot the uncorrected surface pressure
+        #plotArr(data,"%s_geoid_%s.png"%(self.collectionShortName,geoDict['N_Granule_ID']))
 
         # Correct the NCEP surface pressure
-        from ProCmnPhysConst import MOIST_AIR_LAPSE_RATE, GRAVITY, DRYGAS
+        from ProCmnPhysConst import MOIST_AIR_LAPSE_RATE, GRAVITY, DRYGAS, STDPSL
 
         # Exponentiate the logarithm of the surface pressure...
         surfacePressure = np.exp(data)
@@ -456,7 +463,13 @@ class SurfPres() :
 
         # Compute terrain corrected surface pressure
         data = surfacePressure * (np.exp(-1.*heightDifference * (GRAVITY/(DRYGAS * meanVirtualTemperature))))
+        data = data.astype(self.dataType)
 
+        # Explicitly restore geolocation fill to the granulated data...
+        fillMask = ma.masked_less(self.latitude,-800.).mask
+        fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
+        data = ma.array(data,mask=fillMask,fill_value=fillValue)
+        data = data.filled()
 
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
@@ -465,7 +478,7 @@ class SurfPres() :
         # Fill the required pixel trim rows in the granulated NCEP data with 
         # the ONBOARD_PT_FILL value for the correct data type
 
-        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
+        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
         self.data = data.filled()
 

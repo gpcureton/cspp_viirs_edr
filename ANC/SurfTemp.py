@@ -385,7 +385,7 @@ class SurfTemp() :
         # Fill the required pixel trim rows in the granulated NCEP data with 
         # the ONBOARD_PT_FILL value for the correct data type
 
-        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]        
+        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
         self.data = data.filled()
 

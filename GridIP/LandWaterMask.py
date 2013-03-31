@@ -485,6 +485,12 @@ class LandWaterMask() :
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
+        # Explicitly restore geolocation fill to the granulated data...
+        fillMask = ma.masked_less(self.latitude,-800.).mask
+        fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
+        data = ma.array(data,mask=fillMask,fill_value=fillValue)
+        data = data.filled()
+
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
         modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
@@ -498,6 +504,7 @@ class LandWaterMask() :
 
         self.testString = "This is a test string from LSM : %s" % (self.geoDict['N_Granule_ID'])
         LOG.debug("self.testString = %s" % (self.testString))
+
 
     def shipOutToFile(self):
         ''' Pass the current class instance to this Utils method to generate 

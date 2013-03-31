@@ -299,188 +299,12 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
             yield gran
 
 
-def __getURID() :
-    '''
-    Create a new URID to be used in making the asc filenames
-    '''
-    
-    URID_dict = {}
-
-    URID_timeObj = datetime.utcnow()
-    
-    creationDateStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
-    creationDate_nousecStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.000000")
-    
-    tv_sec = int(URID_timeObj.strftime("%s"))
-    tv_usec = int(URID_timeObj.strftime("%f"))
-    hostId_ = uuid.getnode()
-    thisAddress = id(URID_timeObj)
-    
-    l = tv_sec + tv_usec + hostId_ + thisAddress
-    
-    URID = '-'.join( ('{0:08x}'.format(tv_sec)[:8],
-                      '{0:05x}'.format(tv_usec)[:5],
-                      '{0:08x}'.format(hostId_)[:8],
-                      '{0:08x}'.format(l)[:8]) )
-    
-    URID_dict['creationDateStr'] = creationDateStr
-    URID_dict['creationDate_nousecStr'] = creationDate_nousecStr
-    URID_dict['tv_sec'] = tv_sec
-    URID_dict['tv_usec'] = tv_usec
-    URID_dict['hostId_'] = hostId_
-    URID_dict['thisAddress'] = thisAddress
-    URID_dict['URID'] = URID
-    
-    return URID_dict
-
-
-def _setupAuxillaryFiles(inDir):
-    '''
-    Create asc files for the various auxillary files (tunable parameters etc...) 
-    in the inDir, and create links to the binary auxillary files in inDir.
-    '''
-
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-
-    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
-
-
-    auxillaryCollShortNames = ['VIIRS-CM-IP-AC-Int',
-                               'VIIRS-AF-EDR-AC-Int',
-                               'VIIRS-AF-EDR-DQTT-Int',
-                               'VIIRS-Aeros-EDR-AC-Int',
-                               'VIIRS-Aeros-EDR-DQTT-Int',
-                               #'NAAPS-ANC-Int',
-                               'AOT-ANC',
-                               'VIIRS-AOT-LUT',
-                               'VIIRS-AOT-Sunglint-LUT',
-                               'VIIRS-SusMat-EDR-DQTT-Int']
-
-    auxillaryAscTemplateFile = ['VIIRS-CM-IP-AC-Int_Template.asc',
-                                'VIIRS-AF-EDR-AC-Int_Template.asc',
-                                'VIIRS-AF-EDR-DQTT-Int_Template.asc',
-                                'VIIRS-Aeros-EDR-AC-Int_Template.asc',
-                                'VIIRS-Aeros-EDR-DQTT-Int_Template.asc',
-                                #'NAAPS-ANC-Int_Template.asc',
-                                'AOT-ANC_Template.asc',
-                                'VIIRS-AOT-LUT_Template.asc',
-                                'VIIRS-AOT-Sunglint-LUT_Template.asc',
-                                'VIIRS-SusMat-EDR-DQTT-Int_Template.asc']
-
-    auxillaryBlobTemplateFile = ['template.VIIRS-CM-IP-AC-Int',
-                                 'template.VIIRS-AF-EDR-AC-Int',
-                                 'template.VIIRS-AF-EDR-DQTT-Int',
-                                 'template.VIIRS-Aeros-EDR-AC-Int',
-                                 'template.VIIRS-Aeros-EDR-DQTT-Int',
-                                 #'template.NAAPS-ANC-Int',
-                                 'template.AOT-ANC',
-                                 'template.VIIRS-AOT-LUT',
-                                 'template.VIIRS-AOT-Sunglint-LUT',
-                                 'template.VIIRS-SusMat-EDR-DQTT-Int']
-
-    auxillaryPaths = ['luts/viirs',
-                      'luts/viirs',
-                      'luts/viirs',
-                      'luts/viirs',
-                      'luts/viirs',
-                      #'NAAPS-ANC-Int',
-                      'luts/viirs',
-                      'luts/viirs',
-                      'luts/viirs',
-                      'luts/viirs']
-
-
-    auxillarySourceFiles = []
-    # Number of characters in a URID, plus the trailing "."...
-    charsInUrid = 32+1
-
-    for templatePath,blobTempFileName in zip(auxillaryPaths,auxillaryBlobTemplateFile) :
-        blobTempFileName = path.join(CSPP_RT_ANC_CACHE_DIR,templatePath,blobTempFileName)
-        if path.islink(blobTempFileName) :
-            LOG.info("%s is a link, resolving auxillary filename..." %(blobTempFileName))
-            auxillarySourceFile = path.basename(os.readlink(blobTempFileName))[charsInUrid:]
-            auxillarySourceFiles.append(auxillarySourceFile)
-        else :
-            auxillarySourceFile = path.basename(blobTempFileName)
-            auxillarySourceFiles.append(auxillarySourceFile)
-
-        LOG.info("Auxillary filename : %s" %(auxillarySourceFile))
-
-    for shortName,auxillarySourceFile in zip(auxillaryCollShortNames,auxillarySourceFiles) :
-        LOG.info("%s --> %s" %(shortName,auxillarySourceFile))
-
-
-    for shortName,ascTemplateFileName,blobTempFileName,templatePath,auxillarySourceFile in zip(auxillaryCollShortNames,auxillaryAscTemplateFile,auxillaryBlobTemplateFile,auxillaryPaths,auxillarySourceFiles):
-
-        #LOG.info("Creating new %s asc file from template %s" % (shortName,ascTemplateFileName))
-
-        # Create a new URID to be used in making the asc filenames
-
-        URID_dict = __getURID()
-
-        URID = URID_dict['URID']
-        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
-        creationDateStr = URID_dict['creationDateStr']
-
-        # The names for the new asc and blob files
-        ascFileName = path.join(inDir,URID+'.asc')
-        blobFileName = path.join(inDir,string.replace(blobTempFileName,'template',URID))
-
-        # Make a new asc file from the template, and substitute for the various tags
-
-        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,ascTemplateFileName)
-
-        LOG.info("Creating new asc file %s from template %s" % \
-                (path.basename(ascFileName),path.basename(ascTemplateFileName)))
-
-        try:
-            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
-            ascFile = open(ascFileName,"wt") # create a new text file
-        except Exception, err :
-            LOG.error("%s, aborting." % (err))
-            sys.exit(1)
-
-        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
-
-        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
-
-        for line in ascTemplateFile.readlines():
-           line = line.replace("CSPP_URID",URID)
-           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
-           line = line.replace("CSPP_AUX_BLOB_FULLPATH",path.basename(blobFileName))
-           line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
-           line = line.replace("CSPP_AUX_SOURCE_FILE",auxillarySourceFile)
-           ascFile.write(line) 
-
-        ascFile.close()
-        ascTemplateFile.close()
-
-        # Create a link between the binary template file and working directory
-
-        blobTempFileName = path.join(CSPP_RT_ANC_CACHE_DIR,templatePath,blobTempFileName)
-        LOG.info("Creating the link %s -> %s" %(blobFileName,blobTempFileName))
-
-        if not path.exists(blobFileName):
-            LOG.debug('%r -> %r' % (blobFileName, blobTempFileName))
-            os.symlink(blobTempFileName, blobFileName)
-        else:
-            LOG.info('%r already exists; continuing' % blobFileName)
-
-        try:
-            LOG.debug('testing %r' % blobFileName)
-            s = os.stat(blobFileName)
-        except OSError as oops:
-            LOG.error("link at %r is broken" % blobFileName)
-            raise
-
-
 def _granulate_ANC(inDir,geoDicts,algList):
     '''Granulates the input gridded blob files into the required ANC granulated datasets.'''
 
     import ANC
     import Algorithms
+    global sdrEndian 
     global ancEndian 
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
@@ -511,7 +335,7 @@ def _granulate_ANC(inDir,geoDicts,algList):
     if path.exists(ncepXmlFile):
         LOG.debug("We are using for %s: %s,%s" %('NCEP-ANC-Int',ncepXmlFile,gridBlobFile))
     
-    endian = ancEndian
+    endian = adl_blob.LITTLE_ENDIAN
     ncepBlobObj = adl_blob.map(ncepXmlFile,gridBlobFile, endian=endian)
     ncepBlobArrObj = ncepBlobObj.as_arrays()
     LOG.debug("%s...\n%r" % (gridBlobFile,ncepBlobArrObj._fields))
@@ -576,7 +400,7 @@ def _granulate_ANC(inDir,geoDicts,algList):
     ANC_objects = {}
     for shortName in collectionShortNames :
         className = ANC.classNames[shortName]
-        ANC_objects[shortName] = getattr(ANC,className)(inDir=inDir)
+        ANC_objects[shortName] = getattr(ANC,className)(inDir=inDir,sdrEndian=sdrEndian,ancEndian=ancEndian)
         LOG.info("ANC_objects[%s].blobDatasetName = %r" % (shortName,ANC_objects[shortName].blobDatasetName))
         # Just in case the same ANC class handles more than one collection short name
         if (np.shape(ANC_objects[shortName].collectionShortName) != () ):
@@ -621,6 +445,7 @@ def _granulate_GridIP(inDir,geoDicts,algList):
 
     import GridIP
     import Algorithms
+    global sdrEndian 
     global ancEndian 
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
@@ -654,7 +479,7 @@ def _granulate_GridIP(inDir,geoDicts,algList):
     GridIP_objects = {}
     for shortName in collectionShortNames :
         className = GridIP.classNames[shortName]
-        GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir)
+        GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir,sdrEndian=sdrEndian)
         LOG.info("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
         # Just in case the same GridIP class handles more than one collection short name
         if (np.shape(GridIP_objects[shortName].collectionShortName) != () ):
@@ -991,14 +816,6 @@ def main():
     LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
     LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
 
-    # Link in auxillary files
-
-    if not options.skipAuxLinking :
-        LOG.info('Linking in the VIIRS EDR auxillary files...')
-        _setupAuxillaryFiles(work_dir)
-    else :
-        LOG.info('Skipping linking in the VIIRS EDR auxillary files.')
-
     # Retrieve and granulate the required ancillary data...
 
     if not options.skipAncillary :
@@ -1022,6 +839,27 @@ def main():
     else :
 
         LOG.info('Skipping retrieval and granulation of ancillary data.')
+
+    # Link in auxillary files
+
+    if not options.skipAuxLinking :
+        LOG.info('Linking in the VIIRS EDR auxillary files...')
+
+        #_setupAuxillaryFiles(work_dir)
+
+        # Create a list of algorithm module "pointers"
+        algs_for_Aux = []
+        for alg in algList :
+            algName = Algorithms.modules[alg]
+            algs_for_Aux.append(getattr(Algorithms,algName))
+
+        for alg in algs_for_Aux :
+            alg.setupAuxillaryFiles(alg, work_dir)
+
+        del(algs_for_Aux)
+
+    else :
+        LOG.info('Skipping linking in the VIIRS EDR auxillary files.')
 
 
     # Specify the algorithm we want to run via the Lw XML file.

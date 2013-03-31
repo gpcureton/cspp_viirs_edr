@@ -29,7 +29,7 @@ from glob import glob
 from time import time
 from shutil import rmtree
 
-from Utils import check_log_files
+from Utils import check_log_files, _setupAuxillaryFiles
 
 # skim and convert routines for reading .asc metadata fields of interest
 #import adl_asc
@@ -64,9 +64,32 @@ GridIP_collectionShortNames = [
                             'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran',
                             'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran',
                             'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
-                            #'VIIRS-GridIP-VIIRS-Qst-Mod-Gran' # Prerequisite for QSTLWM
-                            #'VIIRS-GridIP-VIIRS-Lwm-Mod-Gran' # Prerequisite for QSTLWM, Snow-Ice
                           ]
+
+AUX_collectionShortNames = [
+                            'VIIRS-CM-IP-AC-Int',
+                            'VIIRS-AF-EDR-AC-Int',
+                            'VIIRS-AF-EDR-DQTT-Int'
+                           ]
+
+AUX_ascTemplateFile = [
+                        'VIIRS-CM-IP-AC-Int_Template.asc',
+                        'VIIRS-AF-EDR-AC-Int_Template.asc',
+                        'VIIRS-AF-EDR-DQTT-Int_Template.asc',
+                      ]
+
+AUX_blobTemplateFile = [
+                         'template.VIIRS-CM-IP-AC-Int',
+                         'template.VIIRS-AF-EDR-AC-Int',
+                         'template.VIIRS-AF-EDR-DQTT-Int',
+                       ]
+
+AUX_Paths = [
+             'luts/viirs',
+             'luts/viirs',
+             'luts/viirs',
+             'luts/viirs'
+            ]
 
 controllerBinary = 'ProEdrViirsMasksController.exe'
 ADL_VIIRS_MASKS_EDR=path.abspath(path.join(ADL_HOME, 'bin', controllerBinary))
@@ -125,6 +148,14 @@ xmlTemplate = """<InfTkConfig>
 </InfTkConfig>
 """
 
+def setupAuxillaryFiles(Alg_objects,workDir):
+    '''
+    Call the generic Utils method to link in the auxillary files 
+    specified in Alg_objects to the workDir directory.
+    '''
+
+    _setupAuxillaryFiles(Alg_objects,workDir)
+
 
 def generate_viirs_edr_xml(work_dir, granule_seq):
     "generate XML files for VIIRS Masks EDR granule generation"
@@ -178,6 +209,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         t1 = time()
         
         cmd = [ADL_VIIRS_MASKS_EDR, xml]
+        #cmd = ['/usr/bin/gdb', ADL_VIIRS_MASKS_EDR] # for debugging with gdb...
         
         if setup_only:
             print ' '.join(cmd)

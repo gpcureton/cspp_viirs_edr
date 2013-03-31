@@ -375,7 +375,7 @@ class QstLwm() :
         QSTLWM_coastalWater_idx = np.where(QSTLWM_coastalWater_mask)
         QSTLWM_LSM_idx = np.where(DEM_water_mask)
         
-        QSTLWM_reduced = np.ones(IGBP_reduced.shape,dtype='uint8') * QSTLWM_dict['FILL_VALUE']
+        QSTLWM_reduced = np.ones(IGBP_reduced.shape,dtype=self.dataType) * QSTLWM_dict['FILL_VALUE']
         
         QSTLWM_reduced[QSTLWM_IGBP_idx] = IGBP_reduced[QSTLWM_IGBP_idx]
         QSTLWM_reduced[QSTLWM_coastalWater_idx] = np.array([QSTLWM_dict['COASTAL_WATER']],dtype=QSTLWM_dtype)[0]
@@ -414,7 +414,7 @@ class QstLwm() :
         #GridIP_objects = {}
         for shortName in collectionShortNames :
             className = GridIP.classNames[shortName]
-            GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir)
+            GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir,sdrEndian=self.sdrEndian)
             LOG.debug("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
 
         # Loop through the required GridIP datasets and create the blobs.
@@ -451,6 +451,12 @@ class QstLwm() :
         data = data.astype(self.dataType)
 
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
+
+        # Explicitly restore geolocation fill to the granulated data...
+        fillMask = ma.masked_less(self.latitude,-800.).mask
+        fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
+        data = ma.array(data,mask=fillMask,fill_value=fillValue)
+        data = data.filled()
 
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.

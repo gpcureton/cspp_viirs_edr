@@ -29,7 +29,7 @@ from glob import glob
 from time import time
 from shutil import rmtree
 
-from Utils import check_log_files
+from Utils import check_log_files, _setupAuxillaryFiles
 
 # skim and convert routines for reading .asc metadata fields of interest
 #import adl_asc
@@ -57,6 +57,31 @@ ANC_collectionShortNames = [
 GridIP_collectionShortNames = [
                                 'VIIRS-I-Conc-IP'
                               ]
+
+AUX_collectionShortNames = [
+                            'VIIRS-CM-IP-AC-Int',
+                            'VIIRS-AF-EDR-AC-Int',
+                            'VIIRS-AF-EDR-DQTT-Int'
+                           ]
+
+AUX_ascTemplateFile = [
+                        'VIIRS-CM-IP-AC-Int_Template.asc',
+                        'VIIRS-AF-EDR-AC-Int_Template.asc',
+                        'VIIRS-AF-EDR-DQTT-Int_Template.asc',
+                      ]
+
+AUX_blobTemplateFile = [
+                         'template.VIIRS-CM-IP-AC-Int',
+                         'template.VIIRS-AF-EDR-AC-Int',
+                         'template.VIIRS-AF-EDR-DQTT-Int',
+                       ]
+
+AUX_Paths = [
+             'luts/viirs',
+             'luts/viirs',
+             'luts/viirs',
+             'luts/viirs'
+            ]
 
 controllerBinary = 'ProEdrViirsSstController.exe'
 ADL_VIIRS_SST_EDR=path.abspath(path.join(ADL_HOME, 'bin', controllerBinary))
@@ -116,6 +141,14 @@ xmlTemplate = """<InfTkConfig>
 </InfTkConfig>
 """
 
+def setupAuxillaryFiles(Alg_objects,workDir):
+    '''
+    Call the generic Utils method to link in the auxillary files 
+    specified in Alg_objects to the workDir directory.
+    '''
+
+    _setupAuxillaryFiles(Alg_objects,workDir)
+
 
 def generate_viirs_edr_xml(work_dir, granule_seq):
     "generate XML files for VIIRS Masks EDR granule generation"
@@ -131,7 +164,7 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
 
 
 def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS EDR MASKS XML input in sequence.
+    """Run each VIIRS EDR SST XML input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
     """
@@ -179,7 +212,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
                 crashed_runs.add(granule_id)
             first = False
 
-            # check new IICMO output granules
+            # check new VSSTO output granules
             sst_new_granules, sst_ID = h5_xdr_inventory(sstPattern, SST_GRANULE_ID_ATTR_PATH, state=sst_ID)
             LOG.debug('new VSSTO granules after this run: %s' % (repr(sst_new_granules)))
             if granule_id not in sst_new_granules:
@@ -194,10 +227,10 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
 
     LOG.debug("sst_ID.values() = %r" % (sst_ID.values()))
     LOG.debug("set(sst_ID.values()) = %r" % (set(sst_ID.values())))
-    LOG.debug("cmask_prior_granules = %r" % (cmask_prior_granules))
+    LOG.debug("sst_prior_granules = %r" % (sst_prior_granules))
     sst_granules_made = set(sst_ID.values()) - sst_prior_granules
 
-    LOG.info('Cloud Mask granules created: %s' %( ', '.join(list(sst_granules_made))))
+    LOG.info('Sea Surface Temperature granules created: %s' %( ', '.join(list(sst_granules_made))))
 
 
     if no_output_runs:

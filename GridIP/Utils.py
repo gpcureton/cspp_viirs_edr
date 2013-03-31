@@ -290,6 +290,11 @@ def shipOutToFile(GridIPobj):
     # Create new GridIP ancillary blob, and copy granulated data to it
 
     endian = GridIPobj.ancEndian
+    if endian is adl_blob.LITTLE_ENDIAN :
+        endianString = "LE"
+    else :
+        endianString = "BE"
+
     xmlName = path.join(ADL_HOME,'xml/VIIRS',GridIPobj.xmlName)
 
     # Create a new URID to be used in making the asc filenames
@@ -360,6 +365,7 @@ def shipOutToFile(GridIPobj):
        line = line.replace("CSPP_SOUTH_BOUNDING_COORD",GridIPobj.South_Bounding_Coordinate_Str)
        line = line.replace("CSPP_EAST_BOUNDING_COORD",GridIPobj.East_Bounding_Coordinate_Str)
        line = line.replace("CSPP_WEST_BOUNDING_COORD",GridIPobj.West_Bounding_Coordinate_Str)
+       line = line.replace("CSPP_ANC_ENDIANNESS",endianString)       
        #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
        ascFile.write(line) 
 

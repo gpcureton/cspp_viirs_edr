@@ -65,7 +65,7 @@ class NbarNdvi17Day() :
         self.collectionShortName = 'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'
         self.xmlName = 'VIIRS_GRIDIP_VIIRS_NBAR_NDVI_MOD_GRAN.xml'
         self.blobDatasetName = 'nbarNdvi'
-        self.dataType = 'float64'
+        self.dataType = 'float32'
         self.sourceType = 'NDVI'
         self.sourceList = ['']
         self.trimObj = ViirsData.ViirsTrimTable()
@@ -514,9 +514,14 @@ class NbarNdvi17Day() :
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
+        # Explicitly restore geolocation fill to the granulated data...
+        fillMask = ma.masked_less(self.latitude,-800.).mask
+        fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
+        data = ma.array(data,mask=fillMask,fill_value=fillValue)
+        data = data.filled()
+
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
-
         modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
 
         # Fill the required pixel trim rows in the granulated GridIP data with 

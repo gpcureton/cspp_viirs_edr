@@ -174,7 +174,7 @@ do
 
         --alg)
             ALG_OPT="--alg=$2"
-            echo "Setting ALG_OPT"
+            #echo "Setting ALG_OPT"
             haveFlag=1
             shift 2;;
 

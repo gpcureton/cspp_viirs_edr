@@ -506,6 +506,12 @@ class SnowIceCover() :
         snowIceMask = snowIceMask.filled()
         snowIceMask = snowIceMask.astype(self.dataType)
 
+        # Explicitly restore geolocation fill to the granulated data...
+        fillMask = ma.masked_less(self.latitude,-800.).mask
+        fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
+        data = ma.array(snowIceMask,mask=fillMask,fill_value=fillValue)
+        data = data.filled()
+
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
         modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
@@ -514,8 +520,8 @@ class SnowIceCover() :
         # the ONBOARD_PT_FILL value for the correct data type
 
         fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
-        snowIceMask = ma.array(snowIceMask,mask=modTrimMask,fill_value=fillValue)
-        self.data = snowIceMask.filled()
+        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
+        self.data = data.filled()
 
 
     def shipOutToFile(self):

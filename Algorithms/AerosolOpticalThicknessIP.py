@@ -29,7 +29,7 @@ from glob import glob
 from time import time
 from shutil import rmtree
 
-from Utils import check_log_files
+from Utils import check_log_files, _setupAuxillaryFiles
 
 # skim and convert routines for reading .asc metadata fields of interest
 #import adl_asc
@@ -62,6 +62,42 @@ ANC_collectionShortNames = [
                           ]
 
 GridIP_collectionShortNames = []
+
+AUX_collectionShortNames = [
+                           'VIIRS-Aeros-EDR-AC-Int',
+                           'VIIRS-Aeros-EDR-DQTT-Int',
+                           'AOT-ANC',
+                           'VIIRS-AOT-LUT',
+                           'VIIRS-AOT-Sunglint-LUT',
+                           'VIIRS-SusMat-EDR-DQTT-Int'
+                           ]
+
+AUX_ascTemplateFile = [
+                        'VIIRS-Aeros-EDR-AC-Int_Template.asc',
+                        'VIIRS-Aeros-EDR-DQTT-Int_Template.asc',
+                        'AOT-ANC_Template.asc',
+                        'VIIRS-AOT-LUT_Template.asc',
+                        'VIIRS-AOT-Sunglint-LUT_Template.asc',
+                        'VIIRS-SusMat-EDR-DQTT-Int_Template.asc'
+                      ]
+
+AUX_blobTemplateFile = [
+                         'template.VIIRS-Aeros-EDR-AC-Int',
+                         'template.VIIRS-Aeros-EDR-DQTT-Int',
+                         'template.AOT-ANC',
+                         'template.VIIRS-AOT-LUT',
+                         'template.VIIRS-AOT-Sunglint-LUT',
+                         'template.VIIRS-SusMat-EDR-DQTT-Int'
+                       ]
+
+AUX_Paths = [
+             'luts/viirs',
+             'luts/viirs',
+             'luts/viirs',
+             'luts/viirs',
+             'luts/viirs',
+             'luts/viirs'
+            ]
 
 controllerBinary = 'ProEdrViirsAerosolController.exe'
 ADL_VIIRS_AEROSOL_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe'))
@@ -164,6 +200,16 @@ xmlTemplate_new = """<InfTkConfig>
 </InfTkConfig>
 """
 
+
+def setupAuxillaryFiles(Alg_objects,workDir):
+    '''
+    Call the generic Utils method to link in the auxillary files 
+    specified in Alg_objects to the workDir directory.
+    '''
+
+    _setupAuxillaryFiles(Alg_objects,workDir)
+
+
 def generate_viirs_edr_xml(work_dir, granule_seq):
     "generate XML files for VIIRS Masks EDR granule generation"
     to_process = []
@@ -224,6 +270,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         t1 = time()
         
         cmd = [ADL_VIIRS_AEROSOL_EDR, xml]
+        #cmd = ['/usr/bin/gdb', ADL_VIIRS_AEROSOL_EDR] # for debugging with gdb...
         
         if setup_only:
             print ' '.join(cmd)
