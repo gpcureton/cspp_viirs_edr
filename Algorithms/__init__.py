@@ -32,6 +32,6 @@ crossGranules['AOT'] = 1
 crossGranules['SST'] = 0
 
 prerequisites = {}
-prerequisites['VCM'] = [None]
+prerequisites['VCM'] = []
 prerequisites['AOT'] = ['VCM']
 prerequisites['SST'] = ['VCM','AOT']
