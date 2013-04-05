@@ -52,6 +52,7 @@ AlgorithmString = 'SST'
 AlgorithmName = 'Sea Surface Temperature EDR'
 
 ANC_collectionShortNames = [
+                             'VIIRS-ANC-Temp-Skin-Mod-Gran'
                            ]
 
 GridIP_collectionShortNames = [
@@ -59,28 +60,28 @@ GridIP_collectionShortNames = [
                               ]
 
 AUX_collectionShortNames = [
-                            'VIIRS-CM-IP-AC-Int',
-                            'VIIRS-AF-EDR-AC-Int',
-                            'VIIRS-AF-EDR-DQTT-Int'
+                            'VIIRS-SST-EDR-AC-Int',
+                            'VIIRS-SST-EDR-DQTT-Int',
+                            'VIIRS-SST-Coef-LUT'
                            ]
 
 AUX_ascTemplateFile = [
-                        'VIIRS-CM-IP-AC-Int_Template.asc',
-                        'VIIRS-AF-EDR-AC-Int_Template.asc',
-                        'VIIRS-AF-EDR-DQTT-Int_Template.asc',
+                        'VIIRS-SST-EDR-AC-Int_Template.asc',
+                        'VIIRS-SST-EDR-DQTT-Int_Template.asc',
+                        'VIIRS-SST-Coef-LUT_Template.asc'
                       ]
 
+
 AUX_blobTemplateFile = [
-                         'template.VIIRS-CM-IP-AC-Int',
-                         'template.VIIRS-AF-EDR-AC-Int',
-                         'template.VIIRS-AF-EDR-DQTT-Int',
+                        'template.VIIRS-SST-EDR-AC-Int',
+                        'template.VIIRS-SST-EDR-DQTT-Int',
+                        'template.VIIRS-SST-Coef-LUT'
                        ]
 
 AUX_Paths = [
              'luts/viirs',
              'luts/viirs',
              'luts/viirs',
-             'luts/viirs'
             ]
 
 controllerBinary = 'ProEdrViirsSstController.exe'
@@ -101,9 +102,10 @@ AOT_IP_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aero
 SST_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0/N_Granule_ID'
 
 # XML template for ProEdrViirsSstController.exe
+# from ADL/cfg/dynamic/withMetadata/ProEdrViirsSstControllerLwFile.xml
 xmlTemplate = """<InfTkConfig>
   <idpProcessName>ProEdrViirsSstController.exe</idpProcessName>
-  <siSoftwareId />
+  <siSoftwareId></siSoftwareId>
   <isRestart>FALSE</isRestart>
   <useExtSiWriter>FALSE</useExtSiWriter>
   <debugLogLevel>LOW</debugLogLevel>
@@ -125,11 +127,11 @@ xmlTemplate = """<InfTkConfig>
   <outputPath>${WORK_DIR}</outputPath>
   <dataStartIET>0000000000000000</dataStartIET>
   <dataEndIET>1111111111111111</dataEndIET>
-  <actualScans>47</actualScans>
-  <previousActualScans>48</previousActualScans>
-  <nextActualScans>48</nextActualScans> 
+  <actualScans>0</actualScans>
+  <previousActualScans>0</previousActualScans>
+  <nextActualScans>0</nextActualScans> 
   <usingMetadata>TRUE</usingMetadata>
-  <configGuideName>ProEdrViirsMasksController_GuideList.cfg</configGuideName>
+  <configGuideName>ProEdrViirsSSTController_GuideList.cfg</configGuideName>
 
   <task>
     <taskType>EDR</taskType>
@@ -138,8 +140,10 @@ xmlTemplate = """<InfTkConfig>
     <taskDetails3>NPP</taskDetails3>
     <taskDetails4>VIIRS</taskDetails4>
   </task>
+
 </InfTkConfig>
 """
+
 
 def setupAuxillaryFiles(Alg_objects,workDir):
     '''

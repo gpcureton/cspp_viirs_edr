@@ -32,6 +32,7 @@ from Ozone                     import Ozone
 from OpticalDepth              import OpticalDepth
 from SurfGeopotentialHeight    import SurfGeopotentialHeight
 from SpecSurfHumidity          import SpecSurfHumidity
+from SkinTemp                  import SkinTemp
 
 classNames = {}
 classNames['VIIRS-ANC-Preci-Wtr-Mod-Gran'] = 'PrecipWater'
@@ -44,6 +45,7 @@ classNames['VIIRS-ANC-Tot-Col-Mod-Gran'] = 'Ozone'
 classNames['VIIRS-ANC-Optical-Depth-Mod-Gran'] = 'OpticalDepth'
 classNames['VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran'] = 'SurfGeopotentialHeight'
 classNames['VIIRS-ANC-Sp-Humd-Surf-Mod-Gran'] = 'SpecSurfHumidity'
+classNames['VIIRS-ANC-Temp-Skin-Mod-Gran'] = 'SkinTemp'
 
 #from AotClimatology            import AotClimatology
 #from Bathymetry                import Bathymetry

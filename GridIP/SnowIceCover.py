@@ -291,7 +291,7 @@ class SnowIceCover() :
         try :
             LOG.info('Retrieving NISE files for %s ...' % (dateStamp))
             cmdStr = '%s/get_anc_cspp_nise.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
-            LOG.debug('\t%s' % (cmdStr))
+            LOG.info('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
 
             procRetVal = 0
@@ -308,7 +308,7 @@ class SnowIceCover() :
 
             # TODO : On error, jump to a cleanup routine
             if not (procRetVal == 0) :
-                LOG.error('Retrieval of NISE files failed for %s.' % (dateStamp))
+                LOG.error('Retrieval of NISE files failed for %r.' % (dateStamp))
                 #sys.exit(procRetVal)
 
         except Exception, err:

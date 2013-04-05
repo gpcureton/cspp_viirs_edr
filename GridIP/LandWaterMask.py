@@ -283,7 +283,7 @@ class LandWaterMask() :
 
 
     def subset(self):
-        '''Subsets the IGBP global ecosystem dataset to cover the required geolocation range.'''
+        '''Subsets the LSM dataset to cover the required geolocation range.'''
 
         # Get the subset of DEM global dataset.
 
@@ -489,21 +489,18 @@ class LandWaterMask() :
         fillMask = ma.masked_less(self.latitude,-800.).mask
         fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
         data = ma.array(data,mask=fillMask,fill_value=fillValue)
-        data = data.filled()
+        self.data = data.filled()
 
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
-        modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
+        #modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
 
         # Fill the required pixel trim rows in the granulated GridIP data with 
         # the ONBOARD_PT_FILL value for the correct data type
 
-        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
-        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        self.data = data.filled()
-
-        self.testString = "This is a test string from LSM : %s" % (self.geoDict['N_Granule_ID'])
-        LOG.debug("self.testString = %s" % (self.testString))
+        #fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
+        #data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
+        #self.data = data.filled()
 
 
     def shipOutToFile(self):

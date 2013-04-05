@@ -235,7 +235,9 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
     #start_time_key = lambda x: (x['StartTime'], x.get('N_Granule_Version', None))
     start_time_key = lambda x: (x['ObservedStartTime'], x.get('N_Granule_Version', None))
     granlist = _eliminate_duplicates(sorted(granules, key = start_time_key),larger_granules_preferred=larger_granules_preferred)
+    #LOG.debug('granlist = %r'%(granlist))
     granset = set(x['N_Granule_ID'] for x in granlist)
+    #LOG.debug('granset = %r'%(granset))
 
     # it's ambiguous if we have a work directory with multiple different blobs for any given granule
     if len(granlist) != len(granset):
@@ -246,22 +248,34 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
     # pair off in start-time order
     # build a set containing contiguous granules
     # when we find a break in sequence, yield the set as an ordered tuple and start over
+    #
+    # If there is only one granule in the list, yield it immediately
     seq = {}
-    for a,b in zip(granlist[:-1], granlist[1:]):
-        if a['N_Granule_ID']==b['N_Granule_ID']:
-            LOG.error('Granule %r has been unpacked to this directory multiple times!' % (a['N_Granule_ID']))
-            return
-        if _is_contiguous(a, b, tolerance):
-            seq[a['URID']] = a
-            seq[b['URID']] = b
-        else:
-            LOG.info('contiguous sequence has %d granules' % (len(seq)))
-            yield tuple(sorted(seq.values(), key=start_time_key))
-            seq.clear()
-    # leftovers! yum!
-    if seq:
-        LOG.info('Leftover contiguous sequence has %d granules' % (len(seq)))
+    if len(granset)==1 :
+
+        a = granlist[0]
+        seq[a['URID']] = a
+        LOG.info('contiguous sequence has %d granules' % (len(seq)))
         yield tuple(sorted(seq.values(), key=start_time_key))
+        seq.clear()
+
+    else :
+
+        for a,b in zip(granlist[:-1], granlist[1:]):
+            if a['N_Granule_ID']==b['N_Granule_ID']:
+                LOG.error('Granule %r has been unpacked to this directory multiple times!' % (a['N_Granule_ID']))
+                return
+            if _is_contiguous(a, b, tolerance):
+                seq[a['URID']] = a
+                seq[b['URID']] = b
+            else:
+                LOG.info('contiguous sequence has %d granules' % (len(seq)))
+                yield tuple(sorted(seq.values(), key=start_time_key))
+                seq.clear()
+        # leftovers! yum!
+        if seq:
+            LOG.info('Leftover contiguous sequence has %d granules' % (len(seq)))
+            yield tuple(sorted(seq.values(), key=start_time_key))
 
 
 def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.'):
@@ -276,7 +290,10 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
 
     geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)))
 
+    LOG.debug('geoGroupList : %r'%(geoGroupList))
+
     if len(geoGroupList)==0:
+        LOG.debug('No geoGroupList found...')
         return
 
     # Loop through the contigous granule groups 
@@ -374,8 +391,8 @@ def _granulate_ANC(inDir,geoDicts,algList):
         LOG.info("%s...\n%r" % (naapsGridBlobFile,naapsBlobArrObj._fields))
 
     # Get the Ice Concentration (Weights) if required...
-    if 'SST' in algList :
-        LOG.info("Downloading NCEP MMAB GRIB Ice Concentration into cache...")
+    #if 'SST' in algList :
+        #LOG.info("Downloading NCEP MMAB GRIB Ice Concentration into cache...")
 
     # Create a list of algorithm module "pointers"
     algorithms = []
@@ -746,6 +763,8 @@ def main():
         else :
             LOG.info("\tNo %s geolocation granules for VIIRS ancillary" % (geoType))
     LOG.info("")
+
+    #sys.exit(0)
 
     # Determine the candidate geolocation granules for which we can generate VIIRS products.
     for alg in algorithms :

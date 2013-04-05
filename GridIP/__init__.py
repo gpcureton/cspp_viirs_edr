@@ -26,6 +26,7 @@ from QuarterlySurfaceType import QuarterlySurfaceType
 from QstLwm               import QstLwm
 from NbarNdvi17Day        import NbarNdvi17Day
 from SnowIceCover         import SnowIceCover
+from IceConcentration     import IceConcentration
 
 classNames = {}
 classNames['VIIRS-MOD-GRC'] = 'GridRowColumn'
@@ -35,3 +36,4 @@ classNames['VIIRS-GridIP-VIIRS-Qst-Mod-Gran'] = 'QuarterlySurfaceType'
 classNames['VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran'] = 'QstLwm'
 classNames['VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'] = 'NbarNdvi17Day'
 classNames['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = 'SnowIceCover'
+classNames['VIIRS-I-Conc-IP'] = 'IceConcentration'

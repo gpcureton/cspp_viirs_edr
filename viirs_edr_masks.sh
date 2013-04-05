@@ -57,7 +57,7 @@ Run the ADL VIIRS EDR.
 Usage: 
     export CSPP_EDR_HOME=/path/to/CSPP_EDR/dir
     source \$CSPP_EDR_HOME/cspp_edr_env.sh
-    \$CSPP_EDR_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
+    \$CSPP_EDR_HOME/viirs/viirs_edr_masks.sh [mandatory args] [options]
 
 
 Options:
@@ -120,7 +120,7 @@ Run the ADL VIIRS EDR.
 Usage: 
     export CSPP_EDR_HOME=/path/to/CSPP_EDR/dir
     source \$CSPP_EDR_HOME/cspp_edr_env.sh
-    \$CSPP_EDR_HOME/viirs/edr/viirs_edr_masks.sh [mandatory args] [options]
+    \$CSPP_EDR_HOME/viirs/viirs_edr_masks.sh [mandatory args] [options]
 
   -h, --help            Show the mandatory args and options and exit.
 

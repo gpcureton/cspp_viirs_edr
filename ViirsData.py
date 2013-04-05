@@ -460,7 +460,7 @@ class ViirsTrimTable:
             Creates an array with nDetectors*nscans pixel rows, with the trimmed
             pixels set to True.
         """
-        nDetectors = nDetectors
+        nDetectors = 32
         trimScanArray = np.ones((nDetectors,6400),dtype=trimType)
         for row in range(len(self.imgTrimTable)):
             colStart = self.imgTrimTable[row][0]
