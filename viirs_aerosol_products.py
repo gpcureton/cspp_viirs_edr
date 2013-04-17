@@ -19,17 +19,12 @@ __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
 __version__ = '$Id$'
 __docformat__ = 'Epytext'
 
+
 ### System libraries
 import time, string, sys
 from glob import glob
 from os import path,uname
 import copy
-
-from matplotlib import pyplot as ppl
-from matplotlib.colors import ListedColormap
-from matplotlib import cm as cm
-
-from mpl_toolkits.basemap import Basemap,shiftgrid
 
 import numpy as np
 from numpy import ma as ma
@@ -104,12 +99,12 @@ class viirsAero:
                     geoNode.close()
                     print "done"
                     
-                    dataName = 'SolarZenithAngle'
-                    print "Reading %s dataset..." % (dataName)
-                    geoNode = ViirsGeoFileObj.getNode('%s/%s' % (geoGroupName,dataName))
-                    self.Sza = geoNode[::shrinkFactor,::shrinkFactor]
-                    geoNode.close()
-                    print "done"
+                    #dataName = 'SolarZenithAngle'
+                    #print "Reading %s dataset..." % (dataName)
+                    #geoNode = ViirsGeoFileObj.getNode('%s/%s' % (geoGroupName,dataName))
+                    #self.Sza = geoNode[::shrinkFactor,::shrinkFactor]
+                    #geoNode.close()
+                    #print "done"
                     
                     dataName = 'ModeGran'
                     print "Reading %s dataset..." % (dataName)
@@ -139,7 +134,7 @@ class viirsAero:
         self.Lat = np.squeeze(self.Lat)
         print "Shape of Latitude:",np.shape(self.Lat)
         print "Shape of Longitude:",np.shape(self.Lon)
-        print "Shape of Solar Zenith Angle:",np.shape(self.Sza)
+        #print "Shape of Solar Zenith Angle:",np.shape(self.Sza)
 
         # Open the VIIRS Aerosol IP file
         try :
@@ -158,9 +153,9 @@ class viirsAero:
             self.ViirsCMquality =  ViirsAProdFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
             self.ViirsCMquality = np.bitwise_and(self.ViirsCMquality,192) >> 6
 
-            ViirsDataSetPath = '/All_Data/VIIRS-Aeros-Opt-Thick-IP_All/QF2'
-            self.LandSeaMask =  ViirsAProdFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
-            self.LandSeaMask = np.bitwise_and(self.LandSeaMask,112) >> 4
+            #ViirsDataSetPath = '/All_Data/VIIRS-Aeros-Opt-Thick-IP_All/QF2'
+            #self.LandSeaMask =  ViirsAProdFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+            #self.LandSeaMask = np.bitwise_and(self.LandSeaMask,112) >> 4
 
             ViirsDataSetPath = '/All_Data/VIIRS-Aeros-Opt-Thick-IP_All/QF3'
             self.ViirsAProdRet = ViirsAProdFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
@@ -175,6 +170,7 @@ class viirsAero:
             sys.exit(1)
 
         return 0
+
 
     def ingestEDR(self,geoFile,aeroFile,shrink,scale):
         '''

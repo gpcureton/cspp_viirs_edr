@@ -26,11 +26,6 @@ from glob import glob
 from os import path,uname
 import copy
 
-from matplotlib import pyplot as ppl
-from matplotlib.colors import ListedColormap
-
-from mpl_toolkits.basemap import Basemap,shiftgrid
-
 import numpy as np
 from numpy import ma as ma
 

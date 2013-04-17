@@ -405,7 +405,6 @@ class IceConcentration() :
         self.distinctLongitudes = message['distinctLongitudes']
         self.gridData = message['values']
         LOG.info("Shape of gridded %s data is %s" % (self.collectionShortName,np.shape(self.gridData)))
-        plotArr(self.gridData,'IceConc_grid.png')
 
 
     def _grid2Gran_bilinearInterp(self,dataLat, dataLon, gridData, gridLat, gridLon):
@@ -676,7 +675,7 @@ class IceConcentration() :
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
 
-        plotArr(data,'VIIRS-I-Conc-IP_%s.png'%(geoDict['N_Granule_ID']))
+        #plotArr(data,'VIIRS-I-Conc-IP_%s.png'%(geoDict['N_Granule_ID']))
 
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))

@@ -21,8 +21,8 @@ Output:
 
 Details:
     * If you input a series of granules, the software will scan the work directory.
-      Thus, for N input SDR granules, you may get up to N-2 output EDR granules if 
-      they are all contiguous.
+      Thus, for N input SDR granules, you may get up to N-2 or less output EDR granules if 
+      they are all contiguous, depending on the algorithm.
     * It is ambiguous to provide several copies of the same granule in the work 
       directory; this will result in an error abort.
 
@@ -37,7 +37,7 @@ Optional:
 
 Minimum commandline:
 
-    python adl_viirs_edr_masks.py  --input_files=INPUTFILES
+    python adl_viirs_edr.py  --input_files=INPUTFILES
 
 where...
 

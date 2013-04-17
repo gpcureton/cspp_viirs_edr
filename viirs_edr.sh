@@ -40,8 +40,8 @@ else
 fi
 
 # test that we are reasonably sure we have what we need installed
-test -f "$CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py" \
-    || oops "$CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py not found"
+test -f "$CSPP_RT_HOME/viirs/adl_viirs_edr.py" \
+    || oops "$CSPP_RT_HOME/viirs/adl_viirs_edr.py not found"
 test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe" \
     || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe not found"
 test -x "$PY" \
@@ -57,7 +57,7 @@ Run the ADL VIIRS EDR.
 Usage: 
     export CSPP_EDR_HOME=/path/to/CSPP_EDR/dir
     source \$CSPP_EDR_HOME/cspp_edr_env.sh
-    \$CSPP_EDR_HOME/viirs/viirs_edr_masks.sh [mandatory args] [options]
+    \$CSPP_EDR_HOME/viirs/viirs_edr.sh [mandatory args] [options]
 
 
 Options:
@@ -120,7 +120,7 @@ Run the ADL VIIRS EDR.
 Usage: 
     export CSPP_EDR_HOME=/path/to/CSPP_EDR/dir
     source \$CSPP_EDR_HOME/cspp_edr_env.sh
-    \$CSPP_EDR_HOME/viirs/viirs_edr_masks.sh [mandatory args] [options]
+    \$CSPP_EDR_HOME/viirs/viirs_edr.sh [mandatory args] [options]
 
   -h, --help            Show the mandatory args and options and exit.
 
@@ -151,7 +151,7 @@ OPTS=`getopt -o "i:w:dvh" -l "input_files:,alg:,work_directory:,anc_endianness:,
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
 then
-    echo "There was an error with the command line parameters to viirs_edr_masks.sh, aborting..."
+    echo "There was an error with the command line parameters to viirs_edr.sh, aborting..."
     exit 1
 fi
 
@@ -284,10 +284,10 @@ fi
 
 GDB=''
 #GDB='gdb --args'
-#$GDB $PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr_masks.py \
+#$GDB $PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr.py \
 
 
-#echo "$PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr_masks.py \
+#echo "$PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr.py \
     #$INPUT_FILES_OPT \
     #$ALG_OPT \
     #$WORK_DIR_OPT \
@@ -303,7 +303,7 @@ GDB=''
 
 #exit 1
 
-$PY $CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py \
+$PY $CSPP_RT_HOME/viirs/adl_viirs_edr.py \
     $INPUT_FILES_OPT \
     $ALG_OPT \
     $WORK_DIR_OPT \
@@ -321,4 +321,4 @@ $PY $CSPP_RT_HOME/viirs/adl_viirs_edr_masks.py \
 #         Packaging          #
 ##############################
 
-#bash $CSPP_RT_HOME/../CSPP_RT_repo/trunk/scripts/edr/CSPP_RT_ViirsEdrMasks_Package.sh  $CSPP_RT_HOME/viirs/edr/viirs_edr_masks.sh ../../sample_data/viirs/edr/input/VIIRS_OPS_unpackTest/HDF5/
+#bash $CSPP_RT_HOME/../CSPP_RT_repo/trunk/scripts/edr/CSPP_RT_ViirsEdrMasks_Package.sh  $CSPP_RT_HOME/viirs/edr/viirs_edr.sh ../../sample_data/viirs/edr/input/VIIRS_OPS_unpackTest/HDF5/
