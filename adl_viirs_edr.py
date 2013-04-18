@@ -144,6 +144,9 @@ environ['TZ'] = 'UTC'
 hexPat = '[\\dA-Fa-f]'
 
 def set_sdr_endian(inputEndianness) :
+    '''
+    Set the global sdr endianness variable.
+    '''
     global sdrEndian 
     if inputEndianness=='big' :
         sdrEndian = adl_blob.BIG_ENDIAN
@@ -152,7 +155,11 @@ def set_sdr_endian(inputEndianness) :
     else :
         LOG.error('Invalid value for the VIIRS SDR endianness : %s ' % (inputEndianness))
 
+
 def set_anc_endian(inputEndianness) :
+    '''
+    Set the global ancillary endianness variable.
+    '''
     global ancEndian 
     if inputEndianness=='big' :
         ancEndian = adl_blob.BIG_ENDIAN
@@ -184,11 +191,13 @@ def _create_input_file_globs(inputFiles):
 
     charsToKill = string.ascii_letters + string.digits + "."
 
-    if (input_files is None):
+    if ((input_files is None) or (input_files == "*")):
+        # Input file glob is of form "/path/to/files" or "/path/to/files/*"
         inputGlobs['GEO'] = 'GMTCO_npp*.h5'
         inputGlobs['MOD'] = 'SVM*_npp*.h5'
         inputGlobs['IMG'] = 'SVI*_npp*.h5'
     elif ((('GMTCO' in input_files) or ('SVM' in input_files) or ('SVI' in input_files)) and ('*' in input_files)) :
+        # Input file glob is of form "/path/to/files/GMTCO*" or "/path/to/files/SVI*" or "/path/to/files/SVM*" 
         fileGlob = string.rstrip(string.lstrip(input_files,charsToKill),charsToKill)
         LOG.debug("fileGlob = %s" %(fileGlob))
         inputGlobs['GEO'] = "GMTCO%s.h5" %(fileGlob)
@@ -197,6 +206,7 @@ def _create_input_file_globs(inputFiles):
         for fileType in ['GEO','MOD','IMG']:
             inputGlobs[fileType] = string.replace(inputGlobs[fileType],"**","*")
     elif path.isfile(input_path) :
+        # Input file glob is of form "/path/to/files/GMTCO_npp_d_t_e_b_c_cspp_dev.h5" 
         fileGlob = string.rstrip(string.lstrip(string.split(input_files,"b")[0],charsToKill),charsToKill)
         LOG.debug("fileGlob = %s" %(fileGlob))
         inputGlobs['GEO'] = "GMTCO%s*.h5" %(fileGlob)
@@ -637,12 +647,10 @@ def main():
     parser.add_option_group(optionalGroup)
 
     # Parse the arguments from the command line
-
     (options, args) = parser.parse_args()
 
     # Check that all of the mandatory options are given. If one or more 
     # are missing, print error message and exit...
-
     mandatories = ['inputFiles','algorithm']
     mand_errors = ["Missing mandatory argument [-i input_files --input_files=input_files]",
                    "Missing mandatory argument [--alg=%r ]"%(algorithmChoices)]
@@ -655,12 +663,10 @@ def main():
         parser.error("Incomplete mandatory arguments, aborting...")
 
     # Set up the logging
-
     levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
     configure_logging(level = levels[min(options.verbosity,3)])
 
     # Determine the correct input file path and glob
-
     if not options.skipSdrUnpack :
         input_dir,inputGlobs = _create_input_file_globs(options.inputFiles)
         if inputGlobs['GEO'] is None or inputGlobs['MOD'] is None or inputGlobs['IMG'] is None :
@@ -668,7 +674,6 @@ def main():
             sys.exit(1)
 
     # Set the work directory
-
     work_dir = path.abspath(options.work_dir)
     LOG.debug('Setting the work directory to %r' % (work_dir))
 
