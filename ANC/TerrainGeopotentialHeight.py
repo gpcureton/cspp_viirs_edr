@@ -116,8 +116,6 @@ class TerrainGeopotentialHeight() :
             data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
             self.data = data.filled()
 
-        #return getattr(ancBlob,self.blobDatasetName).astype(self.dataType)
-
 
     def setGeolocationInfo(self,dicts):
         '''
@@ -141,7 +139,7 @@ class TerrainGeopotentialHeight() :
         geoFiles = glob('%s/%s*' % (self.inDir,URID))
         geoFiles.sort()
 
-        LOG.debug("\n###########################")
+        LOG.debug("###########################")
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
@@ -149,7 +147,7 @@ class TerrainGeopotentialHeight() :
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoFiles : %r" % (geoFiles))
-        LOG.debug("###########################\n")
+        LOG.debug("###########################")
 
         # Do we have terrain corrected geolocation?
 

@@ -91,11 +91,32 @@ class WindSpeed() :
         Ingest the ancillary dataset.
         '''
 
+        dates = []
+        ncepBlobFiles = []
+        for gridBlobStruct in ancBlob:
+            timeObj = gridBlobStruct[0]
+            ncepBlobFile = gridBlobStruct[1]
+            LOG.info("VIIRS-ANC-Wind-Speed-Mod-Gran %s --> %s" % \
+                    (ncepBlobFile,timeObj.strftime("%Y-%m-%d %H:%M:%S:%f")))
+            dates.append(timeObj)
+            ncepBlobFiles.append(ncepBlobFile)
+
+        self.date_0 = dates[0]
+        self.date_1 = dates[1]
+
+        LOG.info("Minimum NCEP date is: %s" %(self.date_0.strftime("%Y-%m-%d %H:%M:%S:%f")))
+        LOG.info("Maximum NCEP date is: %s" %(self.date_1.strftime("%Y-%m-%d %H:%M:%S:%f")))
+
+        ncepBlobFile_0 = ncepBlobFiles[0]
+        ncepBlobFile_1 = ncepBlobFiles[1]
+
         dsetName = self.blobDatasetName[0]
-        self.uWind = getattr(ancBlob,dsetName).astype(self.dataType)
+        self.uWind_0 = getattr(ncepBlobFile_0,dsetName).astype(self.dataType)
+        self.uWind_1 = getattr(ncepBlobFile_1,dsetName).astype(self.dataType)
 
         dsetName = self.blobDatasetName[1]
-        self.vWind = getattr(ancBlob,dsetName).astype(self.dataType)
+        self.vWind_0 = getattr(ncepBlobFile_0,dsetName).astype(self.dataType)
+        self.vWind_1 = getattr(ncepBlobFile_1,dsetName).astype(self.dataType)
 
 
     def setGeolocationInfo(self,dicts):
@@ -119,7 +140,7 @@ class WindSpeed() :
         geoFiles = glob('%s/%s*' % (self.inDir,URID))
         geoFiles.sort()
 
-        LOG.debug("\n###########################")
+        LOG.debug("###########################")
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
@@ -127,14 +148,39 @@ class WindSpeed() :
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoFiles : %r" % (geoFiles))
-        LOG.debug("###########################\n")
+        LOG.debug("###########################")
+
+        timeDelta = (self.date_1 - self.date_0).total_seconds()
+        LOG.info("timeDelta is %r seconds" %(timeDelta))
+
+        timePrime = (ObservedStartTimeObj - self.date_0).total_seconds()
+        LOG.info("timePrime is %r seconds (%f percent along time interval)" % \
+                (timePrime,(timePrime/timeDelta)*100.))
+
+        delta_uWind = self.uWind_1 - self.uWind_0
+        self.uWind = (delta_uWind/timeDelta) * timePrime + self.uWind_0
+
+        uWind_0_avg = np.average(self.uWind_0)
+        uWind_1_avg = np.average(self.uWind_1)
+        uWind_avg = np.average(self.uWind)
+        LOG.debug("average(uWind_0) = %f" %(np.average(self.uWind_0)))
+        LOG.debug("average(uWind_1) = %f" %(np.average(self.uWind_1)))
+        LOG.debug("average(uWind) = %f" %(np.average(self.uWind)))
+
+        delta_vWind = self.vWind_1 - self.vWind_0
+        self.vWind = (delta_vWind/timeDelta) * timePrime + self.vWind_0
+
+        vWind_0_avg = np.average(self.vWind_0)
+        vWind_1_avg = np.average(self.vWind_1)
+        vWind_avg = np.average(self.vWind)
+        LOG.debug("average(vWind_0) = %f" %(np.average(self.vWind_0)))
+        LOG.debug("average(vWind_1) = %f" %(np.average(self.vWind_1)))
+        LOG.debug("average(vWind) = %f" %(np.average(self.vWind)))
 
         # Do we have terrain corrected geolocation?
-
         terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
 
         # Do we have long or short style geolocation field names?
-
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
             LOG.debug("We have long form geolocation names")

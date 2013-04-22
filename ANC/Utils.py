@@ -28,6 +28,8 @@ from datetime import datetime,timedelta
 import numpy as np
 from numpy import ma
 
+import pygrib
+
 import adl_blob
 from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
@@ -290,6 +292,8 @@ def shipOutToFile(ANCobj):
     LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
     
     ANC_fileList = ANCobj.sourceList
+    LOG.info("ANC_fileList = %r" % (ANC_fileList))
+
     for idx in range(len(ANC_fileList)) :
         ANC_fileList[idx] = path.basename(ANC_fileList[idx])
     ANC_fileList.sort()
@@ -402,7 +406,7 @@ def retrieve_NCEP_grib_files(geoDicts):
     return gribFiles
 
 
-def create_NCEP_grid_blobs(gribFiles):
+def create_NCEP_grid_blobs(gribFile):
     '''Converts NCEP GRIB files into NCEP blobs'''
 
     from NCEPtoBlob import NCEPclass
@@ -410,111 +414,115 @@ def create_NCEP_grid_blobs(gribFiles):
     rh_to_mr_vec = np.vectorize(rh_to_mr)
     from copy import deepcopy
 
-    blobFiles = []
 
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     csppPython = os.getenv('PY')
     
+    # Get the valid time for the grib file...
+    gribFileObj = pygrib.open(gribFile)
+    msg = gribFileObj.select(name="Temperature")[0]
+    validDate = msg.validDate
+    gribFileObj.close()
 
-    for files in gribFiles :
-        gribPath = path.dirname(files)
-        gribFile = path.basename(files)
-        gribBlob = "%s_blob.le" % (gribFile)
-        gribBlob = path.join(gribPath,gribBlob)
+    gribPath = path.dirname(gribFile)
+    gribFile = path.basename(gribFile)
+    gribBlob = "%s_blob.le" % (gribFile)
+    gribBlob = path.join(gribPath,gribBlob)
 
-        if not path.exists(gribBlob):
-            try :
-                LOG.info('Transcoding %s to %s ...' % \
-                        (path.basename(files),path.basename(gribBlob)))
+    if not path.exists(gribBlob):
+        try :
+            LOG.info('Transcoding %s to %s ...' % \
+                    (path.basename(files),path.basename(gribBlob)))
 
-                NCEPxml = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
+            NCEPxml = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
 
-                # Create the grib object and populate with the grib file data
-                NCEPobj = NCEPclass(gribFile=files)
+            # Create the grib object and populate with the grib file data
+            NCEPobj = NCEPclass(gribFile=files)
 
-                # Convert surface pressure from Pa to mb or hPa ...
-                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
-                # Ref: applyScalingFactor(currentBuffer, GRID_SIZE, 0.01);
-                NCEPobj.NCEPmessages['surfacePressure'].data /= 100.
+            # Convert surface pressure from Pa to mb or hPa ...
+            # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+            # Ref: applyScalingFactor(currentBuffer, GRID_SIZE, 0.01);
+            NCEPobj.NCEPmessages['surfacePressure'].data /= 100.
 
-                # Convert total column ozone from DU or kg m**-2 to Atm.cm ...
-                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
-                # Code: const float DOBSON_TO_ATMSCM_SCALING_FACTOR = .001;
-                # Code: applyScalingFactor(currentBuffer, GRID_SIZE,DOBSON_TO_ATMSCM_SCALING_FACTOR);
-                NCEPobj.NCEPmessages['totalColumnOzone'].data /= 1000.
+            # Convert total column ozone from DU or kg m**-2 to Atm.cm ...
+            # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+            # Code: const float DOBSON_TO_ATMSCM_SCALING_FACTOR = .001;
+            # Code: applyScalingFactor(currentBuffer, GRID_SIZE,DOBSON_TO_ATMSCM_SCALING_FACTOR);
+            NCEPobj.NCEPmessages['totalColumnOzone'].data /= 1000.
 
-                # Convert total precipitable water kg m^{-2} to cm ...
-                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
-                # Code: applyScalingFactor(currentBuffer, GRID_SIZE, .10);
-                NCEPobj.NCEPmessages['totalPrecipitableWater'].data /= 10.
+            # Convert total precipitable water kg m^{-2} to cm ...
+            # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+            # Code: applyScalingFactor(currentBuffer, GRID_SIZE, .10);
+            NCEPobj.NCEPmessages['totalPrecipitableWater'].data /= 10.
 
-                # Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}
-                # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
-                # Code: void IngMsdNCEP_Converter::applyWaterVaporMixingRatio()
-                # Code: destination[i] = 1000 * (destination[i]/ (1-destination[i]));
-                moistureObj = NCEPobj.NCEPmessages['waterVaporMixingRatioLayers'].messageLevelData
+            # Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}
+            # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+            # Code: void IngMsdNCEP_Converter::applyWaterVaporMixingRatio()
+            # Code: destination[i] = 1000 * (destination[i]/ (1-destination[i]));
+            moistureObj = NCEPobj.NCEPmessages['waterVaporMixingRatioLayers'].messageLevelData
 
-                temperatureObj = NCEPobj.NCEPmessages['temperatureLayers'].messageLevelData
+            temperatureObj = NCEPobj.NCEPmessages['temperatureLayers'].messageLevelData
 
-                # Compute the 100mb mixing ratio in g/kg
-                if moistureObj['100'].name == 'Specific humidity':
-                    specHumidity_100mb = moistureObj['100'].data
-                    mixingRatio_100mb = 1000. * specHumidity_100mb/(1. - specHumidity_100mb)
-                elif  moistureObj['100'].name == 'Relative humidity':
-                    relativeHumidity_100mb = moistureObj['100'].data
-                    temperature_100mb = temperatureObj['100'].data
-                    mixingRatio_100mb = rh_to_mr_vec(relativeHumidity_100mb,100.,temperature_100mb)
+            # Compute the 100mb mixing ratio in g/kg
+            if moistureObj['100'].name == 'Specific humidity':
+                specHumidity_100mb = moistureObj['100'].data
+                mixingRatio_100mb = 1000. * specHumidity_100mb/(1. - specHumidity_100mb)
+            elif  moistureObj['100'].name == 'Relative humidity':
+                relativeHumidity_100mb = moistureObj['100'].data
+                temperature_100mb = temperatureObj['100'].data
+                mixingRatio_100mb = rh_to_mr_vec(relativeHumidity_100mb,100.,temperature_100mb)
+            else :
+                pass
+
+            for level,levelIdx in NCEPobj.NCEP_LAYER_LEVELS.items() : 
+                levelStrIdx = level[:-2]
+                pressure = NCEPobj.NCEP_LAYER_VALUES[levelIdx]
+
+                if pressure < 100. :
+                    # Copy the 100mb message object to this pressure, and assign the correct
+                    # mixing ratio
+                    moistureObj[levelStrIdx] = deepcopy(moistureObj['100'])
+                    moistureObj[levelStrIdx].level = levelStrIdx
+
+                    # Compute the mixing ratio in g/kg
+                    mixingRatio = np.maximum(mixingRatio_100mb,0.003) * ((pressure/100.)**3.)
+                    mixingRatio = np.maximum(mixingRatio_100mb,0.003)
                 else :
-                    pass
-
-                for level,levelIdx in NCEPobj.NCEP_LAYER_LEVELS.items() : 
-                    levelStrIdx = level[:-2]
-                    pressure = NCEPobj.NCEP_LAYER_VALUES[levelIdx]
-
-                    if pressure < 100. :
-                        # Copy the 100mb message object to this pressure, and assign the correct
-                        # mixing ratio
-                        moistureObj[levelStrIdx] = deepcopy(moistureObj['100'])
-                        moistureObj[levelStrIdx].level = levelStrIdx
-
-                        # Compute the mixing ratio in g/kg
-                        mixingRatio = np.maximum(mixingRatio_100mb,0.003) * ((pressure/100.)**3.)
-                        mixingRatio = np.maximum(mixingRatio_100mb,0.003)
+                    # Compute the mixing ratio in g/kg
+                    if moistureObj[levelStrIdx].name == 'Specific humidity':
+                        specHumidity = moistureObj[levelStrIdx].data 
+                        mixingRatio = 1000. * specHumidity/(1. - specHumidity)
+                    elif  moistureObj[levelStrIdx].name == 'Relative humidity':
+                        relativeHumidity = moistureObj[levelStrIdx].data
+                        temperature = temperatureObj[levelStrIdx].data
+                        mixingRatio = rh_to_mr_vec(relativeHumidity,pressure,temperature)
                     else :
-                        # Compute the mixing ratio in g/kg
-                        if moistureObj[levelStrIdx].name == 'Specific humidity':
-                            specHumidity = moistureObj[levelStrIdx].data 
-                            mixingRatio = 1000. * specHumidity/(1. - specHumidity)
-                        elif  moistureObj[levelStrIdx].name == 'Relative humidity':
-                            relativeHumidity = moistureObj[levelStrIdx].data
-                            temperature = temperatureObj[levelStrIdx].data
-                            mixingRatio = rh_to_mr_vec(relativeHumidity,pressure,temperature)
-                        else :
-                            pass
+                        pass
 
-                    moistureObj[levelStrIdx].data = mixingRatio
+                moistureObj[levelStrIdx].data = mixingRatio
 
-                # Write the contents of the NCEPobj object to an ADL blob file
-                endian = adl_blob.LITTLE_ENDIAN
-                procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
+            # Write the contents of the NCEPobj object to an ADL blob file
+            endian = adl_blob.LITTLE_ENDIAN
+            procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
 
-                #blobFiles.append(gribBlob)
-                if not (procRetVal == 0) :
-                    LOG.error('Transcoding of ancillary files failed for %s.' % (files))
-                    sys.exit(procRetVal)
-                else :
-                    LOG.debug('Finished creating NCEP GRIB blob %s' % (gribBlob))
-                    blobFiles.append(gribBlob)
+            if not (procRetVal == 0) :
+                LOG.error('Transcoding of ancillary files failed for %s.' % (files))
+                sys.exit(procRetVal)
+            else :
+                LOG.debug('Finished creating NCEP GRIB blob %s' % (gribBlob))
 
-            except Exception, err:
-                LOG.warn( "%s" % (str(err)))
-        else :
-            LOG.info('NCEP global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
-            blobFiles.append(gribBlob)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
+    else :
+        LOG.info('NCEP global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
 
-    return blobFiles
+
+    LOG.info('Returning GRIB blob file %s with valid date %r' % \
+            (path.basename(gribBlob),validDate.strftime("%Y-%m-%d %H:%M:%S:%f")))
+
+    return validDate, gribBlob
 
 
 def plotArr(data,pngName):

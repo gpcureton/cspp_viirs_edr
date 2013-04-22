@@ -91,7 +91,27 @@ class SpecSurfHumidity() :
         '''
         Ingest the ancillary dataset.
         '''
-        self.gridData = getattr(ancBlob,self.blobDatasetName).astype(self.dataType)
+        dates = []
+        ncepBlobFiles = []
+        for gridBlobStruct in ancBlob:
+            timeObj = gridBlobStruct[0]
+            ncepBlobFile = gridBlobStruct[1]
+            LOG.info("VIIRS-ANC-Temp-Surf2M-Mod-Gran %s --> %s" % \
+                    (ncepBlobFile,timeObj.strftime("%Y-%m-%d %H:%M:%S:%f")))
+            dates.append(timeObj)
+            ncepBlobFiles.append(ncepBlobFile)
+
+        self.date_0 = dates[0]
+        self.date_1 = dates[1]
+
+        LOG.info("Minimum NCEP date is: %s" %(self.date_0.strftime("%Y-%m-%d %H:%M:%S:%f")))
+        LOG.info("Maximum NCEP date is: %s" %(self.date_1.strftime("%Y-%m-%d %H:%M:%S:%f")))
+
+        ncepBlobFile_0 = ncepBlobFiles[0]
+        ncepBlobFile_1 = ncepBlobFiles[1]
+
+        self.gridData_0 = getattr(ncepBlobFile_0,self.blobDatasetName).astype(self.dataType)
+        self.gridData_1 = getattr(ncepBlobFile_1,self.blobDatasetName).astype(self.dataType)
 
 
     def setGeolocationInfo(self,dicts):
@@ -125,12 +145,28 @@ class SpecSurfHumidity() :
         LOG.debug("geoFiles : %r" % (geoFiles))
         LOG.debug("###########################\n")
 
-        # Do we have terrain corrected geolocation?
+        timeDelta = (self.date_1 - self.date_0).total_seconds()
+        LOG.info("timeDelta is %r seconds" %(timeDelta))
 
+        timePrime = (ObservedStartTimeObj - self.date_0).total_seconds()
+        LOG.info("timePrime is %r seconds (%f percent along time interval)" % \
+                (timePrime,(timePrime/timeDelta)*100.))
+
+        delta_gridData = self.gridData_1 - self.gridData_0
+
+        self.gridData = (delta_gridData/timeDelta) * timePrime + self.gridData_0
+
+        gridData_0_avg = np.average(self.gridData_0)
+        gridData_1_avg = np.average(self.gridData_1)
+        gridData_avg = np.average(self.gridData)
+        LOG.debug("average(gridData_0) = %f" %(np.average(self.gridData_0)))
+        LOG.debug("average(gridData_1) = %f" %(np.average(self.gridData_1)))
+        LOG.debug("average(gridData) = %f" %(np.average(self.gridData)))
+
+        # Do we have terrain corrected geolocation?
         terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
 
         # Do we have long or short style geolocation field names?
-
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
             LOG.debug("We have long form geolocation names")
