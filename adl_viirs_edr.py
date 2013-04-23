@@ -97,7 +97,7 @@ from HDF4File import HDF4File
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
 import adl_asc
-from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
+from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 
 # ancillary search and unpacker common routines
 # We need [ 'CSPP_RT_HOME', 'ADL_HOME', 'CSPP_RT_ANC_TILE_PATH', 'CSPP_RT_ANC_CACHE_DIR', 'CSPP_RT_ANC_PATH' ] environment 
@@ -348,6 +348,23 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
                 #pass
             LOG.info('Processing opportunity: %r at %s with uuid %s' % (gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
             yield gran
+
+
+def _strReplace(fileName,oldString,newString):
+    """
+    Check fileName for occurences of oldString, if found fileName is opened and oldString is 
+    replaced with newString.
+    """
+    fileChanged=0
+    with open(fileName) as thefile:
+        content = thefile.read()                 # read entire file into memory
+        replacedText = content.replace(oldString, newString)
+    if replacedText != content:
+        LOG.debug('Replacing occurence of "%s" in %s with "%s"' % (oldString,path.basename(fileName),newString))
+        with open(fileName, 'w') as thefile:
+            thefile.write(replacedText)
+        fileChanged=1
+    return fileChanged
 
 
 def _granulate_ANC(inDir,geoDicts,algList):
@@ -720,6 +737,7 @@ def main():
 
 
     # Unpack HDF5 VIIRS geolocation SDRs in the input directory to the work directory
+    geo_unpacking_problems = 0
     if not options.skipSdrUnpack :
         geo_unpacking_problems = _unpack_sdr(work_dir,input_dir,inputGlobs['GEO'])
     else :
@@ -783,6 +801,16 @@ def main():
         else :
             LOG.info("\tNo %s geolocation granules for VIIRS ancillary" % (geoType))
 
+    # Check geolocation metadata for wrong N_Granule_Version, and fix...
+    if anc_granules_to_process :
+        for grans in anc_granules_to_process:
+            fileChanged=0
+            if grans["N_Granule_Version"] == "A2" :
+                LOG.info("In %s (%s): N_Granule_Version=%s, fixing..." % \
+                        (path.basename(grans["_filename"]),grans["N_Granule_ID"],grans["N_Granule_Version"]))
+                fileChanged = _strReplace(grans["_filename"],\
+                        '("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
+
     # Determine the candidate geolocation granules for which we can generate VIIRS products.
     for alg in algorithms :
         for geoType in geolocationShortNames :
@@ -821,7 +849,7 @@ def main():
             noncritical_problem = False
             environment_error = False
             if not options.skipAlgorithm :
-                return get_return_code(unpacking_problems, num_xml_files_to_process, \
+                return get_return_code(geo_unpacking_problems, num_xml_files_to_process, \
                         num_no_output_runs, noncritical_problem, environment_error)
 
     LOG.info("")
@@ -872,6 +900,8 @@ def main():
 
 
     # Unpack HDF5 VIIRS radiometric SDRs in the input directory to the work directory
+    mod_unpacking_problems = 0
+    img_unpacking_problems = 0
     if not options.skipSdrUnpack :
         mod_unpacking_problems = _unpack_sdr(work_dir,input_dir,inputGlobs['MOD'])
         img_unpacking_problems = _unpack_sdr(work_dir,input_dir,inputGlobs['IMG'])
@@ -881,6 +911,13 @@ def main():
     else :
         LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
 
+    # Check radiometric SDR metadata for wrong N_Granule_Version, and fix...
+    sdr_blob_names = glob(path.join(work_dir,"*.*SDR"))
+    for sdr_blob_name in sdr_blob_names:
+        ascName = corresponding_asc_path(sdr_blob_name)
+        fileChanged = _strReplace(ascName,'("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
+        if fileChanged :
+            LOG.info("Fixed N_Granule_Version in %s metadata" % (path.basename(sdr_blob_name)))
 
     # Link in auxillary files
     if not options.skipAuxLinking :
