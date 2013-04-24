@@ -34,6 +34,8 @@ from subprocess import CalledProcessError, call
 from collections import namedtuple
 from multiprocessing import Pool, Lock, Value, cpu_count
 
+import h5py
+
 # skim and convert routines for reading .asc metadata fields of interest
 from adl_asc import skim_dir, contiguous_granule_groups, RDR_REQUIRED_KEYS
 
@@ -434,10 +436,10 @@ def check_logs_for_run(work_dir, pid, xml):
         if count > 0:
             err_files.add(log_file)
 
-    if n_err == 0 :
+    if n_err == 0:
         status_line("Processing of file: "+ xml + " Completed successfully" )
         return True
-    else :
+    else:
         status_line("Processing of file: "+ xml + " Completed unsuccessfully, Look at previous message" )
         LOG.debug("Log files with errors: " + ', '.join(err_files))
         return False
@@ -581,6 +583,41 @@ def register_sigterm():
         _registered_sigterm = True
 
 
+def read_N_Geo_Ref(h5path):
+    """
+    Read the N_Geo_Ref attribute from the file if it exists, else return None
+    :param h5path: hdf5 pathname
+    :return: N_Geo_Ref filename, or None
+    """
+    h5 = h5py.File(h5path, 'r')
+    zult = getattr(h5, 'N_GEO_Ref', None)
+    h5.close()
+    return zult
+
+
+def input_list_including_geo(pathnames):
+    """
+    :param pathnames: sequence of pathnames we plan to unpack
+    :return: set of pathnames, including geo filenames corresponding
+    """
+    zult = set()
+    for path in pathnames:
+        if not h5py.is_hdf5(path):
+            LOG.warning('%s is not an HDF5 file, ignoring' % path)
+            continue
+        zult.add(path)
+        geo = read_N_Geo_Ref(path)
+        if geo is not None:
+            dn, fn = os.path.split(path)
+            LOG.info("adding %s as companion to %s" % (geo, fn))
+            geo_path = os.path.join(dn, geo)
+            if not h5py.is_hdf5(geo_path):
+                LOG.warning('expected to find %s as an HDF5 file; may not be able to process %s' % (geo_path, fn))
+                continue
+            zult.add(geo_path)
+    return zult
+
+
 def viirs_gtm_edr(work_dir, h5_paths, nprocs = 1, compress=False, aggregate=False, allow_cache_update=True):
     """
     given a work directory and a series of hdf5 SDR and GEO paths
@@ -603,6 +640,8 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs = 1, compress=False, aggregate=Fals
     setup_directories(work_dir, anc_dir)
 
     status_line("Unpack the supplied inputs")
+    h5_paths = list(input_list_including_geo(h5_paths))
+    LOG.info('final list of inputs: %s' % repr(h5_paths))
     error_count = unpack_h5s(work_dir, h5_paths)
     # FIXME: this should discover the GEOs from the SDRs if only SDRs are provided
     # FIXME: compression
