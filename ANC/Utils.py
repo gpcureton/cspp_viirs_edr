@@ -425,21 +425,26 @@ def create_NCEP_grid_blobs(gribFile):
     msg = gribFileObj.select(name="Temperature")[0]
     validDate = msg.validDate
     gribFileObj.close()
+    LOG.info('GRIB file %s has valid date %r' % \
+            (path.basename(gribFile),validDate.strftime("%Y-%m-%d %H:%M:%S:%f")))
 
     gribPath = path.dirname(gribFile)
     gribFile = path.basename(gribFile)
     gribBlob = "%s_blob.le" % (gribFile)
     gribBlob = path.join(gribPath,gribBlob)
+    gribFile = path.join(gribPath,gribFile)
+    LOG.debug('Candidate grib blob file is %s ...' % (gribBlob))
 
     if not path.exists(gribBlob):
+        LOG.info('Grib blob file %s does not exist, creating...' % (path.basename(gribBlob)))
         try :
             LOG.info('Transcoding %s to %s ...' % \
-                    (path.basename(files),path.basename(gribBlob)))
+                    (path.basename(gribFile),path.basename(gribBlob)))
 
             NCEPxml = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
 
             # Create the grib object and populate with the grib file data
-            NCEPobj = NCEPclass(gribFile=files)
+            NCEPobj = NCEPclass(gribFile=gribFile)
 
             # Convert surface pressure from Pa to mb or hPa ...
             # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
@@ -508,7 +513,7 @@ def create_NCEP_grid_blobs(gribFile):
             procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
 
             if not (procRetVal == 0) :
-                LOG.error('Transcoding of ancillary files failed for %s.' % (files))
+                LOG.error('Transcoding of ancillary files failed for %s.' % (gribFile))
                 sys.exit(procRetVal)
             else :
                 LOG.debug('Finished creating NCEP GRIB blob %s' % (gribBlob))
