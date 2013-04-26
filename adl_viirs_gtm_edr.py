@@ -37,7 +37,7 @@ from multiprocessing import Pool, Lock, Value, cpu_count
 import h5py
 
 # skim and convert routines for reading .asc metadata fields of interest
-from adl_asc import skim_dir, contiguous_granule_groups, RDR_REQUIRED_KEYS
+from adl_asc import skim_dir, skim_dir_collections, contiguous_granule_groups, RDR_REQUIRED_KEYS
 
 import adl_log, adl_geo_ref
 import adl_anc_retrieval
@@ -51,9 +51,6 @@ from adl_common import unpack_h5s
 from adl_common import COMMON_LOG_CHECK_TABLE,EXTERNAL_BINARY,CSPP_RT_ANC_CACHE_DIR,CSPP_RT_ANC_PATH,DDS_PRODUCT_FILE,ADL_HOME,CSPP_RT_ANC_TILE_PATH
 
 from adl_post_process import repack_products, aggregate_products, add_geo_attribute_to_aggregates
-
-# FIXME: candidates for promotion to adl_asc or adl_log or adl_common
-from adl_viirs_sdr import _skim_dir_collections
 
 # controller executables
 ADL_VIIRS_IXX_GTM_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsIChannelImagery.exe')
@@ -720,7 +717,7 @@ def main():
         parser.print_help()
         return 1
 
-    nprocs = args.nprocs
+    nprocs = args.processor
     if nprocs <= 0:
         nprocs = cpu_count()
         LOG.info('using nprocs=%d' % nprocs)
