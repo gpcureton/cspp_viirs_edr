@@ -359,7 +359,7 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
     LOG.info("checking for VIIRS SDR and GEO blobs")
 
     # get {collection-name: list-of-dictionaries, ... } of all qualified metadata from unpacked blobs in work_dir
-    meta = _skim_dir_collections(work_dir, required_keys=CHECK_REQUIRED_KEYS)
+    meta = skim_dir_collections(work_dir, required_keys=CHECK_REQUIRED_KEYS)
 
     # FUTURE: reduce the depth of iteration
     # set of granules with available geolocation
