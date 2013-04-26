@@ -189,10 +189,9 @@ ADL_VIIRS_ANC_GLOBS = tuple()
 # ]
 
 
-
 CHECK_REQUIRED_KEYS = ['N_Granule_ID', 'N_Collection_Short_Name']
 
-OBSERVE_TIME='ObservedStartTime'
+OBSERVE_TIME = 'ObservedStartTime'
 # table of NPP short names to data product ids
 
 # PRODUCTID_2_SHORTNAME= dict()
@@ -327,8 +326,6 @@ XML_TMPL_VIIRS_NCC_GTM_EDR = """<InfTkConfig>
 </InfTkConfig>
 """
 
-
-
 # create a named tuple class holding the information we want for each group of SDRs
 # geo_cn: geolocation collection name
 # sdr_cn: sdr collection name
@@ -379,10 +376,6 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
             geo_gran_id = geo_granule['N_Granule_ID']
             geo_gran_ver = geo_granule['N_Granule_Version']
 
-            # set of expected collection names we should see an output for,
-            # since not every band gets processed all the time (day/night)
-            collections_expected = set()
-
             for sdr_cn in [cn for cn in G.sdr_cns]:              
                 sdr_grans = [g for g in meta[sdr_cn] if ((g['N_Granule_ID']==geo_gran_id) and (g['N_Granule_Version']==geo_gran_ver))]
                 if not sdr_grans: 
@@ -395,12 +388,11 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
 
 def generate_gtm_edr_xml(kind, gran, work_dir):
     """
+    writes XML file using template
+    returns "granule_name.xml"
     :param work_dir: directory to write XML to
     :param kind: IXX, MXX, NCC string
     :param gran: granule dictionary as returned from sift_metadata_for_viirs_gtm_edr
-
-    writes XML file using template
-    returns "granule_name.xml"
     """
     name = gran['N_Granule_ID']
     xml_tmpl = GTM_GUIDEBOOK[kind].template
@@ -437,10 +429,10 @@ def check_logs_for_run(work_dir, pid, xml):
             err_files.add(log_file)
 
     if n_err == 0:
-        status_line("Processing of file: "+ xml + " Completed successfully" )
+        status_line("Processing of file: " + xml + " Completed successfully" )
         return True
     else:
-        status_line("Processing of file: "+ xml + " Completed unsuccessfully, Look at previous message" )
+        status_line("Processing of file: " + xml + " Completed unsuccessfully, Look at previous message" )
         LOG.debug("Log files with errors: " + ', '.join(err_files))
         return False
 
