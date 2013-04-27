@@ -369,18 +369,22 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
 
         # check if we have at least one SDR collection and one GEO collection for this granule
         # if so, yield it
-        for geo_granule in geo_granules:
+        for geo_granule in geo_granules: # for each granule we have valid geo for
             geo_gran_id = geo_granule['N_Granule_ID']
             geo_gran_ver = geo_granule['N_Granule_Version']
+            LOG.debug('checking available SDR collections for %s-v%s' % (geo_gran_id, geo_gran_ver))
 
-            for sdr_cn in [cn for cn in G.sdr_cns]:              
-                sdr_grans = [g for g in meta[sdr_cn] if ((g['N_Granule_ID']==geo_gran_id) and (g['N_Granule_Version']==geo_gran_ver))]
-                if not sdr_grans: 
-                    LOG.warning('no SDR products found for %s:%s-v%d' % (kind, geo_gran_id, geo_gran_ver))
-                else:
-                    sdr_collections = [x['N_Collection_Short_Name'] for x in sdr_grans]
-                    LOG.debug('found SDR collections %s for %s:%s-v%d' % (repr(sdr_collections), kind, geo_gran_id, geo_gran_ver))
-                    yield (kind, geo_granule, sdr_collections)
+            sdr_collections = set()
+            for sdr_cn in [cn for cn in G.sdr_cns]: # see which SDR collections are available
+                for g in meta[sdr_cn]:
+                    if ((g['N_Granule_ID']==geo_gran_id) and (g['N_Granule_Version']==geo_gran_ver)):
+                        sdr_collections.add(g['N_Collection_Short_Name'])
+
+            if not sdr_collections: 
+                LOG.warning('no SDR products found for %s:%s-v%s' % (kind, geo_gran_id, geo_gran_ver))
+            else:
+                LOG.debug('found SDR collections %s for %s:%s-v%s' % (repr(sdr_collections), kind, geo_gran_id, geo_gran_ver))
+                yield (kind, geo_granule, sdr_collections)
 
 
 def generate_gtm_edr_xml(kind, gran, work_dir):
@@ -393,7 +397,7 @@ def generate_gtm_edr_xml(kind, gran, work_dir):
     """
     name = gran['N_Granule_ID']
     xml_tmpl = GTM_GUIDEBOOK[kind].template
-    fnxml = ('edr_viirs_gtm_%s_%s.xml' % (name, gran['N_Collection_Short_Name']))
+    fnxml = ('edr_viirs_gtm_%s_%s.xml' % (kind, name))
     LOG.debug('writing XML file %r' % fnxml)
     with open(os.path.join(work_dir, fnxml), 'wt') as fpxml:
       fpxml.write(xml_tmpl % gran)
@@ -488,7 +492,7 @@ def task_gtm_edr(task_in):
     # run XML controller
     exe = G.exe
     cmd = [exe, xml_filename]
-    local_env = {'WORK_SUBDIR': work_subdir}
+    local_env = {'WORK_SUBDIR': work_subdir, 'WORK_DIR': work_dir}
     local_env.update(additional_env)
 
     status_line('Executing %s' % repr(cmd))
@@ -505,7 +509,7 @@ def task_gtm_edr(task_in):
         if not ran_ok:
             errors.append('log file problem')
         LOG.debug(traceback.format_exc())
-        LOG.error('ProSdrViirsController.exe failed on %r: %r. Continuing...' % (xml_filename, oops))
+        LOG.error('%s failed on %r: %r. Continuing...' % (exe, xml_filename, oops))
 
     if not ran_ok:
         errors.append('logs were not error-free')
@@ -527,15 +531,17 @@ def herd_viirs_gtm_edr_tasks(work_dir, nprocs=1, **additional_env):
     # find all the things we want to do and build tasks for them
     for kind, geo_granule, sdr_collections in sift_metadata_for_viirs_gtm_edr(work_dir):
         tasks.append(task_input(kind, geo_granule, sdr_collections, work_dir, additional_env))
-    parallel = Pool( int(nprocs) )
-    try:
-        results = parallel.map(task_gtm_edr, tasks)
-    except (KeyboardInterrupt, SystemError) as ejectionseat:
-        # note that we're depending on register_sigterm having been called for SystemError on SIGTERM
-        LOG.warning('external termination detected, aborting subprocesses')
-        parallel.terminate()
-    # line up our tasks and run them with the processing pool
-    # pick up task_output tuples 
+    if nprocs == 1: 
+        results = map(task_gtm_edr, tasks)
+    else:
+        parallel = Pool( int(nprocs) )
+        try:
+            results = parallel.map(task_gtm_edr, tasks)
+        except (KeyboardInterrupt, SystemError) as ejectionseat:
+            # note that we're depending on register_sigterm having been called for SystemError on SIGTERM
+            LOG.warning('external termination detected, aborting subprocesses')
+            parallel.terminate()
+            raise
     return results
 
 
