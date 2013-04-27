@@ -500,7 +500,7 @@ def task_gtm_edr(task_in):
     try:
         pid = sh(cmd, env=env(**local_env), cwd=work_subdir)
         LOG.debug("%r ran as pid %d" % (cmd, pid))
-        ran_ok = check_logs_for_run(work_subdir, pid, xml_filename)
+        ran_ok = check_logs_for_run(work_dir, pid, xml_filename)
 
     except CalledProcessError as oops:
         pid = getattr(oops, 'pid', None)
@@ -649,7 +649,8 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs = 1, compress=False, aggregate=Fals
                                        ADL_HOME=ADL_HOME,
                                        CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH
                                        )
-    for products, errors in results:
+    LOG.debug(repr(results))
+    for kind, granule, products, errors in results:
         error_count += len(errors)
     return error_count
 
