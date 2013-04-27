@@ -205,13 +205,15 @@ guidebook_info = namedtuple('guidebook_info', 'sdr_cns edr_cns geo_cn template e
 # note that for night time we only get M7,8,10,12,13,14,15,16, and I4,5
 # guidebook tells us what to expect and how to deal with it
 # Ref OAD for VIIRS GTM Imagery
+# FUTURE: get ancillary requirements by reading ${ADL_HOME}/cfg/ProEdrViirs{IChannel,MChannel,Ncc}Imagery_CFG.xml
+# FUTURE: check for FSDR blobs and use them if available?
 GTM_GUIDEBOOK = {
     'IXX': guidebook_info(sdr_cns=['VIIRS-I%d-SDR' % b for b in (1, 2, 3, 4, 5)],
                           edr_cns=['VIIRS-I%d-IMG-EDR' % b for b in (1, 2, 3, 4, 5)],
                           geo_cn='VIIRS-IMG-GEO',
                           template=XML_TMPL_VIIRS_IXX_GTM_EDR,
                           exe=ADL_VIIRS_IXX_GTM_EDR,
-                          anc=[]),
+                          anc=['VIIRS-IMG-GRC']),
     'MXX': guidebook_info(sdr_cns=['VIIRS-M%02d-SDR' % b for b in (1, 4, 9, 14, 15, 16)],
                           edr_cns=['VIIRS-M%s-EDR' % q for q in ['1ST', '2ND', '3RD', '4TH', '5TH', '6TH']],
                           geo_cn='VIIRS-MOD-GEO',
@@ -238,6 +240,19 @@ def _trim_geo_granules(gran_dict_seq):
     dct = dict((g['N_Granule_ID'], g) for g in lst)
     return sorted(dct.values(), key=key)
 
+def _crossgran_filter(geo_granules, n_crossgran=1):
+    """
+    given a sequence of geo granule metadata dictionaries,
+    yield a sequence of geo granules which satisfy cross-granule dependencies
+    in this case, we skip the first and last granule of each contiguous group
+    this filter should be removed when we have cross-granule dependencies
+    :param n_crossgran: number of cross-granules to check for, e.g. 1 implies +1/-1 granules are needed
+    :param geo_granules: sequence of geo_granules to filter
+    :return: filtered geo granules, in time order, eliminating granules not satisfying crossgran +/- n_crossgran
+    """
+    for group in contiguous_granule_groups(geo_granules):
+        for geo_gran in group[n_crossgran:-n_crossgran]:
+            yield geo_gran
 
 def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
     """
@@ -260,9 +275,15 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
         # list of available geo products for this group
         sdr2edr = dict(zip(G.sdr_cns, G.edr_cns))  # FUTURE: This could be prebuilt and merged into guidebook
         geo_granules = _trim_geo_granules(meta[G.geo_cn])
+        LOG.debug('found %d granule candidates' % len(geo_granules))
+
+        # filter cross-granule, remove this if we can eliminate cross-granule input dependencies or make them optional
+        geo_granules = list(_crossgran_filter(geo_granules))
+        LOG.debug('after cross-granule dependencies, down to %d granules' % len(geo_granules))
 
         # check if we have at least one SDR collection that should produce output for each granule
         # if so, yield it
+        LOG.debug('granules to check for SDR data: %s' % repr([x['N_Granule_ID'] for x in geo_granules]))
         for geo_granule in geo_granules:  # for each granule we have valid geo for
             geo_gran_id = geo_granule['N_Granule_ID']
             geo_gran_ver = geo_granule['N_Granule_Version']
