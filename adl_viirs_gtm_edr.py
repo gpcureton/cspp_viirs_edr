@@ -28,7 +28,12 @@ Copyright (c) 2013 University of Wisconsin Regents.
 Licensed under GNU GPLv3.
 """
 
-import os, sys, logging, glob, traceback, shutil
+import os
+import sys
+import logging
+import glob
+import traceback
+import shutil
 import datetime as dt
 from subprocess import CalledProcessError
 from collections import namedtuple
@@ -47,14 +52,14 @@ from adl_common import status_line, configure_logging, get_return_code, check_en
 # ancillary search and unpacker common routines
 from adl_common import sh, anc_files_needed, link_ancillary_to_work_dir, unpack, env
 from adl_common import unpack_h5s
-from adl_common import COMMON_LOG_CHECK_TABLE,EXTERNAL_BINARY,CSPP_RT_ANC_CACHE_DIR,CSPP_RT_ANC_PATH,DDS_PRODUCT_FILE,ADL_HOME,CSPP_RT_ANC_TILE_PATH
+from adl_common import COMMON_LOG_CHECK_TABLE, EXTERNAL_BINARY, CSPP_RT_ANC_CACHE_DIR, CSPP_RT_ANC_PATH, DDS_PRODUCT_FILE, ADL_HOME, CSPP_RT_ANC_TILE_PATH
 
 from adl_post_process import repack_products, aggregate_products, add_geo_attribute_to_aggregates
 
 # controller executables
-ADL_VIIRS_IXX_GTM_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsIChannelImagery.exe')
-ADL_VIIRS_MXX_GTM_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsMChannelImagery.exe')
-ADL_VIIRS_NCC_GTM_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsNccImagery.exe')
+ADL_VIIRS_IXX_GTM_EDR = os.path.join(ADL_HOME, 'bin', 'ProEdrViirsIChannelImagery.exe')
+ADL_VIIRS_MXX_GTM_EDR = os.path.join(ADL_HOME, 'bin', 'ProEdrViirsMChannelImagery.exe')
+ADL_VIIRS_NCC_GTM_EDR = os.path.join(ADL_HOME, 'bin', 'ProEdrViirsNccImagery.exe')
 
 LOG = logging.getLogger('adl_viirs_gtm_edr')
 
@@ -62,9 +67,9 @@ ANCILLARY_SUB_DIR = "linked_data"
 
 CHECK_REQUIRED_KEYS = ['N_Granule_ID', 'N_Collection_Short_Name']
 
-GTM_EDR_LOG_CHECK_TABLE = [ # FIXME, make these more specific
-  ('PRO_CROSSGRAN_FAIL', "Cross Granule dependency failure, more input needed?"),
-  ('INF_STATUSTYPE_TASK_INPUTNOTAVAIL', "Missing input?")
+GTM_EDR_LOG_CHECK_TABLE = [  # FIXME, make these more specific
+                           ('PRO_CROSSGRAN_FAIL', "Cross Granule dependency failure, more input needed?"),
+                           ('INF_STATUSTYPE_TASK_INPUTNOTAVAIL', "Missing input?")
 ]
 
 # WORK_DIR: directory that we unpack the input data into and accumulate final output to
@@ -110,7 +115,6 @@ XML_TMPL_VIIRS_MXX_GTM_EDR = """<InfTkConfig>
 </InfTkConfig>
 """
 
-
 XML_TMPL_VIIRS_IXX_GTM_EDR = """<InfTkConfig>
   <idpProcessName>ProEdrViirsIChannelImagery.exe</idpProcessName>
   <siSoftwareId></siSoftwareId>
@@ -151,7 +155,6 @@ XML_TMPL_VIIRS_IXX_GTM_EDR = """<InfTkConfig>
 
 </InfTkConfig>
 """
-
 
 XML_TMPL_VIIRS_NCC_GTM_EDR = """<InfTkConfig>
   <idpProcessName>ProEdrViirsNccImagery.exe</idpProcessName>
@@ -203,29 +206,31 @@ guidebook_info = namedtuple('guidebook_info', 'sdr_cns edr_cns geo_cn template e
 # guidebook tells us what to expect and how to deal with it
 # Ref OAD for VIIRS GTM Imagery
 GTM_GUIDEBOOK = {
-    'IXX': guidebook_info(sdr_cns=['VIIRS-I%d-SDR' % b for b in (1,2,3,4,5)],
-                          edr_cns=['VIIRS-I%d-IMG-EDR' % b for b in (1,2,3,4,5)],
-                          geo_cn='VIIRS-IMG-GEO', 
-                          template=XML_TMPL_VIIRS_IXX_GTM_EDR, 
+    'IXX': guidebook_info(sdr_cns=['VIIRS-I%d-SDR' % b for b in (1, 2, 3, 4, 5)],
+                          edr_cns=['VIIRS-I%d-IMG-EDR' % b for b in (1, 2, 3, 4, 5)],
+                          geo_cn='VIIRS-IMG-GEO',
+                          template=XML_TMPL_VIIRS_IXX_GTM_EDR,
                           exe=ADL_VIIRS_IXX_GTM_EDR,
                           anc=[]),
-    'MXX': guidebook_info(sdr_cns=['VIIRS-M%02d-SDR' % b for b in (1,4,9,14,15,16)],
-                          edr_cns=['VIIRS-M%s-EDR' % q for q in ['1ST','2ND','3RD','4TH','5TH','6TH']],
-                          geo_cn='VIIRS-MOD-GEO', 
-                          template=XML_TMPL_VIIRS_MXX_GTM_EDR, 
+    'MXX': guidebook_info(sdr_cns=['VIIRS-M%02d-SDR' % b for b in (1, 4, 9, 14, 15, 16)],
+                          edr_cns=['VIIRS-M%s-EDR' % q for q in ['1ST', '2ND', '3RD', '4TH', '5TH', '6TH']],
+                          geo_cn='VIIRS-MOD-GEO',
+                          template=XML_TMPL_VIIRS_MXX_GTM_EDR,
                           exe=ADL_VIIRS_MXX_GTM_EDR,
                           anc=[]),
     'NCC': guidebook_info(sdr_cns=['VIIRS-DNB-SDR'],
                           edr_cns=['VIIRS-NCC-EDR'],
-                          geo_cn='VIIRS-DNB-GEO', 
-                          template=XML_TMPL_VIIRS_NCC_GTM_EDR, 
+                          geo_cn='VIIRS-DNB-GEO',
+                          template=XML_TMPL_VIIRS_NCC_GTM_EDR,
                           exe=ADL_VIIRS_NCC_GTM_EDR,
-                          anc=['VIIRS-Ga-Val-Vs-Scene-Sol-Elev-LUT']) 
+                          anc=['VIIRS-Ga-Val-Vs-Scene-Sol-Elev-LUT'])
 }
 
 
 def _trim_geo_granules(gran_dict_seq):
-    "sort granule sequence by (N_Granule_ID, N_Granule_Version); eliminate redundant old versions and output sequence"
+    """sort granule sequence by (N_Granule_ID, N_Granule_Version); eliminate redundant old versions and output sequence
+    :param gran_dict_seq: sequence of granule metadata dictionaries
+    """
     key = lambda g: (g['N_Granule_ID'], g['N_Granule_Version'])
     lst = list(gran_dict_seq)
     lst.sort(key=key)
@@ -253,28 +258,29 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
     # set of granules with available geolocation
     for kind, G in GTM_GUIDEBOOK.items():
         # list of available geo products for this group
-        sdr2edr = dict(zip(G.sdr_cns, G.edr_cns)) # FUTURE: This could be prebuilt and merged into guidebook
-        geo_granules = _trim_geo_granules( meta[G.geo_cn] )
+        sdr2edr = dict(zip(G.sdr_cns, G.edr_cns))  # FUTURE: This could be prebuilt and merged into guidebook
+        geo_granules = _trim_geo_granules(meta[G.geo_cn])
 
         # check if we have at least one SDR collection that should produce output for each granule
         # if so, yield it
-        for geo_granule in geo_granules: # for each granule we have valid geo for
+        for geo_granule in geo_granules:  # for each granule we have valid geo for
             geo_gran_id = geo_granule['N_Granule_ID']
             geo_gran_ver = geo_granule['N_Granule_Version']
             LOG.debug('checking available SDR collections for %s-v%s' % (geo_gran_id, geo_gran_ver))
 
             sdr_collections = []
             edr_collections = []
-            for sdr_cn in [cn for cn in G.sdr_cns]: # see which SDR collections are available
+            for sdr_cn in [cn for cn in G.sdr_cns]:  # see which SDR collections are available
                 for g in meta[sdr_cn]:
-                    if ((g['N_Granule_ID']==geo_gran_id) and (g['N_Granule_Version']==geo_gran_ver)):
+                    if (g['N_Granule_ID'] == geo_gran_id) and (g['N_Granule_Version'] == geo_gran_ver):
                         sdr_collections.append(g['N_Collection_Short_Name'])
                         edr_collections.append(sdr2edr[g['N_Collection_Short_Name']])
 
-            if not sdr_collections: 
+            if not sdr_collections:
                 LOG.warning('no SDR products found for %s:%s-v%s' % (kind, geo_gran_id, geo_gran_ver))
             else:
-                LOG.debug('found SDR collections %s for %s:%s-v%s' % (repr(sdr_collections), kind, geo_gran_id, geo_gran_ver))
+                LOG.debug(
+                    'found SDR collections %s for %s:%s-v%s' % (repr(sdr_collections), kind, geo_gran_id, geo_gran_ver))
                 yield (kind, geo_granule, sdr_collections, edr_collections, G.anc)
 
 
@@ -302,7 +308,7 @@ def generate_gtm_edr_xml(kind, gran, work_dir):
     fnxml = ('edr_viirs_gtm_%s_%s.xml' % (kind, name))
     LOG.debug('writing XML file %r' % fnxml)
     with open(os.path.join(work_dir, fnxml), 'wt') as fpxml:
-      fpxml.write(xml_tmpl % gran)
+        fpxml.write(xml_tmpl % gran)
     status_line('Created ADL controller XML %s for %s:%s' % (fnxml, kind, name))
     return fnxml
 
@@ -316,12 +322,12 @@ def check_logs_for_run(work_dir, pid, xml):
     Display log message and hint if problem occurred
     """
     # retrieve exe name and log path from lw file
-    logDir = work_dir #os.path.join(work_dir, "log")
+    logDir = work_dir  # os.path.join(work_dir, "log")
     logExpression = "*" + str(pid) + "*.lo*"
-    
+
     files = glob.glob(os.path.join(logDir, logExpression))
-    status_line("Checking "+str(len(files))+" log files for errors"+logDir+" exp "+logExpression)
-   
+    status_line("Checking " + str(len(files)) + " log files for errors" + logDir + " exp " + logExpression)
+
     n_err = 0
     err_files = set()
     for log_file in files:
@@ -332,10 +338,10 @@ def check_logs_for_run(work_dir, pid, xml):
             err_files.add(log_file)
 
     if n_err == 0:
-        status_line("Processing of file: " + xml + " Completed successfully" )
+        status_line("Processing of file: " + xml + " Completed successfully")
         return True
     else:
-        status_line("Processing of file: " + xml + " Completed unsuccessfully, Look at previous message" )
+        status_line("Processing of file: " + xml + " Completed unsuccessfully, Look at previous message")
         LOG.debug("Log files with errors: " + ', '.join(err_files))
         return False
 
@@ -356,7 +362,7 @@ def transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_cns, edr_cns)
         try:
             shutil.move(h5path, h5out)
             products.append(h5filename)
-        except:
+        except IOError:
             errors.append('%s would not transfer' % h5path)
     return products, errors
 
@@ -386,7 +392,7 @@ def task_gtm_edr(task_in):
         LOG.error('directory %s already exists, re-use of work directories is discouraged' % work_subdir)
         return task_output(kind, granule_id, [], ['invalid work directory'])
     else:
-        os.makedirs(os.path.join(work_subdir,'log'))
+        os.makedirs(os.path.join(work_subdir, 'log'))
 
     # generate XML into work subdirectory
     xml_filename = generate_gtm_edr_xml(kind, gran, work_subdir)
@@ -420,7 +426,7 @@ def task_gtm_edr(task_in):
     errors += list(transfer_errors)
 
     # if everything ran OK, clean up the intermediate stuff in our subdir
-    if not errors: 
+    if not errors:
         LOG.debug('cleaning up %s, no errors' % work_subdir)
         shutil.rmtree(work_subdir)
 
@@ -438,10 +444,11 @@ def herd_viirs_gtm_edr_tasks(work_dir, nprocs=1, **additional_env):
             LOG.error('incomplete ancillary data, cannot process %s:%s' % (kind, geo_granule['N_Granule_ID']))
             continue
 
-    if nprocs == 1: 
+    if nprocs == 1:
         results = map(task_gtm_edr, tasks)
-    else: # FIXME requires testing
-        parallel = Pool( int(nprocs) )
+    else:
+        # FIXME requires testing
+        parallel = Pool(int(nprocs))
         try:
             results = parallel.map(task_gtm_edr, tasks)
         except (KeyboardInterrupt, SystemError) as ejectionseat:
@@ -452,7 +459,7 @@ def herd_viirs_gtm_edr_tasks(work_dir, nprocs=1, **additional_env):
     return results
 
 
-def setup_directories(work_dir,anc_dir):
+def setup_directories(work_dir, anc_dir):
     """Create the working directory and a subdirectory for the logs
     :param work_dir: directory which we'll be creating work files in
     :param anc_dir: ancillary directory we'll be linking in
@@ -466,7 +473,7 @@ def setup_directories(work_dir,anc_dir):
         LOG.info('Creating log directory %s' % log_dir)
         os.makedirs(log_dir)
 
-    if not os.path.exists( anc_dir ) :
+    if not os.path.exists(anc_dir):
         os.mkdir(anc_dir)
 
 
@@ -481,6 +488,7 @@ def register_sigterm():
     global _registered_sigterm
     if not _registered_sigterm:
         import signal
+
         signal.signal(signal.SIGTERM, _sigterm)
         _registered_sigterm = True
 
@@ -520,7 +528,7 @@ def input_list_including_geo(pathnames):
     return zult
 
 
-def viirs_gtm_edr(work_dir, h5_paths, nprocs = 1, compress=False, aggregate=False, allow_cache_update=True):
+def viirs_gtm_edr(work_dir, h5_paths, nprocs=1, compress=False, aggregate=False, allow_cache_update=True):
     """
     given a work directory and a series of hdf5 SDR and GEO paths
     make work directory
@@ -554,69 +562,66 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs = 1, compress=False, aggregate=Fals
                                        nprocs=nprocs,
                                        LINKED_ANCILLARY=anc_dir,
                                        ADL_HOME=ADL_HOME,
-                                       CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH
-                                       )
+                                       CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH)
     LOG.debug(repr(results))
     for kind, granule, products, errors in results:
         error_count += len(errors)
     return error_count
 
 
-
-
 def main():
     """ Run Viirs GTM EDR processing
     """
     import argparse
+
     desc = """Build VIIRS GTM EDR work directory and run VIIRS GTM EDR."""
-    parser = argparse.ArgumentParser(description = desc)
+    parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('-t', '--test',
-                    action="store_true", default=False, help="run self-tests")
+                        action="store_true", default=False, help="run self-tests")
     parser.add_argument('-W', '--work-dir', metavar='work_dir', default='.',
-                    help='work directory which all activity will occur in, defaults to current dir')
+                        help='work directory which all activity will occur in, defaults to current dir')
 
     parser.add_argument('-d', '--debug',
-                    action="store_true", default=False, help="always retain intermediate files")
+                        action="store_true", default=False, help="always retain intermediate files")
 
     parser.add_argument('-z', '--zip',
-                    action="store_true", default=False, help="compress products with h5repack zip compression")
+                        action="store_true", default=False, help="compress products with h5repack zip compression")
 
     parser.add_argument('-g', '--geo',
-                    action="store_true", default=False, help="Retain terain un-correct GEO products")
-
+                        action="store_true", default=False, help="Retain terain un-correct GEO products")
 
     parser.add_argument('-a', '--aggregate',
-                    action="store_true", default=False, help="aggregate products with nagg")
+                        action="store_true", default=False, help="aggregate products with nagg")
 
     parser.add_argument('-l', '--local',
-                    action="store_true", default=False, help="disable download of remote ancillary data to cache")
+                        action="store_true", default=False, help="disable download of remote ancillary data to cache")
 
     parser.add_argument('-p', '--processor',
-                    type=int, default=1, help="Number of processors to use for band processing")
+                        type=int, default=1, help="Number of processors to use for band processing")
 
     parser.add_argument('-v', '--verbosity', action="count", default=0,
-                    help='each occurrence increases verbosity 1 level through ERROR-WARNING-INFO-DEBUG')
+                        help='each occurrence increases verbosity 1 level through ERROR-WARNING-INFO-DEBUG')
 
     parser.add_argument('filenames', metavar='filename', type=str, nargs='+',
-                   help='HDF5 VIIRS RDR file/s to process')
+                        help='HDF5 VIIRS RDR file/s to process')
 
     args = parser.parse_args()
 
     levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
-    level = levels[args.verbosity if args.verbosity<4 else 3]
+    level = levels[args.verbosity if args.verbosity < 4 else 3]
 
     do_cleanup = True
 
-    work_dir = check_and_convert_path("WORK_DIR",args.work_dir)
+    work_dir = check_and_convert_path("WORK_DIR", args.work_dir)
     d = dt.date.today()
     timestamp = d.isoformat()
     log_name = "viirs_gtm_edr.%s.log" % timestamp
     logfile = os.path.join(work_dir, log_name)
     configure_logging(level, FILE=logfile)
-    if args.debug == True:
+    if args.debug:
         do_cleanup = False
 
-    LOG.debug("Clean up: "+str(do_cleanup))
+    LOG.debug("Clean up: " + str(do_cleanup))
     LOG.info('CSPP execution work directory is %r' % work_dir)
 
     # if args.test:
@@ -631,12 +636,12 @@ def main():
         parser.print_help()
         return 1
 
-    nprocs = args.processor
-    if nprocs <= 0:
-        nprocs = cpu_count()
-        LOG.info('using nprocs=%d' % nprocs)
+    num_procs = args.processor
+    if num_procs <= 0:
+        num_procs = cpu_count()
+        LOG.info('using %d cores' % num_procs)
 
-    rc = viirs_gtm_edr(work_dir, args.filenames, nprocs=nprocs,
+    rc = viirs_gtm_edr(work_dir, args.filenames, nprocs=num_procs,
                        compress=args.zip, aggregate=args.aggregate,
                        allow_cache_update=not args.local)
 
