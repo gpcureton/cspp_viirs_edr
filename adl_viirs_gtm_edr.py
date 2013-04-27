@@ -194,6 +194,10 @@ OBSERVE_TIME = 'ObservedStartTime'
 # PRODUCTID_2_SHORTNAME= dict()
 # SHORTNAME_2_PRODUCTID = dict()
 
+GTM_EDR_LOG_CHECK_TABLE = [ # FIXME, make these more specific
+  ('PRO_CROSSGRAN_FAIL', "Cross Granule dependency failure, more input needed?"),
+  ('INF_STATUSTYPE_TASK_INPUTNOTAVAIL', "Missing input?")
+]
 
 # WORK_DIR: directory that we unpack the input data into and accumulate final output to
 # WORK_SUBDIR: output directory written to by each granule+kind task instance
@@ -326,13 +330,26 @@ XML_TMPL_VIIRS_NCC_GTM_EDR = """<InfTkConfig>
 # create a named tuple class holding the information we want for each group of SDRs
 # geo_cn: geolocation collection name
 # sdr_cn: sdr collection name
-guidebook_info = namedtuple('guidebook_info', 'sdr_cns geo_cn template exe')
+guidebook_info = namedtuple('guidebook_info', 'sdr_cns geo_cn template exe anc')
 
 # note that for night time we only get M7,8,10,12,13,14,15,16, and I4,5
+# guidebook tells us what to expect and how to deal with it
 GTM_GUIDEBOOK = {
-    'IXX': guidebook_info(set('VIIRS-I%d-SDR' % b for b in (4,5)), 'VIIRS-IMG-GEO', XML_TMPL_VIIRS_IXX_GTM_EDR, ADL_VIIRS_IXX_GTM_EDR),
-    'MXX': guidebook_info(set('VIIRS-M%02d-SDR' % b for b in (7,8,10,12,13,14,15,16)), 'VIIRS-IMG-GEO', XML_TMPL_VIIRS_MXX_GTM_EDR, ADL_VIIRS_MXX_GTM_EDR),
-    'NCC': guidebook_info(set('VIIRS-DNB-SDR'), 'VIIRS-DNB-GEO', XML_TMPL_VIIRS_NCC_GTM_EDR, ADL_VIIRS_NCC_GTM_EDR) # FIXME review this for accuracy
+    'IXX': guidebook_info(sdr_cns=set('VIIRS-I%d-SDR' % b for b in (4,5)), 
+                          geo_cn='VIIRS-IMG-GEO', 
+                          template=XML_TMPL_VIIRS_IXX_GTM_EDR, 
+                          exe=ADL_VIIRS_IXX_GTM_EDR,
+                          anc=[]),
+    'MXX': guidebook_info(sdr_cns=set('VIIRS-M%02d-SDR' % b for b in (7,8,10,12,13,14,15,16)), 
+                          geo_cn='VIIRS-MOD-GEO', 
+                          template=XML_TMPL_VIIRS_MXX_GTM_EDR, 
+                          exe=ADL_VIIRS_MXX_GTM_EDR,
+                          anc=[]),
+    'NCC': guidebook_info(sdr_cns=set('VIIRS-DNB-SDR'), 
+                          geo_cn='VIIRS-DNB-GEO', 
+                          template=XML_TMPL_VIIRS_NCC_GTM_EDR, 
+                          exe=ADL_VIIRS_NCC_GTM_EDR,
+                          anc=['VIIRS-Ga-Val-Vs-Scene-Sol-Elev-LUT']) 
 }
 
 
@@ -367,7 +384,7 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
         # list of available geo products for this group
         geo_granules = _trim_geo_granules( meta[G.geo_cn] )
 
-        # check if we have at least one SDR collection and one GEO collection for this granule
+        # check if we have at least one SDR collection that should produce output for each granule
         # if so, yield it
         for geo_granule in geo_granules: # for each granule we have valid geo for
             geo_gran_id = geo_granule['N_Granule_ID']
@@ -384,7 +401,18 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
                 LOG.warning('no SDR products found for %s:%s-v%s' % (kind, geo_gran_id, geo_gran_ver))
             else:
                 LOG.debug('found SDR collections %s for %s:%s-v%s' % (repr(sdr_collections), kind, geo_gran_id, geo_gran_ver))
-                yield (kind, geo_granule, sdr_collections)
+                yield (kind, geo_granule, sdr_collections, G.anc)
+
+
+def link_ancillary_collections(work_dir, ancillary_cns, geo_granule):
+    """
+    search static ancillary for LUTs and other required collections
+    principally required for NCC EDR
+    also, where possibly verify time range of ancillary to ensure we're covered
+    """
+    # FIXME not yet implemented
+    LOG.error('link_ancillary_collections not implemented')
+    return True
 
 
 def generate_gtm_edr_xml(kind, gran, work_dir):
@@ -414,7 +442,7 @@ def check_logs_for_run(work_dir, pid, xml):
     Display log message and hint if problem occurred
     """
     # retrieve exe name and log path from lw file
-    logDir = os.path.join(work_dir, "log")
+    logDir = work_dir #os.path.join(work_dir, "log")
     logExpression = "*" + str(pid) + "*.lo*"
     
     files = glob.glob(os.path.join(logDir, logExpression))
@@ -424,7 +452,7 @@ def check_logs_for_run(work_dir, pid, xml):
     err_files = set()
     for log_file in files:
         LOG.info("Checking Log file " + log_file + " for errors.")
-        count = adl_log.scan_log_file(COMMON_LOG_CHECK_TABLE, log_file)
+        count = adl_log.scan_log_file(COMMON_LOG_CHECK_TABLE + GTM_EDR_LOG_CHECK_TABLE, log_file)
         n_err += count
         if count > 0:
             err_files.add(log_file)
@@ -501,18 +529,17 @@ def task_gtm_edr(task_in):
         pid = sh(cmd, env=env(**local_env), cwd=work_subdir)
         LOG.debug("%r ran as pid %d" % (cmd, pid))
         ran_ok = check_logs_for_run(work_dir, pid, xml_filename)
+        if not ran_ok:
+            errors.append('logs were not error-free')
 
     except CalledProcessError as oops:
         pid = getattr(oops, 'pid', None)
-        errors.append('process crashed')
-        ran_ok = check_logs_for_run(work_subdir, pid, xml_filename)
+        errors.append('process indicated failure or crash')
+        ran_ok = check_logs_for_run(work_dir, pid, xml_filename)
         if not ran_ok:
             errors.append('log file problem')
         LOG.debug(traceback.format_exc())
         LOG.error('%s failed on %r: %r. Continuing...' % (exe, xml_filename, oops))
-
-    if not ran_ok:
-        errors.append('logs were not error-free')
 
     # link the output from the work_subdir to the work_dir
     product_filenames, transfer_errors = transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_collections)
@@ -527,13 +554,19 @@ def task_gtm_edr(task_in):
 
 
 def herd_viirs_gtm_edr_tasks(work_dir, nprocs=1, **additional_env):
-    tasks = []
     # find all the things we want to do and build tasks for them
-    for kind, geo_granule, sdr_collections in sift_metadata_for_viirs_gtm_edr(work_dir):
-        tasks.append(task_input(kind, geo_granule, sdr_collections, work_dir, additional_env))
+    tasks = []
+    for kind, geo_granule, sdr_collections, ancillary_cns in sift_metadata_for_viirs_gtm_edr(work_dir):
+        ancillary_ok = link_ancillary_collections(work_dir, ancillary_cns, geo_granule)
+        if ancillary_ok:
+            tasks.append(task_input(kind, geo_granule, sdr_collections, work_dir, additional_env))
+        else:
+            LOG.error('incomplete ancillary data, cannot process %s:%s' % (kind, geo_granule['N_Granule_ID']))
+            continue
+
     if nprocs == 1: 
         results = map(task_gtm_edr, tasks)
-    else:
+    else: # FIXME requires testing
         parallel = Pool( int(nprocs) )
         try:
             results = parallel.map(task_gtm_edr, tasks)
@@ -638,7 +671,6 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs = 1, compress=False, aggregate=Fals
     h5_paths = list(input_list_including_geo(h5_paths))
     LOG.info('final list of inputs: %s' % repr(h5_paths))
     error_count = unpack_h5s(work_dir, h5_paths)
-    # FIXME: this should discover the GEOs from the SDRs if only SDRs are provided
     # FIXME: compression
     # FIXME: aggregation
     # FIXME: cache update if we use any ancillary
