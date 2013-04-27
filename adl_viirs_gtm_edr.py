@@ -552,7 +552,7 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs = 1, compress=False, aggregate=Fals
 
     results = herd_viirs_gtm_edr_tasks(work_dir,
                                        nprocs=nprocs,
-                                       LINKED_ANCILLARY=ANCILLARY_SUB_DIR,
+                                       LINKED_ANCILLARY=anc_dir,
                                        ADL_HOME=ADL_HOME,
                                        CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH
                                        )
