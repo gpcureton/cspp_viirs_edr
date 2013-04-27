@@ -19,7 +19,7 @@ Details:
     this will result in an error abort.
 
 Preconditions:
-    Requires ADL_HOME, CSPP_SDR_HOME, CSPP_RT_ANC_CACHE_DIR, CSPP_ANC_HOME  environment variables are set.
+    Requires ADL_HOME, CSPP_EDR_HOME, CSPP_RT_ANC_CACHE_DIR, CSPP_ANC_HOME  environment variables are set.
     Requires that any needed LD_LIBRARY_PATH is set.
     Requires that DSTATICDATA is set.
 
@@ -28,11 +28,11 @@ Copyright (c) 2013 University of Wisconsin Regents.
 Licensed under GNU GPLv3.
 """
 
-import os, sys, logging, glob, traceback,  time, shutil
+import os, sys, logging, glob, traceback, shutil
 import datetime as dt
-from subprocess import CalledProcessError, call
+from subprocess import CalledProcessError
 from collections import namedtuple
-from multiprocessing import Pool, Lock, Value, cpu_count
+from multiprocessing import Pool, cpu_count
 
 import h5py
 
@@ -42,7 +42,6 @@ from adl_asc import skim_dir, skim_dir_collections, contiguous_granule_groups, R
 import adl_log, adl_geo_ref
 import adl_anc_retrieval
 
-import xml.etree.ElementTree as ET
 from adl_common import status_line, configure_logging, get_return_code, check_env, check_and_convert_path
 
 # ancillary search and unpacker common routines
@@ -59,140 +58,9 @@ ADL_VIIRS_NCC_GTM_EDR=os.path.join(ADL_HOME, 'bin', 'ProEdrViirsNccImagery.exe')
 
 LOG = logging.getLogger('adl_viirs_gtm_edr')
 
-# keys used in metadata dictionaries
-K_FILENAME = '_asc_filename'
-
-ANCILLARY_SUB_DIR="linked_data"
-
-
-# and the patterns we're looking for
-ADL_VIIRS_ANC_GLOBS = tuple()
-#    '*VIIRS-SDR-DNB-F-PREDICTED-LUT*',   # adl 4.1
-#    '*VIIRS-SDR-F-PREDICTED-LUT*',       # adl 4.1
-##  ProSdrCmnGeo
-#    '*CMNGEO-PARAM-LUT_npp*',
-#    '*off_Planet-Eph-ANC*',
-#    '*off_USNO-PolarWander*',
-#    '*CmnGeo-SAA-AC_npp*',
-##    '*Terrain-Eco-ANC-Tile*',
-## RDR processing
-#
-## GEO processing
-#    '*VIIRS-SDR-GEO-DNB-PARAM-LUT_npp*',
-#    '*VIIRS-SDR-GEO-IMG-PARAM-LUT_npp*',
-#    '*VIIRS-SDR-GEO-MOD-PARAM-LUT_npp*',
-### CAL Processing
-#    '*VIIRS-SDR-DNB-DN0-LUT_npp*',
-#    '*VIIRS-SDR-DNB-RVF-LUT_npp*',
-#    '*VIIRS-SDR-DG-ANOMALY-DN-LIMITS-LUT_npp*',
-#    '*VIIRS-SDR-DNB-STRAY-LIGHT-LUT_npp*',
-#    '*VIIRS-SDR-DNB-FRAME-TO-ZONE-LUT_npp*',
-##    '*VIIRS-SDR-F-LUT_npp*',               # adl 4.0
-#
-#    '*VIIRS-SDR-GAIN-LUT_npp*',
-#    '*VIIRS-SDR-HAM-ER-LUT*',
-#    '*VIIRS-SDR-RTA-ER-LUT*',
-#    '*VIIRS-SDR-OBC-ER-LUT_npp*',
-#    '*VIIRS-SDR-OBC-RR-LUT_npp*',
-#    '*VIIRS-SDR-EBBT-LUT_npp*',
-#    '*VIIRS-SDR-TELE-COEFFS-LUT_npp*',
-#    '*VIIRS-SDR-SOLAR-IRAD-LUT_npp*',
-#    '*VIIRS-SDR-RSR-LUT_npp*',
-#    '*VIIRS-SDR-OBS-TO-PIXELS-LUT_npp*',
-#    '*VIIRS-SOLAR-DIFF-VOLT-LUT_npp*',
-#    '*VIIRS-SDR-RADIOMETRIC-PARAM-LUT_npp*',
-#    '*VIIRS-SDR-QA-LUT_npp*',
-#    '*VIIRS-SDR-EMISSIVE-LUT_npp*',
-#    '*VIIRS-SDR-REFLECTIVE-LUT_npp*',
-#    '*VIIRS-SDR-RVF-LUT_npp*',
-#    '*VIIRS-SDR-BB-TEMP-COEFFS-LUT_npp*',
-#    '*VIIRS-SDR-DNB-C-COEFFS-LUT_npp*',
-#    '*VIIRS-SDR-DELTA-C-LUT_npp*',
-#    '*VIIRS-SDR-COEFF-A-LUT_npp*',
-#    '*VIIRS-SDR-COEFF-B-LUT_npp*',
-#        '*TLE-AUX*'
-#                    )
-
-
-# ADL_VIIRS_GEO_PRODUCT_SHORTNAMES = [
-#     'VIIRS-MOD-GEO-TC',
-#     'VIIRS-IMG-GEO-TC',
-#     'VIIRS-DNB-GEO',
-#    ]
-
-
-# OPTIONAL_GEO_PRODUCTS=[
-#     'VIIRS-IMG-GEO',
-#     'VIIRS-MOD-GEO'
-# ]
-
-
-# ADL_VIIRS_SDR_PRODUCT_SHORTNAMES = [
-
-#     'VIIRS-I1-SDR',
-#     'VIIRS-I2-SDR',
-#     'VIIRS-I3-SDR',
-#     'VIIRS-I4-SDR',
-#     'VIIRS-I5-SDR',
-#     'VIIRS-M1-SDR',
-#     'VIIRS-M2-SDR',
-#     'VIIRS-M3-SDR',
-#     'VIIRS-M4-SDR',
-#     'VIIRS-M5-SDR',
-#     'VIIRS-M6-SDR',
-#     'VIIRS-M7-SDR',
-#     'VIIRS-M8-SDR',
-#     'VIIRS-M9-SDR',
-#     'VIIRS-M10-SDR',
-#     'VIIRS-M11-SDR',
-#     'VIIRS-M12-SDR',
-#     'VIIRS-M13-SDR',
-#     'VIIRS-M14-SDR',
-#     'VIIRS-M15-SDR',
-#     'VIIRS-M16-SDR',
-#     'VIIRS-DNB-SDR'
-
-# ]
-
-# ADL_VIIRS_SDR_intermediate_SHORTNAMES = [
-#     'VIIRS-MOD-UNAGG-GEO',  # no nagg
-#     'VIIRS-DualGain-Cal-IP',    # no nagg
-#     'VIIRS-OBC-IP', # no nagg
-
-#     'VIIRS-IMG-RGEO',
-#     'VIIRS-MOD-RGEO',
-#     'VIIRS-I1-FSDR',
-#     'VIIRS-I2-FSDR',
-#     'VIIRS-I3-FSDR',
-#     'VIIRS-I4-FSDR',
-#     'VIIRS-I5-FSDR',
-#     'VIIRS-M1-FSDR',
-#     'VIIRS-M2-FSDR',
-#     'VIIRS-M3-FSDR',
-#     'VIIRS-M4-FSDR',
-#     'VIIRS-M5-FSDR',
-#     'VIIRS-M6-FSDR',
-#     'VIIRS-M7-FSDR',
-#     'VIIRS-M8-FSDR',
-#     'VIIRS-M9-FSDR',
-#     'VIIRS-M10-FSDR',
-#     'VIIRS-M11-FSDR',
-#     'VIIRS-M12-FSDR',
-#     'VIIRS-M14-FSDR',
-#     'VIIRS-M15-FSDR',
-#     'VIIRS-M16-FSDR',
-#     'VIIRS-MOD-RGEO',
-#     'VIIRS-MOD-RGEO-TC'
-# ]
-
+ANCILLARY_SUB_DIR = "linked_data"
 
 CHECK_REQUIRED_KEYS = ['N_Granule_ID', 'N_Collection_Short_Name']
-
-OBSERVE_TIME = 'ObservedStartTime'
-# table of NPP short names to data product ids
-
-# PRODUCTID_2_SHORTNAME= dict()
-# SHORTNAME_2_PRODUCTID = dict()
 
 GTM_EDR_LOG_CHECK_TABLE = [ # FIXME, make these more specific
   ('PRO_CROSSGRAN_FAIL', "Cross Granule dependency failure, more input needed?"),
@@ -201,7 +69,6 @@ GTM_EDR_LOG_CHECK_TABLE = [ # FIXME, make these more specific
 
 # WORK_DIR: directory that we unpack the input data into and accumulate final output to
 # WORK_SUBDIR: output directory written to by each granule+kind task instance
-
 XML_TMPL_VIIRS_MXX_GTM_EDR = """<InfTkConfig>
   <idpProcessName>ProEdrViirsMChannelImagery.exe</idpProcessName>
   <siSoftwareId></siSoftwareId>
@@ -222,7 +89,7 @@ XML_TMPL_VIIRS_MXX_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
@@ -264,7 +131,7 @@ XML_TMPL_VIIRS_IXX_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
@@ -306,7 +173,7 @@ XML_TMPL_VIIRS_NCC_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
@@ -330,22 +197,26 @@ XML_TMPL_VIIRS_NCC_GTM_EDR = """<InfTkConfig>
 # create a named tuple class holding the information we want for each group of SDRs
 # geo_cn: geolocation collection name
 # sdr_cn: sdr collection name
-guidebook_info = namedtuple('guidebook_info', 'sdr_cns geo_cn template exe anc')
+guidebook_info = namedtuple('guidebook_info', 'sdr_cns edr_cns geo_cn template exe anc')
 
 # note that for night time we only get M7,8,10,12,13,14,15,16, and I4,5
 # guidebook tells us what to expect and how to deal with it
+# Ref OAD for VIIRS GTM Imagery
 GTM_GUIDEBOOK = {
-    'IXX': guidebook_info(sdr_cns=set('VIIRS-I%d-SDR' % b for b in (4,5)), 
+    'IXX': guidebook_info(sdr_cns=['VIIRS-I%d-SDR' % b for b in (1,2,3,4,5)],
+                          edr_cns=['VIIRS-I%d-IMG-EDR' % b for b in (1,2,3,4,5)],
                           geo_cn='VIIRS-IMG-GEO', 
                           template=XML_TMPL_VIIRS_IXX_GTM_EDR, 
                           exe=ADL_VIIRS_IXX_GTM_EDR,
                           anc=[]),
-    'MXX': guidebook_info(sdr_cns=set('VIIRS-M%02d-SDR' % b for b in (7,8,10,12,13,14,15,16)), 
+    'MXX': guidebook_info(sdr_cns=['VIIRS-M%02d-SDR' % b for b in (1,4,9,14,15,16)],
+                          edr_cns=['VIIRS-M%s-EDR' % q for q in ['1ST','2ND','3RD','4TH','5TH','6TH']],
                           geo_cn='VIIRS-MOD-GEO', 
                           template=XML_TMPL_VIIRS_MXX_GTM_EDR, 
                           exe=ADL_VIIRS_MXX_GTM_EDR,
                           anc=[]),
-    'NCC': guidebook_info(sdr_cns=set('VIIRS-DNB-SDR'), 
+    'NCC': guidebook_info(sdr_cns=['VIIRS-DNB-SDR'],
+                          edr_cns=['VIIRS-NCC-EDR'],
                           geo_cn='VIIRS-DNB-GEO', 
                           template=XML_TMPL_VIIRS_NCC_GTM_EDR, 
                           exe=ADL_VIIRS_NCC_GTM_EDR,
@@ -382,6 +253,7 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
     # set of granules with available geolocation
     for kind, G in GTM_GUIDEBOOK.items():
         # list of available geo products for this group
+        sdr2edr = dict(zip(G.sdr_cns, G.edr_cns)) # FUTURE: This could be prebuilt and merged into guidebook
         geo_granules = _trim_geo_granules( meta[G.geo_cn] )
 
         # check if we have at least one SDR collection that should produce output for each granule
@@ -391,17 +263,19 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
             geo_gran_ver = geo_granule['N_Granule_Version']
             LOG.debug('checking available SDR collections for %s-v%s' % (geo_gran_id, geo_gran_ver))
 
-            sdr_collections = set()
+            sdr_collections = []
+            edr_collections = []
             for sdr_cn in [cn for cn in G.sdr_cns]: # see which SDR collections are available
                 for g in meta[sdr_cn]:
                     if ((g['N_Granule_ID']==geo_gran_id) and (g['N_Granule_Version']==geo_gran_ver)):
-                        sdr_collections.add(g['N_Collection_Short_Name'])
+                        sdr_collections.append(g['N_Collection_Short_Name'])
+                        edr_collections.append(sdr2edr[g['N_Collection_Short_Name']])
 
             if not sdr_collections: 
                 LOG.warning('no SDR products found for %s:%s-v%s' % (kind, geo_gran_id, geo_gran_ver))
             else:
                 LOG.debug('found SDR collections %s for %s:%s-v%s' % (repr(sdr_collections), kind, geo_gran_id, geo_gran_ver))
-                yield (kind, geo_granule, sdr_collections, G.anc)
+                yield (kind, geo_granule, sdr_collections, edr_collections, G.anc)
 
 
 def link_ancillary_collections(work_dir, ancillary_cns, geo_granule):
@@ -466,7 +340,7 @@ def check_logs_for_run(work_dir, pid, xml):
         return False
 
 
-def transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_collections):
+def transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_cns, edr_cns):
     """
     examine work_subdir for products, based on sdr_collections that were available as input
     transfer products back from work_subdir to work_dir
@@ -487,7 +361,7 @@ def transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_collections):
     return products, errors
 
 
-task_input = namedtuple('task_input', 'kind granule sdr_collections work_dir env_dict')
+task_input = namedtuple('task_input', 'kind granule sdr_cns edr_cns work_dir env_dict')
 task_output = namedtuple('task_output', 'kind granule_id product_filenames error_list')
 
 
@@ -496,7 +370,7 @@ def task_gtm_edr(task_in):
     process a single task, returning a task_output tuple
     this is suitable for spinning off to a subprocess using multiprocessing.Pool
     """
-    kind, gran, sdr_collections, work_dir, additional_env = task_in
+    kind, gran, sdr_cns, edr_cns, work_dir, additional_env = task_in
     G = GTM_GUIDEBOOK[kind]
 
     granule_id = gran['N_Granule_ID']
@@ -542,7 +416,7 @@ def task_gtm_edr(task_in):
         LOG.error('%s failed on %r: %r. Continuing...' % (exe, xml_filename, oops))
 
     # link the output from the work_subdir to the work_dir
-    product_filenames, transfer_errors = transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_collections)
+    product_filenames, transfer_errors = transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_cns, edr_cns)
     errors += list(transfer_errors)
 
     # if everything ran OK, clean up the intermediate stuff in our subdir
@@ -556,10 +430,10 @@ def task_gtm_edr(task_in):
 def herd_viirs_gtm_edr_tasks(work_dir, nprocs=1, **additional_env):
     # find all the things we want to do and build tasks for them
     tasks = []
-    for kind, geo_granule, sdr_collections, ancillary_cns in sift_metadata_for_viirs_gtm_edr(work_dir):
-        ancillary_ok = link_ancillary_collections(work_dir, ancillary_cns, geo_granule)
+    for kind, geo_granule, sdr_cns, edr_cns, anc_cns in sift_metadata_for_viirs_gtm_edr(work_dir):
+        ancillary_ok = link_ancillary_collections(work_dir, anc_cns, geo_granule)
         if ancillary_ok:
-            tasks.append(task_input(kind, geo_granule, sdr_collections, work_dir, additional_env))
+            tasks.append(task_input(kind, geo_granule, sdr_cns, edr_cns, work_dir, additional_env))
         else:
             LOG.error('incomplete ancillary data, cannot process %s:%s' % (kind, geo_granule['N_Granule_ID']))
             continue
@@ -656,6 +530,7 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs = 1, compress=False, aggregate=Fals
     clean up the work directory if errors weren't present
     report on the final outcome
     return a result code to pass back to the shell (0 for success, nonzero for error)
+
     :param work_dir: directory to work in
     :param h5_paths: SDR and GEO hdf5 path sequence
     :param nprocs: number of processors to use, default 1
