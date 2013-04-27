@@ -38,7 +38,6 @@ import datetime as dt
 from subprocess import CalledProcessError
 from collections import namedtuple
 from multiprocessing import Pool, cpu_count
-
 import h5py
 
 # skim and convert routines for reading .asc metadata fields of interest
@@ -207,6 +206,7 @@ guidebook_info = namedtuple('guidebook_info', 'sdr_cns edr_cns geo_cn template e
 # Ref OAD for VIIRS GTM Imagery
 # FUTURE: get ancillary requirements by reading ${ADL_HOME}/cfg/ProEdrViirs{IChannel,MChannel,Ncc}Imagery_CFG.xml
 # FUTURE: check for FSDR blobs and use them if available?
+# FUTURE: include GEO EDR output products e.g. , 'VIIRS-NCC-EDR-GEO'
 GTM_GUIDEBOOK = {
     'IXX': guidebook_info(sdr_cns=['VIIRS-I%d-SDR' % b for b in (1, 2, 3, 4, 5)],
                           edr_cns=['VIIRS-I%d-IMG-EDR' % b for b in (1, 2, 3, 4, 5)],
@@ -219,13 +219,19 @@ GTM_GUIDEBOOK = {
                           geo_cn='VIIRS-MOD-GEO',
                           template=XML_TMPL_VIIRS_MXX_GTM_EDR,
                           exe=ADL_VIIRS_MXX_GTM_EDR,
-                          anc=[]),
+                          anc=['VIIRS-MOD-GRC']),
     'NCC': guidebook_info(sdr_cns=['VIIRS-DNB-SDR'],
                           edr_cns=['VIIRS-NCC-EDR'],
                           geo_cn='VIIRS-DNB-GEO',
                           template=XML_TMPL_VIIRS_NCC_GTM_EDR,
                           exe=ADL_VIIRS_NCC_GTM_EDR,
-                          anc=['VIIRS-Ga-Val-Vs-Scene-Sol-Elev-LUT'])
+                          anc=['VIIRS-DNB-GRC',
+                               'VIIRS-NCC-EDR-AC-Int',
+                               'VIIRS-LUN-Phase-LUT',
+                               'VIIRS-Sol-BRDF-LUT',
+                               'VIIRS-Lun-BRDF-LUT',
+                               'VIIRS-Ga-Val-Vs-Scene-Lun-Elev-LUT',
+                               'VIIRS-Ga-Val-Vs-Scene-Sol-Elev-LUT'])
 }
 
 
@@ -240,6 +246,7 @@ def _trim_geo_granules(gran_dict_seq):
     dct = dict((g['N_Granule_ID'], g) for g in lst)
     return sorted(dct.values(), key=key)
 
+
 def _crossgran_filter(geo_granules, n_crossgran=1):
     """
     given a sequence of geo granule metadata dictionaries,
@@ -253,6 +260,7 @@ def _crossgran_filter(geo_granules, n_crossgran=1):
     for group in contiguous_granule_groups(geo_granules):
         for geo_gran in group[n_crossgran:-n_crossgran]:
             yield geo_gran
+
 
 def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
     """
@@ -291,6 +299,7 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
 
             sdr_collections = []
             edr_collections = []
+            # FIXME: this will not properly identify cross-granule SDR problems, e.g. GEO is all present but I4 is not
             for sdr_cn in [cn for cn in G.sdr_cns]:  # see which SDR collections are available
                 for g in meta[sdr_cn]:
                     if (g['N_Granule_ID'] == geo_gran_id) and (g['N_Granule_Version'] == geo_gran_ver):
