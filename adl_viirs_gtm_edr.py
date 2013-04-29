@@ -207,25 +207,32 @@ guidebook_info = namedtuple('guidebook_info', 'sdr_cns edr_cns geo_cn template e
 # FUTURE: get ancillary requirements by reading ${ADL_HOME}/cfg/ProEdrViirs{IChannel,MChannel,Ncc}Imagery_CFG.xml
 # FUTURE: check for FSDR blobs and use them if available?
 # FUTURE: include GEO EDR output products e.g. , 'VIIRS-NCC-EDR-GEO'
+# note that all of them need TLE and PolarWander anc!
 GTM_GUIDEBOOK = {
     'IXX': guidebook_info(sdr_cns=['VIIRS-I%d-SDR' % b for b in (1, 2, 3, 4, 5)],
                           edr_cns=['VIIRS-I%d-IMG-EDR' % b for b in (1, 2, 3, 4, 5)],
                           geo_cn='VIIRS-IMG-GEO',
                           template=XML_TMPL_VIIRS_IXX_GTM_EDR,
                           exe=ADL_VIIRS_IXX_GTM_EDR,
-                          anc=['VIIRS-IMG-GRC']),
+                          anc=['CmnGeo-SAA-AC',
+                               'CMNGEO-PARAM-LUT',
+                               'VIIRS-IMG-GRC']),
     'MXX': guidebook_info(sdr_cns=['VIIRS-M%02d-SDR' % b for b in (1, 4, 9, 14, 15, 16)],
                           edr_cns=['VIIRS-M%s-EDR' % q for q in ['1ST', '2ND', '3RD', '4TH', '5TH', '6TH']],
                           geo_cn='VIIRS-MOD-GEO',
                           template=XML_TMPL_VIIRS_MXX_GTM_EDR,
                           exe=ADL_VIIRS_MXX_GTM_EDR,
-                          anc=['VIIRS-MOD-GRC']),
+                          anc=['CmnGeo-SAA-AC',
+                               'CMNGEO-PARAM-LUT',
+                               'VIIRS-MOD-GRC']),
     'NCC': guidebook_info(sdr_cns=['VIIRS-DNB-SDR'],
                           edr_cns=['VIIRS-NCC-EDR'],
                           geo_cn='VIIRS-DNB-GEO',
                           template=XML_TMPL_VIIRS_NCC_GTM_EDR,
                           exe=ADL_VIIRS_NCC_GTM_EDR,
-                          anc=['VIIRS-DNB-GRC',
+                          anc=['CmnGeo-SAA-AC',
+                               'CMNGEO-PARAM-LUT',
+                               'VIIRS-DNB-GRC',
                                'VIIRS-NCC-EDR-AC-Int',
                                'VIIRS-LUN-Phase-LUT',
                                'VIIRS-Sol-BRDF-LUT',
@@ -314,15 +321,44 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
                 yield (kind, geo_granule, sdr_collections, edr_collections, G.anc)
 
 
-def link_ancillary_collections(work_dir, ancillary_cns, geo_granule):
+def populate_static_ancillary_links(anc_dir, ancillary_cns, geo_granules):
     """
     search static ancillary for LUTs and other required collections
-    principally required for NCC EDR
     also, where possibly verify time range of ancillary to ensure we're covered
+    FUTURE: promote nearly common routine shared with adl_atms_sdr.py up into adl_common.py
+
+    :param anc_dir: ancillary directory to link into
+    :param ancillary_cns: sequence of collection names we're looking for
+    :param geo_granules: granule metadata dictionary list (for things like time ranges)
     """
-    # FIXME not yet implemented
-    LOG.error('link_ancillary_collections not implemented')
-    return True
+    search_dirs = ([CSPP_RT_ANC_CACHE_DIR] if CSPP_RT_ANC_CACHE_DIR is not None else []) + CSPP_RT_ANC_PATH
+    # convert collection names to filename globs
+    anc_globs = ['*%s*' for cn in ancillary_cns]
+    link_ancillary_to_work_dir(anc_dir, anc_files_needed(anc_globs, search_dirs, geo_granules))
+
+
+def populate_dynamic_ancillary_links(anc_dir, work_dir, granules_to_process, allow_cache_update=True):
+    """
+    search for dynamic ancillary data (polar wander and TLE) for the granules we intend to process
+    if it's not in the cache already, download it
+    softlink those into the workspace
+    :param anc_dir: ancillary directory to link files into
+    :param work_dir: where to download ancillary files in the case that cache is unavailable
+    :param granules_to_process: list of granule metadata dictionaries, provide time ranges etc
+    :param allow_cache_update: whether or not to allow the helper scripts to download from Internet
+    FUTURE: originally in adl_atms_sdr.py, consider promoting common routine to adl_common
+    """
+    LOG.info("downloading TLE and PolarWander ancillary into cache and linking into workspace")
+    polar_files = adl_anc_retrieval.service_remote_ancillary(work_dir, granules_to_process,
+                                                             adl_anc_retrieval.kPOLAR,
+                                                             allow_cache_update=allow_cache_update)
+    tle_files = adl_anc_retrieval.service_remote_ancillary(work_dir, granules_to_process,
+                                                           adl_anc_retrieval.kTLE,
+                                                           allow_cache_update=allow_cache_update)
+    all_dyn_anc = list(polar_files) + list(tle_files)
+    LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
+    LOG.info("Link the required ancillary data into the workspace")
+    link_ancillary_to_work_dir(anc_dir, all_dyn_anc)
 
 
 def generate_gtm_edr_xml(kind, gran, work_dir):
@@ -463,25 +499,52 @@ def task_gtm_edr(task_in):
     return task_output(kind, granule_id, product_filenames, errors)
 
 
-def herd_viirs_gtm_edr_tasks(work_dir, nprocs=1, **additional_env):
-    # find all the things we want to do and build tasks for them
+def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, nprocs=1, allow_cache_update=True, **additional_env):
+    """
+    skim work directory ASC metadata and decide which granules to process, and which controller to use
+    generate task objects for processing candidates
+    populate static and dynamic ancillary data with softlinks and/or data downloads
+    execute tasks linearly (nprocs=1) or in parallel using multiprocessing Pool
+    return result tuples indicating output files and any errors encountered
+
+    :param work_dir: outer work area in which we create GTM_* sub-workdirs
+    :param anc_dir: linked_data ancillary directory, populated here and shared between tasks
+    :param nprocs: number of processes to run in parallel for tasking
+    :param allow_cache_update: whether or not to permit ancillary helper scripts to download from Internet
+    :param additional_env: environment variables to pass on to controllers run by tasks
+    :return: array of result tuples
+    """
     tasks = []
-    for kind, geo_granule, sdr_cns, edr_cns, anc_cns in sift_metadata_for_viirs_gtm_edr(work_dir):
-        ancillary_ok = link_ancillary_collections(work_dir, anc_cns, geo_granule)
-        if ancillary_ok:
-            tasks.append(task_input(kind, geo_granule, sdr_cns, edr_cns, work_dir, additional_env))
-        else:
-            LOG.error('incomplete ancillary data, cannot process %s:%s' % (kind, geo_granule['N_Granule_ID']))
-            continue
+    LOG.debug('sifting unpacked metadata for candidate granules to process')
+    all_info = list(sift_metadata_for_viirs_gtm_edr(work_dir))
+
+    all_anc_cns = set()
+    all_geo_grans = []
+    for kind, geo_granule, sdr_cns, edr_cns, anc_cns in all_info:
+        all_anc_cns.add(set(anc_cns))
+        all_geo_grans.append(geo_granule)
+
+    # track down the set of all ancillary we'll be needing for these granules
+    # FUTURE: conider doing this at a smaller granularity
+    LOG.debug('expect to need these static ancillary collections: %s' % repr(all_anc_cns))
+    populate_static_ancillary_links(anc_dir, all_anc_cns, all_geo_grans)
+    LOG.debug('fetching dynamic ancillary for %d granules' % len(all_geo_grans))
+    populate_dynamic_ancillary_links(anc_dir, work_dir, all_geo_grans, allow_cache_update)
+
+    LOG.debug('building task list for parallel processing')
+    for kind, geo_granule, sdr_cns, edr_cns, anc_cns in all_info:
+        tasks.append(task_input(kind, geo_granule, sdr_cns, edr_cns, work_dir, additional_env))
 
     if nprocs == 1:
+        LOG.debug('running %d tasks without parallelism' % len(tasks))
         results = map(task_gtm_edr, tasks)
     else:
         # FIXME requires testing
+        LOG.debug('creating process pool size %d for %d tasks' % (int(nprocs), len(tasks)))
         parallel = Pool(int(nprocs))
         try:
             results = parallel.map(task_gtm_edr, tasks)
-        except (KeyboardInterrupt, SystemError) as ejectionseat:
+        except (KeyboardInterrupt, SystemError):
             # note that we're depending on register_sigterm having been called for SystemError on SIGTERM
             LOG.warning('external termination detected, aborting subprocesses')
             parallel.terminate()
@@ -588,8 +651,9 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs=1, compress=False, aggregate=False,
     # FIXME: aggregation
     # FIXME: cache update if we use any ancillary
 
-    results = herd_viirs_gtm_edr_tasks(work_dir,
+    results = herd_viirs_gtm_edr_tasks(work_dir, anc_dir,
                                        nprocs=nprocs,
+                                       allow_cache_update=allow_cache_update,
                                        LINKED_ANCILLARY=anc_dir,
                                        ADL_HOME=ADL_HOME,
                                        CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH)
