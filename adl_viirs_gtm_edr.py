@@ -335,7 +335,7 @@ def populate_static_ancillary_links(anc_dir, ancillary_cns, geo_granules):
     search_dirs += list(CSPP_RT_ANC_PATH.split(':'))
     LOG.debug('searching %s for static ancillary %s' % (repr(search_dirs), repr(ancillary_cns)))
     # convert collection names to filename globs
-    anc_globs = ['*%s*' for cn in ancillary_cns]
+    anc_globs = [('*%s*' % cn) for cn in ancillary_cns]
     link_ancillary_to_work_dir(anc_dir, anc_files_needed(anc_globs, search_dirs, geo_granules))
 
 
