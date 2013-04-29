@@ -393,8 +393,20 @@ class IceConcentration() :
             LOG.exception("Problem opening MMAB file (%s), aborting."%(MMAB_fileName))
             sys.exit(1)
 
-        message = engObj.message(1)
-        engObj.close()
+        try :
+            msgNum = engObj.messages
+            if (msgNum == 0):
+                LOG.error("Grib messages must start at 1: Incorrect message number (%s) for %s, aborting"%\
+                        (msgNum,MMAB_fileName))
+                engObj.close()
+                sys.exit(1)
+            else :
+                message = engObj.message(msgNum)
+                engObj.close()
+        except Exception, err :
+            LOG.exception("%s"%(err))
+            engObj.close()
+            sys.exit(1)
 
         #analDate = message.analDate
         #lats,lons = message.latlons()
