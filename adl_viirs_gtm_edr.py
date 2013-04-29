@@ -214,31 +214,28 @@ GTM_GUIDEBOOK = {
                           geo_cn='VIIRS-IMG-GEO',
                           template=XML_TMPL_VIIRS_IXX_GTM_EDR,
                           exe=ADL_VIIRS_IXX_GTM_EDR,
-                          anc=['CmnGeo-SAA-AC',
-                               'CMNGEO-PARAM-LUT',
-                               'VIIRS-IMG-GRC']),
+                          anc=('CmnGeo-SAA-AC',
+                               'CMNGEO-PARAM-LUT')),
     'MXX': guidebook_info(sdr_cns=['VIIRS-M%02d-SDR' % b for b in (1, 4, 9, 14, 15, 16)],
                           edr_cns=['VIIRS-M%s-EDR' % q for q in ['1ST', '2ND', '3RD', '4TH', '5TH', '6TH']],
                           geo_cn='VIIRS-MOD-GEO',
                           template=XML_TMPL_VIIRS_MXX_GTM_EDR,
                           exe=ADL_VIIRS_MXX_GTM_EDR,
-                          anc=['CmnGeo-SAA-AC',
-                               'CMNGEO-PARAM-LUT',
-                               'VIIRS-MOD-GRC']),
+                          anc=('CmnGeo-SAA-AC',
+                               'CMNGEO-PARAM-LUT')),
     'NCC': guidebook_info(sdr_cns=['VIIRS-DNB-SDR'],
                           edr_cns=['VIIRS-NCC-EDR'],
                           geo_cn='VIIRS-DNB-GEO',
                           template=XML_TMPL_VIIRS_NCC_GTM_EDR,
                           exe=ADL_VIIRS_NCC_GTM_EDR,
-                          anc=['CmnGeo-SAA-AC',
+                          anc=('CmnGeo-SAA-AC',
                                'CMNGEO-PARAM-LUT',
-                               'VIIRS-DNB-GRC',
                                'VIIRS-NCC-EDR-AC-Int',
                                'VIIRS-LUN-Phase-LUT',
                                'VIIRS-Sol-BRDF-LUT',
                                'VIIRS-Lun-BRDF-LUT',
                                'VIIRS-Ga-Val-Vs-Scene-Lun-Elev-LUT',
-                               'VIIRS-Ga-Val-Vs-Scene-Sol-Elev-LUT'])
+                               'VIIRS-Ga-Val-Vs-Scene-Sol-Elev-LUT'))
 }
 
 
@@ -521,7 +518,7 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, nprocs=1, allow_cache_update=Tru
     all_anc_cns = set()
     all_geo_grans = []
     for kind, geo_granule, sdr_cns, edr_cns, anc_cns in all_info:
-        all_anc_cns.add(set(anc_cns))
+        all_anc_cns.update(set(anc_cns))
         all_geo_grans.append(geo_granule)
 
     # track down the set of all ancillary we'll be needing for these granules
