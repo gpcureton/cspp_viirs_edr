@@ -420,7 +420,7 @@ def transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_cns, edr_cns)
     """
     products = []
     errors = []
-    # FIXME: this is just a first wag at it and could stand to be more discriminating
+    # FIXME: this is just a first wag at it; it should use EDR collection names and N_GEO_Ref preferably
     for h5path in glob.glob(os.path.join(work_subdir, '*.h5')):
         LOG.debug('transferring output %s' % h5path)
         h5filename = os.path.split(h5path)[-1]
