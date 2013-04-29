@@ -269,9 +269,7 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
     #start_time_key = lambda x: (x['StartTime'], x.get('N_Granule_Version', None))
     start_time_key = lambda x: (x['ObservedStartTime'], x.get('N_Granule_Version', None))
     granlist = _eliminate_duplicates(sorted(granules, key = start_time_key),larger_granules_preferred=larger_granules_preferred)
-    #LOG.debug('granlist = %r'%(granlist))
     granset = set(x['N_Granule_ID'] for x in granlist)
-    #LOG.debug('granset = %r'%(granset))
 
     # it's ambiguous if we have a work directory with multiple different blobs for any given granule
     if len(granlist) != len(granset):
@@ -431,12 +429,14 @@ def _granulate_ANC(inDir,geoDicts,algList):
 
         # Link in the canned NAAPS gridded file
         NAAPSblobFile = path.join(CSPP_RT_ANC_CACHE_DIR,'NAAPS-ANC-Int','template.NAAPS-ANC-Int')
-        os.symlink(NAAPSblobFile, 'template.NAAPS-ANC-Int')
+        #NAAPSblobFileLink = path.join(inDir,'template.NAAPS-ANC-Int')
+        #os.symlink(NAAPSblobFile, NAAPSblobFileLink)
 
         # Open the NAAPS gridded blob file
         # FIXME : Should be using two NAAPS blob files, and averaging
         naapsXmlFile = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
-        naapsGridBlobFile = glob(path.join(inDir,"*.NAAPS-ANC-Int"))[0]
+        #naapsGridBlobFile = glob(path.join(inDir,"*.NAAPS-ANC-Int"))[0]
+        naapsGridBlobFile = NAAPSblobFile
 
         if path.exists(naapsXmlFile):
             LOG.info("We are using for %s: %s,%s" %('NAAPS-ANC-Int',naapsXmlFile,naapsGridBlobFile))
@@ -444,7 +444,7 @@ def _granulate_ANC(inDir,geoDicts,algList):
         # This is a BIG endian grid blob, usually will be little endian.
         naapsBlobObj = adl_blob.map(naapsXmlFile,naapsGridBlobFile, endian=adl_blob.BIG_ENDIAN)
         naapsBlobArrObj = naapsBlobObj.as_arrays()
-        LOG.info("%s...\n%r" % (naapsGridBlobFile,naapsBlobArrObj._fields))
+        LOG.debug("%s...\n%r" % (naapsGridBlobFile,naapsBlobArrObj._fields))
 
 
     # Create a list of algorithm module "pointers"
@@ -902,6 +902,7 @@ def main():
     # Unpack HDF5 VIIRS radiometric SDRs in the input directory to the work directory
     mod_unpacking_problems = 0
     img_unpacking_problems = 0
+    unpacking_problems = 0
     if not options.skipSdrUnpack :
         mod_unpacking_problems = _unpack_sdr(work_dir,input_dir,inputGlobs['MOD'])
         img_unpacking_problems = _unpack_sdr(work_dir,input_dir,inputGlobs['IMG'])
@@ -910,6 +911,7 @@ def main():
         LOG.debug("Total VIIRS SDR unpacking problems = %d" % (unpacking_problems))
     else :
         LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
+        unpacking_problems = geo_unpacking_problems + mod_unpacking_problems + img_unpacking_problems
 
     # Check radiometric SDR metadata for wrong N_Granule_Version, and fix...
     sdr_blob_names = glob(path.join(work_dir,"*.*SDR"))
