@@ -328,7 +328,12 @@ def populate_static_ancillary_links(anc_dir, ancillary_cns, geo_granules):
     :param ancillary_cns: sequence of collection names we're looking for
     :param geo_granules: granule metadata dictionary list (for things like time ranges)
     """
-    search_dirs = ([CSPP_RT_ANC_CACHE_DIR] if CSPP_RT_ANC_CACHE_DIR is not None else []) + CSPP_RT_ANC_PATH
+    if CSPP_RT_ANC_CACHE_DIR is not None:
+        search_dirs = [CSPP_RT_ANC_CACHE_DIR]
+    else:
+        search_dirs = []
+    search_dirs += list(CSPP_RT_ANC_PATH.split(':'))
+    LOG.debug('searching %s for static ancillary %s' % (repr(search_dirs), repr(ancillary_cns)))
     # convert collection names to filename globs
     anc_globs = ['*%s*' for cn in ancillary_cns]
     link_ancillary_to_work_dir(anc_dir, anc_files_needed(anc_globs, search_dirs, geo_granules))
