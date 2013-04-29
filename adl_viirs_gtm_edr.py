@@ -41,7 +41,7 @@ from multiprocessing import Pool, cpu_count
 import h5py
 
 # skim and convert routines for reading .asc metadata fields of interest
-from adl_asc import skim_dir, skim_dir_collections, contiguous_granule_groups, RDR_REQUIRED_KEYS
+from adl_asc import skim_dir, skim_dir_collections, contiguous_granule_groups, RDR_REQUIRED_KEYS, K_FILENAME
 
 import adl_log, adl_geo_ref
 import adl_anc_retrieval
@@ -318,6 +318,45 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
                 yield (kind, geo_granule, sdr_collections, edr_collections, G.anc)
 
 
+def anc_files_for_collections(collection_names, search_path_list, granules, optional=False):
+    """
+    find all the ancillary files that we need as a sequence to feed to link_ancillary_to_work_dir
+
+    FUTURE: promote this into adl_asc and replace anc_files_needed with it, this should be more robust
+
+    :param collection_names: sequence of collection names to search through metadata dictionaries for
+    :param search_path_list: sequences of directories to look in
+    :param granules: granules we want to ensure effectivity for these collections (not implemented!)
+    :param optional: whether or not to raise an error if nothing is found for these collections
+    :return:
+    """
+    for cn in collection_names:
+        nfound = 0
+        for search_dir in search_path_list:
+            if not search_dir:
+                continue
+            LOG.debug("searching %s for %r" % (search_dir, cn))
+            for nfo in skim_dir(search_dir, required_keys=['N_Collection_Short_Name'], N_Collection_Short_Name=cn):
+                asc_path = nfo[K_FILENAME]
+                blob_path = os.path.join(os.path.split(asc_path)[0], os.path.split(nfo['BlobPath'])[-1])
+                nfound += 1
+                LOG.debug('for ancillary %s, found %r / %r' % (cn, asc_path, blob_path))
+                if os.path.isfile(asc_path) and os.path.isfile(blob_path):
+                    yield asc_path
+                    yield blob_path
+                else:
+                    if not os.path.isfile(asc_path):
+                        LOG.error('could not find ancillary metadata %s' % asc_path)
+                    if not os.path.isfile(blob_path):
+                        LOG.error('could not find ancillary binary large object %s' % blob_path)
+        if nfound == 0 and not optional:
+            err = 'no ancillary data found for pattern %r in directories %s' % (cn, repr(search_path_list))
+            LOG.error(err)
+            raise EnvironmentError(err)
+        else:
+            LOG.debug('found %d files for %r' % (nfound, cn))
+
+
 def populate_static_ancillary_links(anc_dir, ancillary_cns, geo_granules):
     """
     search static ancillary for LUTs and other required collections
@@ -335,8 +374,7 @@ def populate_static_ancillary_links(anc_dir, ancillary_cns, geo_granules):
     search_dirs += list(CSPP_RT_ANC_PATH.split(':'))
     LOG.debug('searching %s for static ancillary %s' % (repr(search_dirs), repr(ancillary_cns)))
     # convert collection names to filename globs
-    anc_globs = [('*%s*' % cn) for cn in ancillary_cns]
-    link_ancillary_to_work_dir(anc_dir, anc_files_needed(anc_globs, search_dirs, geo_granules))
+    link_ancillary_to_work_dir(anc_dir, anc_files_for_collections(ancillary_cns, search_dirs, geo_granules))
 
 
 def populate_dynamic_ancillary_links(anc_dir, work_dir, granules_to_process, allow_cache_update=True):
