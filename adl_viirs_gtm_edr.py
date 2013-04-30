@@ -6,7 +6,8 @@ $Id$
 Purpose: Run the VIIRS Ground-Track Mercator (GTM) EDR products using Raytheon ADL 4.1
 
 Input:
-    One or more HDF5 VIIRS SDR input files with matching GEO data, aggregated or single-granule.
+    A input directory with intermediate and end products from VIIRS SDR in BLOB+ASC form.
+    This is typically generated in CSPP by using --edr parameter.
     A work directory, typically, empty, in which to unpack the granules and generate the output.
     If the work directory specified does not exist, it will be created.
 
@@ -43,14 +44,14 @@ import h5py
 # skim and convert routines for reading .asc metadata fields of interest
 from adl_asc import skim_dir, skim_dir_collections, contiguous_granule_groups, RDR_REQUIRED_KEYS, K_FILENAME
 
-import adl_log, adl_geo_ref
+import adl_log
+import adl_geo_ref
 import adl_anc_retrieval
 
 from adl_common import status_line, configure_logging, get_return_code, check_env, check_and_convert_path
 
 # ancillary search and unpacker common routines
-from adl_common import sh, anc_files_needed, link_ancillary_to_work_dir, unpack, env
-from adl_common import unpack_h5s
+from adl_common import sh, link_ancillary_to_work_dir, env
 from adl_common import COMMON_LOG_CHECK_TABLE, EXTERNAL_BINARY, CSPP_RT_ANC_CACHE_DIR, CSPP_RT_ANC_PATH, DDS_PRODUCT_FILE, ADL_HOME, CSPP_RT_ANC_TILE_PATH
 
 from adl_post_process import repack_products, aggregate_products, add_geo_attribute_to_aggregates
@@ -93,7 +94,7 @@ XML_TMPL_VIIRS_MXX_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:%{INPUT_DIR}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
@@ -134,7 +135,7 @@ XML_TMPL_VIIRS_IXX_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:%{INPUT_DIR}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
@@ -175,7 +176,7 @@ XML_TMPL_VIIRS_NCC_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:%{INPUT_DIR}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
@@ -539,7 +540,7 @@ def task_gtm_edr(task_in):
     return task_output(kind, granule_id, product_filenames, errors)
 
 
-def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, nprocs=1, allow_cache_update=True, **additional_env):
+def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache_update=True, **additional_env):
     """
     skim work directory ASC metadata and decide which granules to process, and which controller to use
     generate task objects for processing candidates
@@ -556,7 +557,7 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, nprocs=1, allow_cache_update=Tru
     """
     tasks = []
     LOG.debug('sifting unpacked metadata for candidate granules to process')
-    all_info = list(sift_metadata_for_viirs_gtm_edr(work_dir))
+    all_info = list(sift_metadata_for_viirs_gtm_edr(input_dir))
 
     all_anc_cns = set()
     all_geo_grans = []
@@ -565,7 +566,7 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, nprocs=1, allow_cache_update=Tru
         all_geo_grans.append(geo_granule)
 
     # track down the set of all ancillary we'll be needing for these granules
-    # FUTURE: conider doing this at a smaller granularity
+    # FUTURE: consider doing this at a finer granularity
     LOG.debug('expect to need these static ancillary collections: %s' % repr(all_anc_cns))
     populate_static_ancillary_links(anc_dir, all_anc_cns, all_geo_grans)
     LOG.debug('fetching dynamic ancillary for %d granules' % len(all_geo_grans))
@@ -661,7 +662,7 @@ def input_list_including_geo(pathnames):
     return zult
 
 
-def viirs_gtm_edr(work_dir, h5_paths, nprocs=1, compress=False, aggregate=False, allow_cache_update=True):
+def viirs_gtm_edr(work_dir, input_dir, nprocs=1, compress=False, aggregate=False, allow_cache_update=True):
     """
     given a work directory and a series of hdf5 SDR and GEO paths
     make work directory
@@ -673,29 +674,35 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs=1, compress=False, aggregate=False,
     return a result code to pass back to the shell (0 for success, nonzero for error)
 
     :param work_dir: directory to work in
-    :param h5_paths: SDR and GEO hdf5 path sequence
+    :param input_dir: directory containing intermediate and end-products from VIIRS SDR
     :param nprocs: number of processors to use, default 1
+    :param compress: whether or not to apply h5repack to output HDF5 files
+    :param aggregate: whether or not to use nagg to aggregate output HDF5 files
+    :param allow_cache_update: whether or not to allow dynamic ancillary to be downloaded
     """
     check_env(work_dir)
 
     anc_dir = os.path.join(work_dir, ANCILLARY_SUB_DIR)
     setup_directories(work_dir, anc_dir)
 
-    status_line("Unpack the supplied inputs")
-    h5_paths = list(input_list_including_geo(h5_paths))
-    LOG.info('final list of inputs: %s' % repr(h5_paths))
-    error_count = unpack_h5s(work_dir, h5_paths)
+    if not os.path.isdir(input_dir):
+        LOG.error('%s is not a valid directory; please run VIIRS SDR with --edr' % input_dir)
+        return 1
+    input_dir = os.path.abspath(input_dir)
+
     # FIXME: compression
     # FIXME: aggregation
-    # FIXME: cache update if we use any ancillary
 
-    results = herd_viirs_gtm_edr_tasks(work_dir, anc_dir,
+    # FUTURE: migrate directory environment settings to inner routine for better consistency
+    results = herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir,
                                        nprocs=nprocs,
                                        allow_cache_update=allow_cache_update,
                                        LINKED_ANCILLARY=anc_dir,
+                                       INPUT_DIR=input_dir,
                                        ADL_HOME=ADL_HOME,
                                        CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH)
     LOG.debug(repr(results))
+    error_count = 0
     for kind, granule, products, errors in results:
         error_count += len(errors)
     return error_count
@@ -719,23 +726,20 @@ def main():
     parser.add_argument('-z', '--zip',
                         action="store_true", default=False, help="compress products with h5repack zip compression")
 
-    parser.add_argument('-g', '--geo',
-                        action="store_true", default=False, help="Retain terain un-correct GEO products")
-
     parser.add_argument('-a', '--aggregate',
                         action="store_true", default=False, help="aggregate products with nagg")
 
     parser.add_argument('-l', '--local',
                         action="store_true", default=False, help="disable download of remote ancillary data to cache")
 
-    parser.add_argument('-p', '--processor',
+    parser.add_argument('-p', '--processors',
                         type=int, default=1, help="Number of processors to use for band processing")
 
     parser.add_argument('-v', '--verbosity', action="count", default=0,
                         help='each occurrence increases verbosity 1 level through ERROR-WARNING-INFO-DEBUG')
 
-    parser.add_argument('filenames', metavar='filename', type=str, nargs='+',
-                        help='HDF5 VIIRS RDR file/s to process')
+    parser.add_argument('input_dir', metavar='filename', type=str, nargs='+',
+                        help='VIIRS SDR workspace directory to source SDR and intermediate products from')
 
     args = parser.parse_args()
 
@@ -770,12 +774,12 @@ def main():
 
     register_sigterm()
 
-    num_procs = args.processor
+    num_procs = args.processors
     if num_procs <= 0:
         num_procs = cpu_count()
         LOG.info('using %d cores' % num_procs)
 
-    rc = viirs_gtm_edr(work_dir, args.filenames, nprocs=num_procs,
+    rc = viirs_gtm_edr(work_dir, args.input_dir, nprocs=num_procs,
                        compress=args.zip, aggregate=args.aggregate,
                        allow_cache_update=not args.local)
 
