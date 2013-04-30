@@ -678,8 +678,6 @@ def viirs_gtm_edr(work_dir, h5_paths, nprocs=1, compress=False, aggregate=False,
     """
     check_env(work_dir)
 
-    register_sigterm()
-
     anc_dir = os.path.join(work_dir, ANCILLARY_SUB_DIR)
     setup_directories(work_dir, anc_dir)
 
@@ -769,6 +767,8 @@ def main():
     if not args:
         parser.print_help()
         return 1
+
+    register_sigterm()
 
     num_procs = args.processor
     if num_procs <= 0:
