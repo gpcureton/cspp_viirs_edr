@@ -768,7 +768,7 @@ def main():
     #
     #     sys.exit(2)
 
-    if not args:
+    if not args or len(args.input_dir)>1:
         parser.print_help()
         return 1
 
@@ -779,7 +779,7 @@ def main():
         num_procs = cpu_count()
         LOG.info('using %d cores' % num_procs)
 
-    rc = viirs_gtm_edr(work_dir, args.input_dir, nprocs=num_procs,
+    rc = viirs_gtm_edr(work_dir, args.input_dir[0], nprocs=num_procs,
                        compress=args.zip, aggregate=args.aggregate,
                        allow_cache_update=not args.local)
 
