@@ -94,7 +94,7 @@ XML_TMPL_VIIRS_MXX_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:%{INPUT_DIR}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:${INPUT_DIR}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
@@ -135,7 +135,7 @@ XML_TMPL_VIIRS_IXX_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:%{INPUT_DIR}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:${INPUT_DIR}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
@@ -176,7 +176,7 @@ XML_TMPL_VIIRS_NCC_GTM_EDR = """<InfTkConfig>
   </initData>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_SUBDIR}/log</rootDir>
-  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:%{INPUT_DIR}</inputPath>
+  <inputPath>${WORK_DIR}:${WORK_SUBDIR}:${LINKED_ANCILLARY}:${INPUT_DIR}</inputPath>
   <outputPath>${WORK_SUBDIR}</outputPath>
   <dataStartIET>0</dataStartIET>
   <dataEndIET>0</dataEndIET>
