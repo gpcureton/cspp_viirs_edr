@@ -414,7 +414,6 @@ def create_NCEP_grid_blobs(gribFile):
     rh_to_mr_vec = np.vectorize(rh_to_mr)
     from copy import deepcopy
 
-
     CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
@@ -425,7 +424,7 @@ def create_NCEP_grid_blobs(gribFile):
     msg = gribFileObj.select(name="Temperature")[0]
     validDate = msg.validDate
     gribFileObj.close()
-    LOG.info('GRIB file %s has valid date %r' % \
+    LOG.info('NCEP GRIB file %s has valid date %r' % \
             (path.basename(gribFile),validDate.strftime("%Y-%m-%d %H:%M:%S:%f")))
 
     gribPath = path.dirname(gribFile)
@@ -433,7 +432,7 @@ def create_NCEP_grid_blobs(gribFile):
     gribBlob = "%s_blob.le" % (gribFile)
     gribBlob = path.join(gribPath,gribBlob)
     gribFile = path.join(gribPath,gribFile)
-    LOG.debug('Candidate grib blob file is %s ...' % (gribBlob))
+    LOG.debug('Candidate grib blob file name is %s ...' % (gribBlob))
 
     if not path.exists(gribBlob):
         LOG.info('Grib blob file %s does not exist, creating...' % (path.basename(gribBlob)))
@@ -445,32 +444,38 @@ def create_NCEP_grid_blobs(gribFile):
 
             # Create the grib object and populate with the grib file data
             NCEPobj = NCEPclass(gribFile=gribFile)
+            LOG.debug('Successfully created NCEPobj...')
 
             # Convert surface pressure from Pa to mb or hPa ...
             # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
             # Ref: applyScalingFactor(currentBuffer, GRID_SIZE, 0.01);
+            LOG.debug('Converting the surface pressure from Pa to mb...')
             NCEPobj.NCEPmessages['surfacePressure'].data /= 100.
 
             # Convert total column ozone from DU or kg m**-2 to Atm.cm ...
             # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
             # Code: const float DOBSON_TO_ATMSCM_SCALING_FACTOR = .001;
             # Code: applyScalingFactor(currentBuffer, GRID_SIZE,DOBSON_TO_ATMSCM_SCALING_FACTOR);
+            LOG.debug('Convert total column ozone from DU or kg m**-2 to Atm.cm ...')
             NCEPobj.NCEPmessages['totalColumnOzone'].data /= 1000.
 
             # Convert total precipitable water kg m^{-2} to cm ...
             # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
             # Code: applyScalingFactor(currentBuffer, GRID_SIZE, .10);
+            LOG.debug('Convert total precipitable water kg m^{-2} to cm ...')
             NCEPobj.NCEPmessages['totalPrecipitableWater'].data /= 10.
 
             # Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}
             # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
             # Code: void IngMsdNCEP_Converter::applyWaterVaporMixingRatio()
             # Code: destination[i] = 1000 * (destination[i]/ (1-destination[i]));
+            LOG.debug('Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}')
             moistureObj = NCEPobj.NCEPmessages['waterVaporMixingRatioLayers'].messageLevelData
 
             temperatureObj = NCEPobj.NCEPmessages['temperatureLayers'].messageLevelData
 
             # Compute the 100mb mixing ratio in g/kg
+            LOG.debug('Compute the 100mb mixing ratio in g/kg')
             if moistureObj['100'].name == 'Specific humidity':
                 specHumidity_100mb = moistureObj['100'].data
                 mixingRatio_100mb = 1000. * specHumidity_100mb/(1. - specHumidity_100mb)
@@ -481,10 +486,12 @@ def create_NCEP_grid_blobs(gribFile):
             else :
                 pass
 
+            LOG.debug('Compute the pressure level mixing ratios in g/kg...')
             for level,levelIdx in NCEPobj.NCEP_LAYER_LEVELS.items() : 
                 levelStrIdx = level[:-2]
                 pressure = NCEPobj.NCEP_LAYER_VALUES[levelIdx]
 
+                LOG.debug('pressure = %f mb'%(pressure))
                 if pressure < 100. :
                     # Copy the 100mb message object to this pressure, and assign the correct
                     # mixing ratio
@@ -509,6 +516,7 @@ def create_NCEP_grid_blobs(gribFile):
                 moistureObj[levelStrIdx].data = mixingRatio
 
             # Write the contents of the NCEPobj object to an ADL blob file
+            LOG.debug('Writing the contents of the the NCEPobj object to ADL blob file %s'%(gribBlob))
             endian = adl_blob.LITTLE_ENDIAN
             procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
 
@@ -522,6 +530,65 @@ def create_NCEP_grid_blobs(gribFile):
             LOG.warn( "%s" % (str(err)))
     else :
         LOG.info('NCEP global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
+
+
+    LOG.info('Returning GRIB blob file %s with valid date %r' % \
+            (path.basename(gribBlob),validDate.strftime("%Y-%m-%d %H:%M:%S:%f")))
+
+    return validDate, gribBlob
+
+
+def create_NAAPS_grid_blobs(gribFile):
+    '''Converts NAAPS GRIB files into NAAPS blobs'''
+
+    from NAAPStoBlob import NAAPSclass
+    from copy import deepcopy
+
+    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
+    ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+    csppPython = os.getenv('PY')
+
+    # Get the valid time for the grib file...
+    gribFileObj = pygrib.open(gribFile)
+    msg = gribFileObj.message(1)
+    validDate = msg.validDate
+    gribFileObj.close()
+    LOG.info('NAAPS GRIB file %s has valid date %r' % \
+            (path.basename(gribFile),validDate.strftime("%Y-%m-%d %H:%M:%S:%f")))
+
+    gribPath = path.dirname(gribFile)
+    gribFile = path.basename(gribFile)
+    gribBlob = "%s_blob.le" % (gribFile)
+    gribBlob = path.join(gribPath,gribBlob)
+    gribFile = path.join(gribPath,gribFile)
+    LOG.debug('Candidate grib blob file name is %s ...' % (gribBlob))
+
+    if not path.exists(gribBlob):
+        try :
+            LOG.info('Transcoding %s to %s ...' % \
+                    (path.basename(gribFile),path.basename(gribBlob)))
+
+            NAAPSxml = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
+
+            # Create the grib object and populate with the grib file data
+            NAAPSobj = NAAPSclass(gribFile=gribFile)
+            LOG.debug('Successfully created NAAPSobj...')
+
+            # Write the contents of the NAAPSobj object to an ADL blob file
+            endian = adl_blob.LITTLE_ENDIAN
+            procRetVal = NAAPSclass.NAAPSgribToBlob_interpNew(NAAPSobj,NAAPSxml,gribBlob,endian=endian)
+
+            if not (procRetVal == 0) :
+                LOG.error('Transcoding of ancillary files failed for %s.' % (gribFile))
+                sys.exit(procRetVal)
+            else :
+                LOG.info('Finished creating NAAPS GRIB blob %s' % (gribBlob))
+
+        except Exception, err:
+            LOG.warn( "NAAPS: %s" % (str(err)))
+    else :
+        LOG.info('NAAPS global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
 
 
     LOG.info('Returning GRIB blob file %s with valid date %r' % \

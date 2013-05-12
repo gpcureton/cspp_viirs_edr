@@ -22,6 +22,7 @@ __docformat__ = 'Epytext'
 #import ProCmnPhysConst
 from Utils                     import retrieve_NCEP_grib_files
 from Utils                     import create_NCEP_grid_blobs
+from Utils                     import create_NAAPS_grid_blobs
 from PrecipWater               import PrecipWater
 from SurfTemp                  import SurfTemp
 from WindSpeed                 import WindSpeed

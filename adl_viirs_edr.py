@@ -388,14 +388,16 @@ def _granulate_ANC(inDir,geoDicts,algList):
         sys.exit(1)
 
     # Transcode the NCEP GRIB files into ADL NCEP-ANC-Int
-    gridBlobFiles = []
+    ncepGridBlobFiles = []
     for gribFile in gribFiles:
         gridBlobFile = ANC.create_NCEP_grid_blobs(gribFile)
-        gridBlobFiles.append(gridBlobFile)
+        ncepGridBlobFiles.append(gridBlobFile)
 
-    if (gridBlobFiles == []) :
+    if (ncepGridBlobFiles == []) :
         LOG.error('Failed to convert NCEP GRIB  files to blobs, aborting.')
         sys.exit(1)
+
+    LOG.debug("NCEP ncepGridBlobFiles = %r" % (ncepGridBlobFiles))
 
     # Open the NCEP gridded blob file
 
@@ -403,10 +405,10 @@ def _granulate_ANC(inDir,geoDicts,algList):
     endian = adl_blob.LITTLE_ENDIAN
     ncepBlobArrObjs = []
 
-    for gridBlobFile in gridBlobFiles :
+    for gridBlobFile in ncepGridBlobFiles :
         timeObj = gridBlobFile[0]
         ncepBlobFile = gridBlobFile[1]
-        ncepBlobObj = adl_blob.map(ncepXmlFile,ncepBlobFile, endian=endian)
+        ncepBlobObj = adl_blob.map(ncepXmlFile, ncepBlobFile, endian=endian)
         ncepBlobArrObj = ncepBlobObj.as_arrays()
         ncepBlobArrObjs.append([timeObj,ncepBlobArrObj])
         LOG.debug("%s...\n%r" % (ncepBlobFile,[field for field in ncepBlobArrObj._fields]))
@@ -421,30 +423,33 @@ def _granulate_ANC(inDir,geoDicts,algList):
             #LOG.error('Failed to find or retrieve any GRIB files, aborting.')
             #sys.exit(1)
 
+        CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
+        gribFiles = glob(path.join(CSPP_RT_ANC_CACHE_DIR,'NAAPS-ANC-Int/NAAPS.*.grib2'))
+        LOG.info("We are using for NAAPS grib2 :%r" %(gribFiles))
+
         # Transcode the NAAPS GRIB files into ADL NAAPS-ANC-Int
-        #gridBlobFiles = ANC.create_NAAPS_grid_blobs(gribFiles)
-        #if (gridBlobFiles == []) :
-            #LOG.error('Failed to convert NAAPS GRIB  files to blobs, aborting.')
-            #sys.exit(1)
+        naapsGridBlobFiles = []
+        for gribFile in gribFiles:
+            gridBlobFile = ANC.create_NAAPS_grid_blobs(gribFile)
+            naapsGridBlobFiles.append(gridBlobFile)
 
-        # Link in the canned NAAPS gridded file
-        NAAPSblobFile = path.join(CSPP_RT_ANC_CACHE_DIR,'NAAPS-ANC-Int','template.NAAPS-ANC-Int')
-        #NAAPSblobFileLink = path.join(inDir,'template.NAAPS-ANC-Int')
-        #os.symlink(NAAPSblobFile, NAAPSblobFileLink)
+        if (naapsGridBlobFiles == []) :
+            LOG.error('Failed to convert NAAPS GRIB  files to blobs, aborting.')
+            sys.exit(1)
 
-        # Open the NAAPS gridded blob file
-        # FIXME : Should be using two NAAPS blob files, and averaging
+        LOG.debug("NAAPS naapsGridBlobFiles = %r" % (naapsGridBlobFiles))
+
         naapsXmlFile = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
-        #naapsGridBlobFile = glob(path.join(inDir,"*.NAAPS-ANC-Int"))[0]
-        naapsGridBlobFile = NAAPSblobFile
+        endian = adl_blob.LITTLE_ENDIAN
+        naapsBlobArrObjs = []
 
-        if path.exists(naapsXmlFile):
-            LOG.info("We are using for %s: %s,%s" %('NAAPS-ANC-Int',naapsXmlFile,naapsGridBlobFile))
-        
-        # This is a BIG endian grid blob, usually will be little endian.
-        naapsBlobObj = adl_blob.map(naapsXmlFile,naapsGridBlobFile, endian=adl_blob.BIG_ENDIAN)
-        naapsBlobArrObj = naapsBlobObj.as_arrays()
-        LOG.debug("%s...\n%r" % (naapsGridBlobFile,naapsBlobArrObj._fields))
+        for gridBlobFile in naapsGridBlobFiles :
+            timeObj = gridBlobFile[0]
+            naapsBlobFile = gridBlobFile[1]
+            naapsBlobObj = adl_blob.map(naapsXmlFile, naapsBlobFile, endian=endian)
+            naapsBlobArrObj = naapsBlobObj.as_arrays()
+            naapsBlobArrObjs.append([timeObj,naapsBlobArrObj])
+            LOG.debug("%s...\n%r" % (naapsBlobFile,[field for field in naapsBlobArrObj._fields]))
 
 
     # Create a list of algorithm module "pointers"
@@ -486,13 +491,14 @@ def _granulate_ANC(inDir,geoDicts,algList):
     for shortName in collectionShortNames :
         LOG.info("Ingesting gridded ANC_objects: %s" % (shortName))
         if ANC_objects[shortName].sourceType == 'NCEP_ANC_Int' :
-            ANC_objects[shortName].sourceList = [files[1] for files  in gridBlobFiles]
+            ANC_objects[shortName].sourceList = [files[1] for files in ncepGridBlobFiles]
             ANC_objects[shortName].ingest(ancBlob=ncepBlobArrObjs)
         elif ANC_objects[shortName].sourceType == 'NAAPS_ANC_Int' :
-            ANC_objects[shortName].sourceList = [naapsGridBlobFile]
-            ANC_objects[shortName].ingest(ancBlob=naapsBlobArrObj)
+            ANC_objects[shortName].sourceList = [files[1] for files in naapsGridBlobFiles]
+            ANC_objects[shortName].ingest(ancBlob=naapsBlobArrObjs)
         else :
             ANC_objects[shortName].ingest()
+
 
     # Loop through the required ANC datasets and create the blobs.
     granIdKey = lambda x: (x['N_Granule_ID'])
