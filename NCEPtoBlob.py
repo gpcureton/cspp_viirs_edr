@@ -247,6 +247,9 @@ class NCEPclass(object):
             grids = np.mgrid[-90.:90.+self.blob_Dlat:self.blob_Dlat,0.:360.:self.blob_Dlon]
             self.blobLatitude,self.blobLongitude = grids[0],grids[1]
     
+            #self.blobLatitude = np.arange(self.blob_Nlats)*self.blob_Dlat - 90.
+            #self.blobLongitude = np.arange(self.blob_Nlons)*self.blob_Dlon - 180.
+
             self.NCEPmessages = {}
 
             returnObj = not isListing
@@ -371,11 +374,79 @@ class NCEPclass(object):
                 #level          = msgList[msgListIdx]['level']
                 pressureUnits  = msgList[msgListIdx]['pressureUnits']
 
+                #LOG.debug("message keys = %r" % (msgList[msgListIdx].keys()))
+
+                latitudeOfFirstGridPoint = msgList[msgListIdx]['latitudeOfFirstGridPoint']
+                longitudeOfFirstGridPoint = msgList[msgListIdx]['longitudeOfFirstGridPoint']
+                iDirectionIncrementGiven = msgList[msgListIdx]['iDirectionIncrementGiven']
+                jDirectionIncrementGiven = msgList[msgListIdx]['jDirectionIncrementGiven']
+                ijDirectionIncrementGiven = msgList[msgListIdx]['ijDirectionIncrementGiven']
+                latitudeOfLastGridPoint = msgList[msgListIdx]['latitudeOfLastGridPoint']
+                longitudeOfLastGridPoint = msgList[msgListIdx]['longitudeOfLastGridPoint']
+                iDirectionIncrement = msgList[msgListIdx]['iDirectionIncrement']
+                jDirectionIncrement = msgList[msgListIdx]['jDirectionIncrement']
+                iScansNegatively = msgList[msgListIdx]['iScansNegatively']
+                iScansPositively = msgList[msgListIdx]['iScansPositively']
+                #jScansNegatively = msgList[msgListIdx]['jScansNegatively']
+                jScansPositively = msgList[msgListIdx]['jScansPositively']
+                latitudeOfFirstGridPointInDegrees = msgList[msgListIdx]['latitudeOfFirstGridPointInDegrees']
+                longitudeOfFirstGridPointInDegrees = msgList[msgListIdx]['longitudeOfFirstGridPointInDegrees']
+                latitudeOfLastGridPointInDegrees = msgList[msgListIdx]['latitudeOfLastGridPointInDegrees']
+                longitudeOfLastGridPointInDegrees = msgList[msgListIdx]['longitudeOfLastGridPointInDegrees']
+                iDirectionIncrementInDegrees = msgList[msgListIdx]['iDirectionIncrementInDegrees']
+                jDirectionIncrementInDegrees = msgList[msgListIdx]['jDirectionIncrementInDegrees']
+                latLonValues = msgList[msgListIdx]['latLonValues']
+                latitudes = msgList[msgListIdx]['latitudes']
+                longitudes = msgList[msgListIdx]['longitudes']
+                distinctLatitudes = msgList[msgListIdx]['distinctLatitudes']
+                distinctLongitudes = msgList[msgListIdx]['distinctLongitudes']
+                latlons_Latitudes,latlons_Longitudes = msgList[msgListIdx].latlons()
+
+                #LOG.debug("latitudeOfFirstGridPoint = %r" % (latitudeOfFirstGridPoint))
+                #LOG.debug("longitudeOfFirstGridPoint = %r" % (longitudeOfFirstGridPoint))
+                #LOG.debug("iDirectionIncrementGiven = %r" % (iDirectionIncrementGiven))
+                #LOG.debug("jDirectionIncrementGiven = %r" % (jDirectionIncrementGiven))
+                #LOG.debug("ijDirectionIncrementGiven = %r" % (ijDirectionIncrementGiven))
+                #LOG.debug("latitudeOfLastGridPoint = %r" % (latitudeOfLastGridPoint))
+                #LOG.debug("longitudeOfLastGridPoint = %r" % (longitudeOfLastGridPoint))
+                #LOG.debug("iDirectionIncrement = %r" % (iDirectionIncrement))
+                #LOG.debug("jDirectionIncrement = %r" % (jDirectionIncrement))
+                #LOG.debug("iScansNegatively = %r" % (iScansNegatively))
+                #LOG.debug("iScansPositively = %r" % (iScansPositively))
+                #LOG.debug("jScansNegatively = %r" % (jScansNegatively))
+                #LOG.debug("jScansPositively = %r" % (jScansPositively))
+                LOG.debug("latitudeOfFirstGridPointInDegrees = %r" % (latitudeOfFirstGridPointInDegrees))
+                LOG.debug("latitudeOfLastGridPointInDegrees = %r" % ( latitudeOfLastGridPointInDegrees))
+                LOG.debug("longitudeOfFirstGridPointInDegrees = %r" % (longitudeOfFirstGridPointInDegrees))
+                LOG.debug("longitudeOfLastGridPointInDegrees = %r" % (longitudeOfLastGridPointInDegrees))
+                LOG.debug("iDirectionIncrementInDegrees = %r" % (iDirectionIncrementInDegrees))
+                LOG.debug("jDirectionIncrementInDegrees = %r" % (jDirectionIncrementInDegrees))
+                LOG.debug("latLonValues = %r , %r" % (latLonValues.shape,latLonValues))
+                LOG.debug("latitudes = %r , %r" % (latitudes.shape,latitudes))
+                #LOG.debug("longitudes = %r , %r" % (longitudes.shape,longitudes))
+                LOG.debug("distinctLatitudes = %r , %r" % (distinctLatitudes.shape,distinctLatitudes))
+                LOG.debug("distinctLongitudes = %r , %r" % (distinctLongitudes.shape,distinctLongitudes))
+                LOG.debug("latlons_Latitudes = %r , %r" % (latlons_Latitudes.shape,latlons_Latitudes[:,0]))
+                LOG.debug("latlons_Longitudes = %r , %r" % (latlons_Longitudes.shape,latlons_Longitudes[0,:]))
+
                 self.Nlats = msgList[msgListIdx]['Nj']
                 self.Nlons = msgList[msgListIdx]['Ni']
                 self.dLat =  msgList[msgListIdx]['jDirectionIncrementInDegrees']
                 self.dLon =  msgList[msgListIdx]['iDirectionIncrementInDegrees']
-                self.Latitude, self.Longitude = msgList[msgListIdx].latlons()
+                #self.Latitude, self.Longitude = msgList[msgListIdx].latlons()
+                self.Latitude = distinctLatitudes \
+                    if distinctLatitudes[0] < distinctLatitudes[-1] else distinctLatitudes[::-1]
+                self.Longitude = distinctLongitudes
+
+
+                LOG.debug("self.Nlats =%r" % ( self.Nlats))
+                LOG.debug("self.Nlons =%r" % ( self.Nlons))
+                LOG.debug("self.dLat = %r" % ( self.dLat ))
+                LOG.debug("self.dLon = %r" % ( self.dLon ))
+                LOG.debug("self.Latitude = %r , %r" % (self.Latitude.shape,self.Latitude))
+                LOG.debug("self.Longitude = %r , %r" % (self.Longitude.shape,self.Longitude))
+
+                #sys.exit(0)
 
                 LOG.debug("There are %d messages for %s with...\n\tname = \"%s\"\n\tparameterName = \"%s\"\n\tshortName = %s\n\tparameterUnits = %s\n\tunits = %s\n\ttypeOfLevel = %s\n\tpressureUnits = %s\n\tlevel = %s" \
                     % (len(msgList), msgKey, name, parameterName, shortName, 
@@ -418,11 +489,12 @@ class NCEPclass(object):
 
             del(msgList)
 
-            LOG.debug("\n###########################\n")
+            LOG.debug("###########################")
 
         gribFileObj.close()
 
         return 0
+
 
     def NCEPgribToBlob(gribObj,xmlFile,newNCEPblob):
         '''
@@ -474,8 +546,8 @@ class NCEPclass(object):
         if (gribObj.dLon != gribObj.blob_Dlon) or (gribObj.dLat != gribObj.blob_Dlat) \
            or (gribObj.Nlons != gribObj.blob_Nlons) or (gribObj.Nlats != gribObj.blob_Nlats):
             needsInterp = True
-            x = gribObj.Latitude[:,0]
-            y = gribObj.Longitude[0,:]
+            x = gribObj.Latitude#[:,0]
+            y = gribObj.Longitude#[0,:]
             xnew = gribObj.blobLatitude[:,0]
             ynew = gribObj.blobLongitude[0,:]
 
@@ -543,17 +615,18 @@ class NCEPclass(object):
         if (gribObj.dLon != gribObj.blob_Dlon) or (gribObj.dLat != gribObj.blob_Dlat) \
            or (gribObj.Nlons != gribObj.blob_Nlons) or (gribObj.Nlats != gribObj.blob_Nlats):
             needsInterp = True
-            x = gribObj.Latitude[:,0]
-            y = gribObj.Longitude[0,:]
+            x = gribObj.Latitude#[:,0]
+            y = gribObj.Longitude#[0,:]
             xnew = gribObj.blobLatitude[:,0]
             ynew = gribObj.blobLongitude[0,:]
 
 
+        LOG.debug("Creating empty NCEP blob file %s..." % (newNCEPblob))
         newBlobObj = adl.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
         newBlobArrObj = newBlobObj.as_arrays()
 
         for msgKey in gribObj.gfsMsgKeys :
-            LOG.debug("\nCopying NCEP[%s] to blob...\n" % (msgKey))
+            LOG.debug("Copying NCEP[%s] to blob...\n" % (msgKey))
             msgObj = gribObj.NCEPmessages[msgKey]
             blobArr = getattr(newBlobArrObj, msgKey)
 
@@ -562,6 +635,7 @@ class NCEPclass(object):
                     levelStrIdx = level[:-2]
                     try :
                         if needsInterp :
+                            LOG.debug("%r" % (x))
                             z = gribObj.NCEPmessages[msgKey].messageLevelData[levelStrIdx].data
                             fRect = interpolate.RectBivariateSpline( x, y, z)
                             zNew = fRect(xnew,ynew)
@@ -584,12 +658,12 @@ class NCEPclass(object):
                     else :
                         blobArr[:,:] = gribObj.NCEPmessages[msgKey].data[::latDir,:]
 
+                    LOG.debug("Shape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr))))
+
                 except Exception, err:
                     LOG.error("%s" % (str(err)))
                     LOG.error("There was a problem assigning %s" % (msgKey))
                     return -1
-
-            LOG.debug("\tShape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr))))
 
         return 0
 
