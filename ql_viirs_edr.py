@@ -11,7 +11,12 @@ export CSPP_HOME=/path/to/CSPP
 source $CSPP_HOME/cspp_edr_env.sh
 source $CSPP_HOME/common/cspp_common.sh
 
-python ql_viirs_edr.py -g geofile.h5 -i ipfile.h5 -p CTP
+python ql_viirs_edr.py -g '/path/to/files/GMTCO*.h5' -i '/path/to/files/IICMO*.h5' -p VCM
+
+  or
+
+python ql_viirs_edr.py --geo_file=/path/to/files/GMTCO*.h5 --ip_file=/path/to/files/IICMO*.h5 -p VCM
+
 
 Created by Geoff Cureton on 2012-11-13.
 Copyright (c) 2012 University of Wisconsin SSEC. All rights reserved.
@@ -2405,11 +2410,11 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     x,y=m_globe(np.array(gridLon),np.array(gridLat))
     swath = np.zeros(np.shape(x),dtype=int)
 
-    m_globe.drawcoastlines(ax=glax,linewidth=0.1)
-    m_globe.fillcontinents(ax=glax,color='gray',zorder=0)
     m_globe.drawmapboundary(linewidth=0.1)
+    m_globe.fillcontinents(ax=glax,color='gray',zorder=1)
+    m_globe.drawcoastlines(ax=glax,linewidth=0.1,zorder=3)
 
-    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none')
+    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none',zorder=2)
 
     # Globe axis title
     glax_xlabel = ppl.setp(glax,xlabel=str(titleStr))
@@ -2421,6 +2426,7 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     # save image 
     print "Writing file to ",outFileName
     canvas.print_figure(outFileName,dpi=dpi)
+
 
 def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
         vmin=-0.05,vmax=0.8,scale=1.3, \
