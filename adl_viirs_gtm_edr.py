@@ -224,7 +224,7 @@ GTM_GUIDEBOOK = {
                           template=XML_TMPL_VIIRS_MXX_GTM_EDR,
                           exe=ADL_VIIRS_MXX_GTM_EDR,
                           anc=('CmnGeo-SAA-AC-Int',
-                               'CMNGEO-PARAM-LUT'
+                               'CMNGEO-PARAM-LUT',
                                'Planet-Eph-ANC')),
     'NCC': guidebook_info(sdr_cns=['VIIRS-DNB-SDR'],
                           edr_cns=['VIIRS-NCC-EDR'],
@@ -288,6 +288,7 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
     # FUTURE: reduce the depth of iteration
     # set of granules with available geolocation
     for kind, G in GTM_GUIDEBOOK.items():
+        LOG.debug('before trimming, %d granule candidates for %s' % (len(meta[G.geo_cn]), G.geo_cn))
         # list of available geo products for this group
         sdr2edr = dict(zip(G.sdr_cns, G.edr_cns))  # FUTURE: This could be prebuilt and merged into guidebook
         geo_granules = _trim_geo_granules(meta[G.geo_cn])
