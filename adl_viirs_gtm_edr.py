@@ -374,8 +374,8 @@ def sift_metadata_for_viirs_gtm_edr(work_dir='.'):
 
             sdr_collections = []
             edr_collections = []
-            # FIXME: this will not properly identify cross-granule SDR problems, e.g. GEO is all present but I4 is not
-            for sdr_cn in [cn for cn in G.sdr_cns]:  # see which SDR collections are available
+            # FUTURE: this will not properly identify cross-granule SDR problems, e.g. GEO is all present but I4 is not
+            for sdr_cn in G.sdr_cns:  # see which SDR collections are available
                 for g in meta[sdr_cn]:
                     if (g['N_Granule_ID'] == geo_gran_id) and (g['N_Granule_Version'] == geo_gran_ver):
                         sdr_collections.append(g['N_Collection_Short_Name'])
@@ -531,7 +531,9 @@ def transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_cns, edr_cns)
     """
     products = []
     errors = []
-    # FIXME: this is just a first wag at it; it should use EDR collection names and N_GEO_Ref preferably
+    # FUTURE: this is a reasonable wag at it;
+    # it should use EDR CNs and N_GEO_Ref preferably,
+    # or h5 prefix in guidebook
     for h5path in glob.glob(os.path.join(work_subdir, '*.h5')):
         LOG.debug('transferring output %s' % h5path)
         h5filename = os.path.split(h5path)[-1]
@@ -553,6 +555,7 @@ def task_gtm_edr(task_in):
     process a single task, returning a task_output tuple
     expect up to ngranules * (MXX,IXX,NCC) tasks
     this is suitable for spinning off to a subprocess using multiprocessing.Pool
+    named tuples of primitive types serialize well across process boundaries
     """
     kind, gran, sdr_cns, edr_cns, work_dir, additional_env = task_in[:6]
     G = GTM_GUIDEBOOK[kind]
