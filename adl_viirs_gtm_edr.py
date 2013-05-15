@@ -581,6 +581,12 @@ def task_gtm_edr(task_in):
         LOG.debug(traceback.format_exc())
         LOG.error('%s failed on %r: %r. Continuing...' % (exe, xml_filename, oops))
 
+    # set the N_GEO_Ref attributes
+    # FUTURE: something more elegant than a glob would be nice, but this will do
+    LOG.debug('writing N_GEO_Ref attributes')
+    for fn in glob.glob(os.path.join(work_subdir, 'V*h5')):
+        write_geo_ref(fn)
+
     # link the output from the work_subdir to the work_dir
     product_filenames, transfer_errors = transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_cns, edr_cns)
     errors += list(transfer_errors)
