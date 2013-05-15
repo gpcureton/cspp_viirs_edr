@@ -693,8 +693,8 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache
 
     if aggregate:
         LOG.debug('aggregating collected products')
-        aggregate_products(work_dir, EDR_PRODUCTS_AGG)
         aggregate_products(work_dir, EDR_GEO_PRODUCTS_AGG)
+        aggregate_products(work_dir, EDR_PRODUCTS_AGG)
         _patch_geo_guide()
         add_geo_attribute_to_aggregates(work_dir, EDR_PRODUCTS_AGG)
         if compress:
