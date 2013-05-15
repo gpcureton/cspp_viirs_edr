@@ -289,7 +289,7 @@ def geo_ref(path):
 
 def write_geo_ref(path):
     _patch_geo_guide()
-    return adl_geo_ref.geo_ref(path)
+    return adl_geo_ref.write_geo_ref(path)
 
 
 def _trim_geo_granules(gran_dict_seq):
