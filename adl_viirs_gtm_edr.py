@@ -289,6 +289,12 @@ def _patch_geo_guide():
     new_guide_info = list(_geo_guide())
     LOG.debug(pformat(new_guide_info))
     adl_geo_ref.GEO_GUIDE += new_guide_info
+    # previously kind would be "SVI", band would be 01-05, as an example; this is OK for SDR products
+    # in this case we eat the whole prefix e.g. VI1BO as kind, and empty-string for band
+    # we do this because the mapping between collection name and filename for VM* is not straightforward
+    # VM03O => VIIRS-M3RD-EDR for instance
+    # so we build an exhaustive table (_geo_guide) from GTM_GUIDEBOOK, push that into the adl_geo_ref table,
+    # and patch the pathname regex to allow VM03O and VI3BO to scan successfully
     adl_geo_ref.RE_NPP = re.compile('(?P<kind>[A-Z0-9]+)(?P<band>[0-9]*)_(?P<sat>[A-Za-z0-9]+)_d(?P<date>\d+)'
                                     '_t(?P<start_time>\d+)_e(?P<end_time>\d+)_b(?P<orbit>\d+)_c(?P<created_time>\d+)'
                                     '_(?P<site>[a-zA-Z0-9]+)_(?P<domain>[a-zA-Z0-9]+)\.h5')
