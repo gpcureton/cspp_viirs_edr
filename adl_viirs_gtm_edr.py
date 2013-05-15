@@ -35,6 +35,7 @@ import logging
 import glob
 import traceback
 import shutil
+import re
 import datetime as dt
 from subprocess import CalledProcessError
 from collections import namedtuple
@@ -242,6 +243,53 @@ GTM_GUIDEBOOK = {
                                'VIIRS-Ga-Val-Vs-Scene-Lun-Elev-LUT',
                                'VIIRS-Ga-Val-Vs-Scene-Sol-Elev-LUT'))
 }
+
+
+def _geo_guide():
+    """
+    yield additions to GEO_GUIDE in adl_geo_ref.py
+    """
+    for n, cn in enumerate(GTM_GUIDEBOOK['MXX'].edr_cns):
+        yield ('VM%02d' % (n+1), 'GMGTO', r'Data_Products/%s/%s_Gran_0/N_Reference_ID' % (cn,cn))
+    yield ('GMGTO', None, r'Data_Products/VIIRS-MOD-GTM-EDR-GEO/VIIRS-MOD-GTM-EDR-GEO_Gran_0/N_Reference_ID')
+    for n, cn in enumerate(GTM_GUIDEBOOK['IXX'].edr_cns):
+        yield ('VI%dBO' % (n+1), 'GIGTO', r'Data_Products/%s/%s_Gran_0/N_Reference_ID' % (cn,cn))
+    yield ('GIGTO', None, r'Data_Products/VIIRS-IMG-GTM-EDR-GEO/VIIRS-IMG-GTM-EDR-GEO_Gran_0/N_Reference_ID')
+    yield ('VNCCO', 'GNCCO', r'Data_Products/VIIRS-NCC-EDR/VIIRS-NCC-EDR_Gran_0/N_Reference_ID')
+    yield ('GNCCO', None, r'Data_Products/VIIRS-NCC-EDR-GEO/VIIRS-NCC-EDR-GEO_Gran_0/N_Reference_ID')
+
+
+GEO_GUIDE_PATCHED = False
+
+
+def _patch_geo_guide():
+    """
+    FUTURE: integrate this into adl_geo_ref.py
+    This adjusts for the difficulty of the Collection Name being 1-2-3-4-5-6 vs 1ST-2ND-3RD-4TH-5TH-6TH (thanks guys)
+    on M collection. So we patch the lookup table and the filename regex for our use.
+    :return:
+    """
+    global GEO_GUIDE_PATCHED
+    if GEO_GUIDE_PATCHED:
+        return
+    LOG.debug('patching adl_geo_ref to permit operating on GTM output')
+    new_guide_info = list(_geo_guide())
+    LOG.debug(repr(new_guide_info))
+    adl_geo_ref.GEO_GUIDE += new_guide_info
+    adl_geo_ref.RE_NPP = re.compile('(?P<kind>[A-Z0-9]+)(?P<band>[0-9]*)_(?P<sat>[A-Za-z0-9]+)_d(?P<date>\d+)'
+                                    '_t(?P<start_time>\d+)_e(?P<end_time>\d+)_b(?P<orbit>\d+)_c(?P<created_time>\d+)'
+                                    '_(?P<site>[a-zA-Z0-9]+)_(?P<domain>[a-zA-Z0-9]+)\.h5')
+    GEO_GUIDE_PATCHED = True
+
+
+def geo_ref(path):
+    _patch_geo_guide()
+    return adl_geo_ref.geo_ref(path)
+
+
+def write_geo_ref(path):
+    _patch_geo_guide()
+    return adl_geo_ref.geo_ref(path)
 
 
 def _trim_geo_granules(gran_dict_seq):
@@ -764,6 +812,11 @@ def main():
 
     LOG.debug("Clean up: " + str(do_cleanup))
     LOG.info('CSPP execution work directory is %r' % work_dir)
+
+    if 'TEST_GEO_REF' in os.environ:
+        for fn in args.input_dir:
+            print '%s => %s' % (fn, geo_ref(fn))
+            return 0
 
     # if args.test:
     #     check_env(work_dir)
