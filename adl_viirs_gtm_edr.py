@@ -85,7 +85,7 @@ XML_TMPL_VIIRS_MXX_GTM_EDR = """<InfTkConfig>
   <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
   <perfPath>${WORK_DIR}</perfPath>
-  <dbgPath>${WORK_DIR}</dbgPath>
+  <dbgPath>${WORK_DIR}/log</dbgPath>
   <initData>
      <domain>OPS</domain>
      <subDomain>SUBDOMAIN</subDomain>
@@ -434,7 +434,7 @@ def check_logs_for_run(work_dir, pid, xml):
     Display log message and hint if problem occurred
     """
     # retrieve exe name and log path from lw file
-    logDir = work_dir  # os.path.join(work_dir, "log")
+    logDir = os.path.join(work_dir, "log")
     logExpression = "*" + str(pid) + "*.lo*"
 
     files = glob.glob(os.path.join(logDir, logExpression))
@@ -607,7 +607,7 @@ def setup_directories(work_dir, anc_dir):
         LOG.info('Creating directory %s' % work_dir)
         os.makedirs(work_dir)
 
-    log_dir = os.path.join(work_dir, 'log')
+    log_dir = os.path.join(work_dir, 'log')   # FUTURE D-R-Y: this is also done in setup_directories
     if not os.path.isdir(log_dir):
         LOG.info('Creating log directory %s' % log_dir)
         os.makedirs(log_dir)
