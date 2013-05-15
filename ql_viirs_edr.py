@@ -2539,11 +2539,11 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     x,y=m_globe(np.array(gridLon),np.array(gridLat))
     swath = np.zeros(np.shape(x),dtype=int)
 
-    m_globe.drawcoastlines(ax=glax,linewidth=0.1)
-    m_globe.fillcontinents(ax=glax,color='gray',zorder=0)
     m_globe.drawmapboundary(linewidth=0.1)
+    m_globe.fillcontinents(ax=glax,color='gray',zorder=1)
+    m_globe.drawcoastlines(ax=glax,linewidth=0.1,zorder=3)
 
-    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none')
+    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none',zorder=2)
 
     # Globe axis title
     glax_xlabel = ppl.setp(glax,xlabel=titleStr)
@@ -2669,11 +2669,11 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
     x,y=m_globe(np.array(gridLon),np.array(gridLat))
     swath = np.zeros(np.shape(x),dtype=int)
 
-    m_globe.drawcoastlines(ax=glax,linewidth=0.1)
-    m_globe.fillcontinents(ax=glax,color='gray',zorder=0)
     m_globe.drawmapboundary(linewidth=0.1)
+    m_globe.fillcontinents(ax=glax,color='gray',zorder=1)
+    m_globe.drawcoastlines(ax=glax,linewidth=0.1,zorder=3)
 
-    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none')
+    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none',zorder=2)
 
     # Globe axis title
     glax_xlabel = ppl.setp(glax,xlabel=titleStr)
@@ -2872,11 +2872,11 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     x,y=m_globe(np.array(gridLon),np.array(gridLat))
     swath = np.zeros(np.shape(x),dtype=int)
 
-    m_globe.drawcoastlines(ax=glax,linewidth=0.1)
-    m_globe.fillcontinents(ax=glax,color='gray',zorder=0)
     m_globe.drawmapboundary(linewidth=0.1)
+    m_globe.fillcontinents(ax=glax,color='gray',zorder=1)
+    m_globe.drawcoastlines(ax=glax,linewidth=0.1,zorder=3)
 
-    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none')
+    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none',zorder=2)
 
     # Globe axis title
     glax_xlabel = ppl.setp(glax,xlabel=str(titleStr))
@@ -3051,11 +3051,11 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
     x,y=m_globe(np.array(gridLon),np.array(gridLat))
     swath = np.zeros(np.shape(x),dtype=int)
 
-    m_globe.drawcoastlines(ax=glax,linewidth=0.1)
-    m_globe.fillcontinents(ax=glax,color='gray',zorder=0)
     m_globe.drawmapboundary(linewidth=0.1)
+    m_globe.fillcontinents(ax=glax,color='gray',zorder=1)
+    m_globe.drawcoastlines(ax=glax,linewidth=0.1,zorder=3)
 
-    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none')
+    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none',zorder=2)
 
     # Globe axis title
     glax_xlabel = ppl.setp(glax,xlabel=titleStr)
