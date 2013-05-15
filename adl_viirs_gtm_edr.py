@@ -40,6 +40,7 @@ import datetime as dt
 from subprocess import CalledProcessError
 from collections import namedtuple
 from multiprocessing import Pool, cpu_count
+from pprint import pformat
 import h5py
 
 # skim and convert routines for reading .asc metadata fields of interest
@@ -245,9 +246,21 @@ GTM_GUIDEBOOK = {
 }
 
 
+EDR_PRODUCTS_AGG = [
+    cn for _,x in GTM_GUIDEBOOK.items() for cn in x.edr_cns
+]
+
+EDR_GEO_PRODUCTS_AGG = [
+    'VIIRS-NCC-EDR-GEO',
+    'VIIRS-IMG-GTM-EDR-GEO',
+    'VIIRS-MOD-GTM-EDR-GEO'
+]
+
+
 def _geo_guide():
     """
     yield additions to GEO_GUIDE in adl_geo_ref.py
+    This tells adl_geo_ref.geo_ref() how to match GEO with EDR files
     """
     for n, cn in enumerate(GTM_GUIDEBOOK['MXX'].edr_cns):
         yield ('VM%02d' % (n+1), 'GMGTO', r'Data_Products/%s/%s_Gran_0/N_Reference_ID' % (cn,cn))
@@ -274,7 +287,7 @@ def _patch_geo_guide():
         return
     LOG.debug('patching adl_geo_ref to permit operating on GTM output')
     new_guide_info = list(_geo_guide())
-    LOG.debug(repr(new_guide_info))
+    LOG.debug(pformat(new_guide_info))
     adl_geo_ref.GEO_GUIDE += new_guide_info
     adl_geo_ref.RE_NPP = re.compile('(?P<kind>[A-Z0-9]+)(?P<band>[0-9]*)_(?P<sat>[A-Za-z0-9]+)_d(?P<date>\d+)'
                                     '_t(?P<start_time>\d+)_e(?P<end_time>\d+)_b(?P<orbit>\d+)_c(?P<created_time>\d+)'
@@ -527,7 +540,7 @@ def transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_cns, edr_cns)
     return products, errors
 
 
-task_input = namedtuple('task_input', 'kind granule sdr_cns edr_cns work_dir env_dict')
+task_input = namedtuple('task_input', 'kind granule sdr_cns edr_cns work_dir env_dict cleanup aggregate compress')
 task_output = namedtuple('task_output', 'kind granule_id product_filenames error_list')
 
 
@@ -536,7 +549,7 @@ def task_gtm_edr(task_in):
     process a single task, returning a task_output tuple
     this is suitable for spinning off to a subprocess using multiprocessing.Pool
     """
-    kind, gran, sdr_cns, edr_cns, work_dir, additional_env = task_in
+    kind, gran, sdr_cns, edr_cns, work_dir, additional_env = task_in[:6]
     G = GTM_GUIDEBOOK[kind]
 
     granule_id = gran['N_Granule_ID']
@@ -587,20 +600,34 @@ def task_gtm_edr(task_in):
     for fn in glob.glob(os.path.join(work_subdir, 'V*h5')):
         LOG.debug('setting N_GEO_Ref for %s' % fn)
         write_geo_ref(fn)
+        # SIDE EFFECT: we've already patched adl_geo_ref for our products.
+        # now we can be confident that it'll work for the aggregate products as well.
+
+    if task_in.compress and not task_in.aggregate:
+        # then we can compress in-task, which is potentially parallel
+        try:
+            LOG.debug('compressing unaggregated output files')
+            repack_products(work_subdir, EDR_PRODUCTS_AGG)
+            repack_products(work_subdir, EDR_GEO_PRODUCTS_AGG)
+        except KeyError as impossible_case:
+            from adl_post_process import SHORTNAME_2_PRODUCTID
+            LOG.error(repr(list(SHORTNAME_2_PRODUCTID.keys())))
+            raise
 
     # link the output from the work_subdir to the work_dir
     product_filenames, transfer_errors = transfer_gtm_edr_output(work_dir, work_subdir, kind, gran, sdr_cns, edr_cns)
     errors += list(transfer_errors)
 
     # if everything ran OK, clean up the intermediate stuff in our subdir
-    if not errors:
+    if not errors and not task_in.cleanup:
         LOG.debug('cleaning up %s, no errors' % work_subdir)
         shutil.rmtree(work_subdir)
 
     return task_output(kind, granule_id, product_filenames, errors)
 
 
-def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache_update=True, **additional_env):
+def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache_update=True,
+                             cleanup=True, aggregate=False, compress=False, **additional_env):
     """
     skim work directory ASC metadata and decide which granules to process, and which controller to use
     generate task objects for processing candidates
@@ -608,10 +635,14 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache
     execute tasks linearly (nprocs=1) or in parallel using multiprocessing Pool
     return result tuples indicating output files and any errors encountered
 
+    :param input_dir: where to obtain inputs in ASC+BLOB form
     :param work_dir: outer work area in which we create GTM_* sub-workdirs
     :param anc_dir: linked_data ancillary directory, populated here and shared between tasks
     :param nprocs: number of processes to run in parallel for tasking
     :param allow_cache_update: whether or not to permit ancillary helper scripts to download from Internet
+    :param cleanup: whether to clean up work directory afterward or not
+    :param aggregate: whether to aggregate the output data into single HDF5 file
+    :param compress: whether to run h5repack on output files or not
     :param additional_env: environment variables to pass on to controllers run by tasks
     :return: array of result tuples
     """
@@ -634,13 +665,16 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache
 
     LOG.debug('building task list for parallel processing')
     for kind, geo_granule, sdr_cns, edr_cns, anc_cns in all_info:
-        tasks.append(task_input(kind, geo_granule, sdr_cns, edr_cns, work_dir, additional_env))
+        tasks.append(task_input(kind, geo_granule, sdr_cns, edr_cns, work_dir, additional_env,
+                                cleanup, aggregate, compress))
+
+    LOG.debug('task list:')
+    LOG.debug(pformat(tasks))
 
     if nprocs == 1:
         LOG.debug('running %d tasks without parallelism' % len(tasks))
         results = map(task_gtm_edr, tasks)
     else:
-        # FIXME requires testing
         LOG.debug('creating process pool size %d for %d tasks' % (int(nprocs), len(tasks)))
         parallel = Pool(int(nprocs))
         try:
@@ -649,7 +683,19 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache
             # note that we're depending on register_sigterm having been called for SystemError on SIGTERM
             LOG.warning('external termination detected, aborting subprocesses')
             parallel.terminate()
+            parallel.join()
             raise
+
+    if aggregate:
+        LOG.debug('aggregating collected products')
+        aggregate_products(work_dir, EDR_PRODUCTS_AGG)
+        _patch_geo_guide()
+        add_geo_attribute_to_aggregates(work_dir, EDR_GEO_PRODUCTS_AGG)
+        if compress:
+            LOG.debug('compressing aggregated products')
+            repack_products(work_dir, EDR_PRODUCTS_AGG)
+            repack_products(work_dir, EDR_GEO_PRODUCTS_AGG)
+
     return results
 
 
@@ -682,47 +728,12 @@ def register_sigterm():
     global _registered_sigterm
     if not _registered_sigterm:
         import signal
-
         signal.signal(signal.SIGTERM, _sigterm)
         _registered_sigterm = True
 
 
-def read_N_Geo_Ref(h5path):
-    """
-    Read the N_Geo_Ref attribute from the file if it exists, else return None
-    :param h5path: hdf5 pathname
-    :return: N_Geo_Ref filename, or None
-    """
-    h5 = h5py.File(h5path, 'r')
-    zult = getattr(h5, 'N_GEO_Ref', None)
-    h5.close()
-    return zult
-
-
-def input_list_including_geo(pathnames):
-    """
-    :param pathnames: sequence of pathnames we plan to unpack
-    :return: set of pathnames, including geo filenames corresponding
-    """
-    zult = set()
-    for path in pathnames:
-        if not h5py.is_hdf5(path):
-            LOG.warning('%s is not an HDF5 file, ignoring' % path)
-            continue
-        zult.add(path)
-        geo = read_N_Geo_Ref(path)
-        if geo is not None:
-            dn, fn = os.path.split(path)
-            LOG.info("adding %s as companion to %s" % (geo, fn))
-            geo_path = os.path.join(dn, geo)
-            if not h5py.is_hdf5(geo_path):
-                LOG.warning('expected to find %s as an HDF5 file; may not be able to process %s' % (geo_path, fn))
-                continue
-            zult.add(geo_path)
-    return zult
-
-
-def viirs_gtm_edr(work_dir, input_dir, nprocs=1, compress=False, aggregate=False, allow_cache_update=True):
+def viirs_gtm_edr(work_dir, input_dir, nprocs=1, allow_cache_update=True,
+                  cleanup=True, aggregate=False, compress=False):
     """
     given a work directory and a series of hdf5 SDR and GEO paths
     make work directory
@@ -738,6 +749,7 @@ def viirs_gtm_edr(work_dir, input_dir, nprocs=1, compress=False, aggregate=False
     :param nprocs: number of processors to use, default 1
     :param compress: whether or not to apply h5repack to output HDF5 files
     :param aggregate: whether or not to use nagg to aggregate output HDF5 files
+    :param cleanup: whether or not to clean up the work directory after finishing, if no errors occurred
     :param allow_cache_update: whether or not to allow dynamic ancillary to be downloaded
     """
     check_env(work_dir)
@@ -750,13 +762,13 @@ def viirs_gtm_edr(work_dir, input_dir, nprocs=1, compress=False, aggregate=False
         return 1
     input_dir = os.path.abspath(input_dir)
 
-    # FIXME: compression
-    # FIXME: aggregation
-
     # FUTURE: migrate directory environment settings to inner routine for better consistency
     results = herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir,
                                        nprocs=nprocs,
                                        allow_cache_update=allow_cache_update,
+                                       cleanup=cleanup,
+                                       aggregate=aggregate,
+                                       compress=compress,
                                        LINKED_ANCILLARY=anc_dir,
                                        INPUT_DIR=input_dir,
                                        ADL_HOME=ADL_HOME,
@@ -844,9 +856,8 @@ def main():
         num_procs = cpu_count()
         LOG.info('using %d cores' % num_procs)
 
-    rc = viirs_gtm_edr(work_dir, args.input_dir[0], nprocs=num_procs,
-                       compress=args.zip, aggregate=args.aggregate,
-                       allow_cache_update=not args.local)
+    rc = viirs_gtm_edr(work_dir, args.input_dir[0], nprocs=num_procs, allow_cache_update=not args.local,
+                       compress=args.zip, aggregate=args.aggregate, cleanup=do_cleanup)
 
     if rc == 0 and not args.debug:
         os.remove(logfile)
