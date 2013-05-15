@@ -585,6 +585,7 @@ def task_gtm_edr(task_in):
     # FUTURE: something more elegant than a glob would be nice, but this will do
     LOG.debug('writing N_GEO_Ref attributes')
     for fn in glob.glob(os.path.join(work_subdir, 'V*h5')):
+        LOG.debug('setting N_GEO_Ref for %s' % fn)
         write_geo_ref(fn)
 
     # link the output from the work_subdir to the work_dir
