@@ -619,7 +619,7 @@ def task_gtm_edr(task_in):
     errors += list(transfer_errors)
 
     # if everything ran OK, clean up the intermediate stuff in our subdir
-    if not errors and not task_in.cleanup:
+    if not errors and task_in.cleanup:
         LOG.debug('cleaning up %s, no errors' % work_subdir)
         shutil.rmtree(work_subdir)
 
