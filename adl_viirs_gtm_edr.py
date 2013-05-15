@@ -70,10 +70,8 @@ ANCILLARY_SUB_DIR = "linked_data"
 CHECK_REQUIRED_KEYS = ['N_Granule_ID', 'N_Collection_Short_Name']
 
 # FUTURE: PRO_CROSSGRAN_FAIL may go away if we obtain -FSDR products from viirs_sdr.sh --edr
-GTM_EDR_LOG_CHECK_TABLE = [  # FIXME, make these more specific
-                           # ('PRO_CROSSGRAN_FAIL', "Cross Granule dependency failure, more input needed?"),
-                           ('INF_STATUSTYPE_TASK_INPUTNOTAVAIL', "Missing input?")
-]
+GTM_EDR_LOG_CHECK_TABLE = [('PRO_CROSSGRAN_FAIL', "Cross Granule dependency failure, more input may be needed?"),
+                           ('INF_STATUSTYPE_TASK_INPUTNOTAVAIL', "Missing input?")]
 
 # WORK_DIR: directory that we unpack the input data into and accumulate final output to
 # WORK_SUBDIR: output directory written to by each granule+kind task instance
@@ -553,6 +551,7 @@ task_output = namedtuple('task_output', 'kind granule_id product_filenames error
 def task_gtm_edr(task_in):
     """
     process a single task, returning a task_output tuple
+    expect up to ngranules * (MXX,IXX,NCC) tasks
     this is suitable for spinning off to a subprocess using multiprocessing.Pool
     """
     kind, gran, sdr_cns, edr_cns, work_dir, additional_env = task_in[:6]
@@ -781,8 +780,24 @@ def viirs_gtm_edr(work_dir, input_dir, nprocs=1, allow_cache_update=True,
                                        CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH)
     LOG.debug(repr(results))
     error_count = 0
+    LOG.info('Product list')
     for kind, granule, products, errors in results:
-        error_count += len(errors)
+        LOG.info('%s:%s => %r' % (kind, granule, products))
+        if errors:
+            LOG.warning(' Problems reported: ' + ', '.join(errors))
+            error_count += len(errors)
+        else:
+            LOG.info('  No problems reported')
+
+    if error_count:
+        status_line('%d problems were reported - please review above listing.')
+    else:
+        status_line('Completed successfully!')
+
+    if cleanup and not error_count:
+        LOG.debug('cleaning out ancillary and log directories')
+        shutil.rmtree(anc_dir, ignore_errors=True)
+        shutil.rmtree(os.path.join(work_dir, 'log'), ignore_errors=True) # FUTURE D-R-Y
     return error_count
 
 
