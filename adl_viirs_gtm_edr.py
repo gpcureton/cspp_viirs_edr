@@ -67,8 +67,9 @@ ANCILLARY_SUB_DIR = "linked_data"
 
 CHECK_REQUIRED_KEYS = ['N_Granule_ID', 'N_Collection_Short_Name']
 
+# FUTURE: PRO_CROSSGRAN_FAIL may go away if we obtain -FSDR products from viirs_sdr.sh --edr
 GTM_EDR_LOG_CHECK_TABLE = [  # FIXME, make these more specific
-                           ('PRO_CROSSGRAN_FAIL', "Cross Granule dependency failure, more input needed?"),
+                           # ('PRO_CROSSGRAN_FAIL', "Cross Granule dependency failure, more input needed?"),
                            ('INF_STATUSTYPE_TASK_INPUTNOTAVAIL', "Missing input?")
 ]
 
