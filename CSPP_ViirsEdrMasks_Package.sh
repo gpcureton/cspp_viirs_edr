@@ -327,7 +327,7 @@ main ()
 {
     echo "Starting"
 
-    #trace_cmd 
+    trace_cmd 
     
     get_opens_and_xml_and_exe
     combine_lib_and_xml_and_exe
@@ -359,7 +359,7 @@ echo "WORK_DIR = "$WORK_DIR
 export CNAME=$(basename ${CMD%.sh})
 echo "CNAME = "$CNAME
 
-export REPO_HOME='/data/geoffc/CSPP_VIIRS_EDR/CSPP_repo'
+export REPO_HOME=$CSPP_RT_HOME'repos'
 echo "REPO_HOME = "$REPO_HOME
 
 export TRACE=${WORK_DIR}/${CNAME}.strace.log
