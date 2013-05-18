@@ -823,8 +823,8 @@ def main():
     parser.add_argument('-z', '--zip',
                         action="store_true", default=False, help="compress products with h5repack zip compression")
 
-    parser.add_argument('-a', '--aggregate',
-                        action="store_true", default=False, help="aggregate products with nagg")
+    # parser.add_argument('-a', '--aggregate',
+    #                     action="store_true", default=False, help="aggregate products with nagg")
 
     parser.add_argument('-l', '--local',
                         action="store_true", default=False, help="disable download of remote ancillary data to cache")
@@ -882,7 +882,7 @@ def main():
         LOG.info('using %d cores' % num_procs)
 
     rc = viirs_gtm_edr(work_dir, args.input_dir[0], nprocs=num_procs, allow_cache_update=not args.local,
-                       compress=args.zip, aggregate=args.aggregate, cleanup=do_cleanup)
+                       compress=args.zip, aggregate=False, cleanup=do_cleanup)
 
     if rc == 0 and not args.debug:
         os.remove(logfile)
