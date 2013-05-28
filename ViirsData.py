@@ -917,7 +917,7 @@ class AerosolProdData:
                                 )
     
     ViirsAeroQualvalues = ((  (0,1,2,3), (0,1,2,3), (0,1,2,3), (0,1,2,3)                ),      # Byte 0
-                           (  (0,1,2,3), (0,1,2,3), (0,1,2,3,5,6), (0,1)                ),      # Byte 1
+                           (  (0,1,2,3), (0,1,2,3), (0,1,2,3,4,5,6), (0,1)              ),      # Byte 1
                            (  (0,1,2,3), (0,1,2,3), (0,1,2,3,4,5,6,7)                   ),      # Byte 2
                            (  (0,1), (0,1), (0,1), (0,1), (0,1,2), (0,1), (0,1)         ),      # Byte 3
                            (  (0,1), (0,1), (0,1), (0,1), (0,1)                         )       # Byte 4
@@ -925,17 +925,16 @@ class AerosolProdData:
 
     ViirsAeroQualFillBoundaries = [
                                    [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5]   ], # Byte 0
-                                   [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5, 2.5, 3.5, 5.5, 6.5], [-0.5, 0.5, 1.5] ], # Byte 1
+                                   [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5], [-0.5, 0.5, 1.5] ], # Byte 1
                                    [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5]  ], # Byte 2
                                    [ [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5, 2.5], [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5] ], # Byte 3
                                    [ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]   ] # Byte 4
                                   ]
 
     ViirsAeroQualFillColours = [
-                                   [ ['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'] ], # Byte 0
-                                   [
-                                       ['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['brown','green','cyan','blue','#ff0000','r'], ['k','g']                   ], # Byte 1
-                                   [ ['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['#000080','#0012ff','#00a4ff','#b6ff41','#ffb900','#ff3200','#800000'] ], # Byte 2
+                                   [ ['#00ff00','b','r','k'],['#00ff00','b','r','k'],['#00ff00','b','r','k'],['r','b','#00ff00','w'] ], # Byte 0
+                                   [ ['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['brown','green','cyan','blue','w','yellow','r'], ['k','g'] ], # Byte 1
+                                   [ ['yellow','orange','brown','k'],['w','#000080','#0012ff','#00a4ff'],['#000080','#0012ff','#00a4ff','#b6ff41','#ffb900','#ff3200','#800000','yellow'] ], # Byte 2
                                    [ ['k','g'], ['k','g'], ['k','g'], ['k','g'], ['brown','green','yellow'], ['k','g'], ['k','g'] ], # Byte 3
                                    [ ['k','g'], ['k','g'], ['k','g'], ['k','g']   ] # Byte 4
                                ]
@@ -943,7 +942,7 @@ class AerosolProdData:
     # The tick labels of the colourbar categories
     ViirsAeroQualTickNames = [
                               [ ['High Quality','Degraded Quality','Excluded Quality','Not Produced'],['High Quality','Degraded Quality','Excluded Quality','Not Produced'],['High Quality','Degraded Quality','Excluded Quality','Not Produced'],['Poor','Low','Medium','High'] ],      # Byte 0
-                              [ ['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Land & Desert','Land, No Desert','Inland Water','Sea Water','Coastal','Ephemeral Water'],['No','Yes'] ],      # Byte 1
+                              [ ['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Land & Desert','Land, No Desert','Inland Water','Sea Water','None','Coastal','Ephemeral Water'], ['No','Yes'] ],      # Byte 1
                               [ ['Day','Low Sun, Degraded','Twilight, Excluded','Night'],['None','Interpolation only','Interpolation & Climatology/NAAPS','Climatology/NAAPS'],['None','Geometry Based','Wind Speed Based','Geometry & Wind','Internal','Internal & Geometry','Internal & Wind','All'] ],      # Byte 2
                               [ ['No','Yes'], ['No','Yes'], ['No','Yes'], ['No','Yes'],[ 'Dark','Soil Dominated','Bright'], ['No','Yes'], ['No','Yes'] ],      # Byte 3
                               [ ['No','Yes'], ['No','Yes'], ['No','Yes'], ['No','Yes'] ]       # Byte 4
