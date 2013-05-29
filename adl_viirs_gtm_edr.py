@@ -862,6 +862,12 @@ def main():
             print '%s => %s' % (fn, geo_ref(fn))
             return 0
 
+    if 'TEST_GUIDE' in os.environ:
+        from pprint import pprint
+        pprint(list(_geo_guide()))
+        return 0
+
+
     # if args.test:
     #     check_env(work_dir)
     #     grans = _test_sdr_granules(work_dir)
