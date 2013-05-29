@@ -17,6 +17,7 @@ from collections import namedtuple
 from glob import glob
 import numpy as np
 import re
+import scipy.ndimage as ndimage
 import pyresample as pr
 #from datetime import datetime, timedelta
 
@@ -211,9 +212,9 @@ def gtm_swath(*edr_filenames, **kwargs):
 
 SCALE_TYPE = {
     'VNCCO': ('black2white', '0', '1.2'),  # albedo
-    'VI1BO': ('black2white', '0', '1.2'),  # radiance
-    'VI2BO': ('black2white', '0', '1.2'),  # radiance
-    'VI3BO': ('black2white', '0', '1.2'),  # radiance
+    'VI1BO': ('black2white', None, None),  # radiance
+    'VI2BO': ('black2white', None, None),  # radiance
+    'VI3BO': ('black2white', None, None),  # radiance
     'VI4BO': ('white2black','180','320'),  # BT
     'VI5BO': ('white2black','180','320'),  # BT
     # FIXME add VM##O
@@ -229,11 +230,12 @@ def gtm_quicklook(pathnames,
     eva = evaluator(**viirs.info)
     png_path = png_fmt % eva
  
-    if std == True :
-        std_max = (viirs.data).mean(dtype=np.float64) + 3*(viirs.data).std(dtype=np.float64)
-        std_min = (viirs.data).mean(dtype=np.float64) -  3*(viirs.data).std(dtype=np.float64)
-        vmin=std_min
-        vmax=std_max
+    if std == True or (vmin is None and vmax is None):
+        rav = viirs.data[np.isfinite(viirs.data)]
+        std = np.std(rav)
+        mean = np.mean(rav)
+        vmax = std_max = mean + 3*std
+        vmin = std_min = mean - 3*std
         nosqrt = True
 
         LOG.debug("mean: " + str( (viirs.data).mean(dtype=np.float64)) +" max: "+str((viirs.data).max())+" min: "+str((viirs.data).min())+" std "+str((viirs.data).std(dtype=np.float64))+" vmax: "+str(max)+" smax: "+str(std_max)+" smin: "+str(std_min))
@@ -260,7 +262,8 @@ def gtm_quicklook(pathnames,
                   vmin=vmin, vmax=vmax)
 
     map_image(png_path,
-              viirs.data, viirs.lon, viirs.lat, label=label,
+              viirs.data,
+              viirs.lon, viirs.lat, label=label,
               scale=scale,sqrt_enhance=sqrt_enhance,
               vmin=vmin, vmax=vmax, size=(600, 600))
 
@@ -273,7 +276,7 @@ def get_names():
 # pyresample to a map
 # 
 
-def viirs_quicklook(pathnames, 
+def viirs_quicklooks(pathnames,
                     png_fmt = 'viirs_%(kind)s%(band)s%(date)s.%(start_time)s-%(end_time)s.png', 
                     label_fmt = 'Suomi NPP %(kind)s%(band)s %(date)s.%(start_time)s-%(end_time)s',std=False,nosqrt=False,raw=False):
 
@@ -372,7 +375,7 @@ def main():
         else:
             png_fmt = options.output
     
-    viirs_quicklook(args, png_fmt=png_fmt,std=std,nosqrt=nosqrt,raw=raw)
+    viirs_quicklooks(args, png_fmt=png_fmt,std=std,nosqrt=nosqrt,raw=raw)
 
     return 0
 
