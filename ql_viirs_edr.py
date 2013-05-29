@@ -2183,21 +2183,21 @@ def gran_SST(geoList,sstList,shrink=1):
 
         try :
             sstArr  = np.vstack((sstArr ,viirsSSTObj.ViirsSSTprodSDS[:,:]))
-            #qf1Arr = np.vstack((qf1Arr,viirsSSTObj.ViirsSST_QF1[:,:]))
+            qf1Arr = np.vstack((qf1Arr,viirsSSTObj.ViirsSST_QF1[:,:]))
             qf2Arr = np.vstack((qf2Arr,viirsSSTObj.ViirsSST_QF2[:,:]))
             #qf3Arr = np.vstack((qf3Arr,viirsSSTObj.ViirsSST_QF3[:,:]))
             #qf4Arr = np.vstack((qf4Arr,viirsSSTObj.ViirsSST_QF4[:,:]))
             print "subsequent sst arrays..."
         except NameError :
             sstArr  = viirsSSTObj.ViirsSSTprodSDS[:,:]
-            #qf1Arr = viirsSSTObj.ViirsSST_QF1[:,:]
+            qf1Arr = viirsSSTObj.ViirsSST_QF1[:,:]
             qf2Arr = viirsSSTObj.ViirsSST_QF2[:,:]
             #qf3Arr = viirsSSTObj.ViirsSST_QF3[:,:]
             #qf4Arr = viirsSSTObj.ViirsSST_QF4[:,:]
             print "first sst arrays..."
 
         print "Intermediate sstArr.shape = %s" % (str(sstArr.shape))
-        #print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
+        print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
         print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
         #print "Intermediate qf3Arr.shape = %s" % (str(qf3Arr.shape))
         #print "Intermediate qf4Arr.shape = %s" % (str(qf4Arr.shape))
@@ -3153,6 +3153,18 @@ def main():
                       default='1.3',
                       type="float",
                       help="The extent of the plot viewport as a proportion of the VIIRS swath width (2400 km). [default: %default]")
+    optionalGroup.add_option('--lat_0',
+                      action="store",
+                      dest="lat_0",
+                      #default='None',
+                      type="float",
+                      help="If given the plot is centered on the latitude lat_0. [default: %default]")
+    optionalGroup.add_option('--lon_0',
+                      action="store",
+                      dest="lon_0",
+                      #default='None',
+                      type="float",
+                      help="If given the plot is centered on the longitude lon_0. [default: %default]")
     optionalGroup.add_option('-S','--stride',
                       action="store",
                       dest="stride",
@@ -3264,7 +3276,10 @@ def main():
         if 'VCP' in options.ipProd :
             set_vcm_dset(5,0)
 
-        lats,lons,vcmData,lat_0,lon_0 = gran_VCM(geoList,prodList,shrink=stride)
+        lats,lons,vcmData,gran_lat_0,gran_lon_0 = gran_VCM(geoList,prodList,shrink=stride)
+
+        lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
+        lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
 
         print "Calling VCM plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
@@ -3278,8 +3293,11 @@ def main():
         vmin = -0.05 if (vmin==None) else vmin
         vmax = 0.8 if (vmax==None) else vmax
 
-        lats,lons,aotData,lat_0,lon_0,ModeGran = gran_AOT_EDR(geoList,prodList,shrink=stride)
+        lats,lons,aotData,gran_lat_0,gran_lon_0,ModeGran = gran_AOT_EDR(geoList,prodList,shrink=stride)
         
+        lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
+        lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
+
         print "Calling AOT plotter..."
         pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         orthoPlot_AOT(lats,lons,aotData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax,\
@@ -3292,8 +3310,11 @@ def main():
         vmin = -0.05 if (vmin==None) else vmin
         vmax = 0.8 if (vmax==None) else vmax
 
-        lats,lons,aotData,lat_0,lon_0,ModeGran = gran_AOT(geoList,prodList,shrink=stride)
+        lats,lons,aotData,gran_lat_0,gran_lon_0,ModeGran = gran_AOT(geoList,prodList,shrink=stride)
         
+        lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
+        lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
+
         print "Calling AOT plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_AOT(lats,lons,aotData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
@@ -3306,8 +3327,11 @@ def main():
         vmin = 290. if (vmin==None) else vmin
         vmax = 305. if (vmax==None) else vmax
 
-        lats,lons,sstData,lat_0,lon_0,ModeGran = gran_SST(geoList,prodList,shrink=stride)
+        lats,lons,sstData,gran_lat_0,gran_lon_0,ModeGran = gran_SST(geoList,prodList,shrink=stride)
         
+        lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
+        lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
+
         print "Calling SST plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_SST(lats,lons,sstData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \

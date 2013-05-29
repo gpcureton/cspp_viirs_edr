@@ -137,13 +137,15 @@ class viirsSST:
 
         # Get the VIIRS EDR dataset
         try :
-            ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/BulkSST'
+            #ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/BulkSST'
+            ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/SkinSST'
             self.ViirsSSTprodSDS = ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
-            ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/BulkSSTFactors'
+            #ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/BulkSSTFactors'
+            ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/SkinSSTFactors'
             self.sstFactors = ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[:]
 
-            #ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/QF1_VIIRSSSTEDR'
-            #self.ViirsSST_QF1 =  ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+            ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/QF1_VIIRSSSTEDR'
+            self.ViirsSST_QF1 =  ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
 
             ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/QF2_VIIRSSSTEDR'
             self.ViirsSST_QF2 =  ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
