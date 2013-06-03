@@ -22,9 +22,11 @@ export CSPP_RT_ANC_HOME=${CSPP_EDR_ANC_HOME}
 export CSPP_RT_ANC_TILE_PATH=${CSPP_EDR_ANC_TILE_PATH}
 # load in commonly-used routines and derived environment
 # sources CSPP_RT_env.sh if needed
-source $CSPP_RT_HOME/common/cspp_common.sh
+#source $CSPP_RT_HOME/common/cspp_common.sh
 
 
+
+. ${CSPP_EDR_HOME}/common/cspp_common.sh
 
 
 
