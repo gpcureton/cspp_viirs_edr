@@ -527,58 +527,59 @@ class CloudMaskData:
                        (1,2,4,8,16,32,64,128),
                        (3,4,8,16,32,64,128),
                        (256,),
-                       (7,8,16,224))
+                       (7,8,16,32,64,128))
 
     ViirsCMbitShift = ((0,2,4,5,6),
                        (0,3,4,5,6,7),
                        (0,1,2,3,4,5,6,7),
                        (0,2,3,4,5,6,7),
                        (0,),
-                       (0,3,4,5))
+                       (0,3,4,5,6,7))
 
     ViirsCMbitMaskNames = (('CM Quality','Cloud Mask','Day/Night','Snow/Ice','Sunglint'),
                            ('Land/Water','Shadow','Heavy Aerosol','Fire','Cirrus (RM9)','Cirrus (BTM15-BTM16)'),
                            ('IR Threshold Cloud Test (BTM15)','High Cloud (BTM12-BTM16) Test','IR Temperature Difference  Test (BTM14 - BTM15 BTM15 - BTM16)','Temperature Difference Test (BTM15 - BTM12)','Temperature Difference Test (BTM12 - BTM13)','Visible Reflectance Test (RM5)','Visible Reflectance Test (RM7)','Visible Ratio Test (RM7 / RM5)'),
                            ('Adjacent Pixel Cloud Confident Value','Conifer Boreal Forest','Spatial Uniformity','Dust','Smoke','Dust/Vol. Ash','Spare'),
                            ('Spare',),
-                           ('Cloud Phase','Thin Cirrus','Ephemeral Water','Spare'))
+                           ('Cloud Phase','Thin Cirrus','Ephemeral Water','Degraded TOC NDVI Flag','Degraded Sun Glint Flag','Degraded Polar Night Flag' ))
     
     ViirsCMvalues = ((  (0,1,2,3),(0,1,2,3),(0,1),(0,1),(0,1,2,3)   ),           # Byte 0
-                     (  (0,1,2,3,5),(0,1),(0,1),(0,1),(0,1),(0,1)        ),      # Byte 1
+                     (  (0,1,2,3,4,5),(0,1),(0,1),(0,1),(0,1),(0,1)        ),      # Byte 1
                      (  (0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1),(0,1)  ),      # Byte 2
                      (  (0,1,2,3),(0,1),(0,1),(0,1),(0,1),(0,1),(0)      ),      # Byte 3
                      (  (0),                                             ),      # Byte 4
                      #(  (2,3,4,5,6,7),(0,1),(0,1),(0)                    ))      # Byte 5
-                     (  (0,1,2,3,4,5,6,7),(0,1),(0,1),(0)                 ))      # Byte 5
+                     (  (0,1,2,3,4,5,6,7),(0,1),(0,1),(0,1),(0,1),(0,1)   ))      # Byte 5
 
     ViirsCMfillBoundaries = [
                              [ [-0.5,0.5,1.5,2.5,3.5],[-0.5,0.5,1.5,2.5,3.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5,2.5,3.5] ], # Byte 0
-                             [ [-0.5,0.5,1.5,2.5,3.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5] ], # Byte 1
+                             [ [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5] ], # Byte 1
                              [ [-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5] ], # Byte 2
                              [ [-0.5,0.5,1.5,2.5,3.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[0] ], # Byte 3
                              [ [0], ], # Byte 4
                              #[ [2.5,3.5,4.5,5.5,6.5,7.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[0] ] # Byte 5
-                             [ [-0.5,0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[0] ] # Byte 5
+                             [ [-0.5,0.5,1.5,2.5,3.5,4.5,5.5,6.5,7.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5],[-0.5,0.5,1.5] ] # Byte 5
                             ]
 
     ViirsCMfillColours = [
-                            [   ['w','#ff0000','#00ffff','#00ff00'],['#00ff00','#00ffff','#ff0000','w'],[0],[0],['w','#ff0000','#00ffff','#00ff00'] ], # Byte 0
-                            [   ['brown','green','cyan','blue','#ff0000'],[0],[0],[0],[0],[0]   ], # Byte 1
-                            [   [0],[0],[0],[0],[0],[0],[0],[0]  ], # Byte 2
-                            [   ['#00ff00','#00ffff','#ff0000','w'],[0],[0],[0],[0],[0],[0] ], # Byte 3
+                            [
+                                ['k','r','b','#00ff00'],['#00ff00','#00ffff','#ff0000','w'],['k','yellow'],['k','g'],['#000080','#0012ff','#00a4ff','#b6ff41'] ], # Byte 0
+                            [   ['brown','green','cyan','blue','w','yellow'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g']   ], # Byte 1
+                            [   ['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g']  ], # Byte 2
+                            [   ['#00ff00','#00ffff','#ff0000','w'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'] ], # Byte 3
                             [   [0], ], # Byte 4
                             #[   ['#00A5FF','#00A5FF','#00A5FF','#FFB900','#FFB900','#FF3000'],[0],[0],[0]   ]   # Byte 5
-                            [   ['#000080','#0011FF','#00A5FF','#00A5FF','#B7FF40','#FFB900','#FF3000','#FF3000'],[0],[0],[0]   ]   # Byte 5
+                            [   ['#000080','#0011FF','#00A5FF','#00A5FF','#B7FF40','#FFB900','#FF3000','#FF3000'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g']   ]   # Byte 5
                          ]
 
     # The tick labels of the colourbar categories
-    ViirsCMtickNames = [[['poor','low','medium','high'],['confident clear','probably clear','probably cloudy','confident cloudy'],['night','day'],[0],['none','geometry','wind','geometry/wind']],      # Byte 0
-                     [  ['Land/Desert','Land','Inland Water','Sea Water','Coastal'],[0],[0],[0],[0],[0]],      # Byte 1
-                     [  [0],[0],[0],[0],[0],[0],[0],[0]  ],      # Byte 2
-                     [  ['confident clear','probably clear','probably cloudy','confident cloudy'],[0],[0],[0],[0],[0],[0]],      # Byte 3
+    ViirsCMtickNames = [[['poor','low','medium','high'],['confident clear','probably clear','probably cloudy','confident cloudy'],['night','day'],['no snow','snow/ice'],['none','geometry','wind','geometry/wind']],      # Byte 0
+                     [  ['Land/Desert','Land','Inland Water','Sea Water','None','Coastal'],['No','Yes'],['No','Yes'],['No','Yes'],['No Cloud','Cloud'],['No Cloud','Cloud']],      # Byte 1
+                     [  ['No Cloud','Cloud'],['No Cloud','Cloud'],['No Cloud','Cloud'],['No Cloud','Cloud'],['No Cloud','Cloud'],['No Cloud','Cloud'],['No Cloud','Cloud'],['No Cloud','Cloud']  ],      # Byte 2
+                     [  ['confident clear','probably clear','probably cloudy','confident cloudy'],['No','Yes'],['No','Yes'],['No','Yes'],['No','Yes'],['No','Yes'],['No','Yes']],      # Byte 3
                      [  [0],],      # Byte 4
                      #[  ['Part Cld','Water','Mixed','OP Ice','Cirrus','Overlap'],[0],[0],[0]]]      # Byte 5
-                     [  ['Not Exe','Clear','Part Cld','Water','Mixed','OP Ice','Cirrus','Overlap'],[0],[0],[0]]]      # Byte 5
+                     [  ['Not Exe','Clear','Part Cld','Water','Mixed','OP Ice','Cirrus','Overlap'],['No','Yes'],['No','Yes'],['No','Yes'],['No','Yes'],['No','Yes']      ]]      # Byte 5
 
     # Each of the rows in each of red,green,blue triples defines a boundary. There
     # are boundaries at each end (at 0 and 1 points of colormap), and a boundary
@@ -1015,48 +1016,48 @@ class SeaSurfaceTempProdData:
     """
 
     ViirsSSTqualBitMasks = ((3, 12,  48, 64 , 128        ),
-                             (1, 2, 12, 48, 64, 128       ),
-                             (1, 2, 4, 8, 16, 32, 64, 128 ),
-                             (1, 2, 4, 8, 16, 32, 64, 128 ))
+                            (1, 2, 12, 48, 64, 128       ),
+                            (1, 2, 4, 8, 16, 32, 64, 128 ),
+                            (1, 2, 4, 8, 16, 32, 64, 128 ))
 
     ViirsSSTqualBitShift = ((0, 2, 4, 6, 7         ),
-                             (0, 1, 2, 4, 6, 7      ),
-                             (0, 1, 2, 3, 4, 5, 6, 7),
-                             (0, 1, 2, 3, 4, 5, 6, 7))
+                            (0, 1, 2, 4, 6, 7      ),
+                            (0, 1, 2, 3, 4, 5, 6, 7),
+                            (0, 1, 2, 3, 4, 5, 6, 7))
 
     ViirsSSTqualBitMaskNames = (('Skin SST Quality','Bulk SST Quality','SST State','Algorithm','Day / Night'),
                                  ('Bad LWIR Pixel','Bad SWIR Pixel','Cloud Confidence','Adjacent Pixel Cloud Confident Value','Thin Cirrus','Sea Ice'),
-                                 ('Sun Glint','Exclusion, AOT > 1','Degraded, HCS limit','Degraded, Sensor Zenith Angle > 40','Skin SST Outside Range','Bulk SST Outside Range'),
+                                 ('Sun Glint','Exclusion, AOT > 1','Degraded, AOT > 0.6','Exclusion, Not Ocean','Degraded, HCS limit','Degraded, Sensor Zenith Angle > 40','Skin SST Outside Range','Bulk SST Outside Range'),
                                  ('Skin SST Degraded, T > 305 K','Bulk SST Degraded, T > 305 K','Spare','Spare','Spare','Spare','Spare','Spare'),
                                 )
     
-    ViirsSSTqualvalues = ((  (0,1,2,3), (0,1,2,3), (0,1,2,3), (0,1), (0,1)             ),      # Byte 0
-                           (  (0,1), (0,1), (0,1,2,3), (0,1,2,3), (0,1), (0,1)          ),      # Byte 1
-                           (  (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1)    ),      # Byte 2
-                           (  (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1)    )       # Byte 3
+    ViirsSSTqualvalues = ( (  (0,1,2,3), (0,1,2,3), (0,1,2), (0,1), (0,1)             ),      # Byte 0
+                           (  (0,1), (0,1), (0,1,2,3), (0,1,2,3), (0,1), (0,1)        ),      # Byte 1
+                           (  (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1)  ),      # Byte 2
+                           (  (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1)  )       # Byte 3
                           )
 
     ViirsSSTqualFillBoundaries = [
-                                   [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]    ], # Byte 0
-                                   [ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5] ], # Byte 1
+                                   [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]                          ], # Byte 0
+                                   [ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]             ], # Byte 1
                                    [ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]], # Byte 3
                                    [ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]] # Byte 4
-                                  ]
+                                 ]
 
     ViirsSSTqualFillColours = [
-                                   [ ['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['k','g'],['k','g'] ], # Byte 0
-                                   [ ['k','g'],['k','g'],['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['k','g'],['k','g'] ], # Byte 2
-                                   [ ['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'] ], # Byte 3
-                                   [ ['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'] ] # Byte 4
-                               ]
+                                [ ['k', 'r', 'b', '#00ff00'],['k', 'r', 'b', '#00ff00'],['brown','green','yellow'],['k','g'],['k','yellow']       ], # Byte 0
+                                [ ['g','k'],['g','k'],['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['k','g'],['k','g'] ], # Byte 2
+                                [ ['k','g'],['k','g'],['k','g'],['b','k'],['g','k'],['k','g'],['g','k'],['g','k']                                 ], # Byte 3
+                                [ ['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g']                                 ] # Byte 4
+                              ]
 
     # The tick labels of the colourbar categories
     ViirsSSTqualTickNames = [
-                              [ ['Not retrieved','Excluded','Degraded','High Quality'],['Not retrieved','Excluded','Degraded','High Quality'],[' Dry / None','Moist','Average',''],['Non-linear Split Window','Triple Window'],['Night','Day'] ],      # Byte 0
-                              [ ['Good SDR','Bad SDR'],['Good SDR','Bad SDR'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['No Thin Cirrus','Thin Cirrus'],['No Sea Ice','Sea Ice'] ],      # Byte 1
+                              [ ['Not retrieved','Excluded','Degraded','High Quality'],['Not retrieved','Excluded','Degraded','High Quality'],[' Dry / None','Moist','Average'],['Non-linear Split Window','Triple Window'],['Night','Day'] ],      # Byte 0
+                              [ ['Good SDR','Bad SDR'],['Good SDR','Bad SDR'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['No Thin Cirrus','Thin Cirrus'],['No Sea Ice','Sea Ice'] ],      # Byte 1
                               [ ['No sun glint','Sun glint'],['No','Yes'],['No','Yes'],['Ocean','Not ocean'],['Within HCS limit','Past HCS limit'],['No','Yes'],['In range','Out of range'],['In range','Out of range'] ],      # Byte 3
                               [ ['Not degraded','Degraded'],['Not degraded','Degraded'],['',''],['',''],['',''],['',''],['',''],['',''] ]       # Byte 4
-                             ]
+                            ]
                               
 
 
