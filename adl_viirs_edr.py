@@ -99,11 +99,12 @@ import adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 
+import datetime as dt
 # ancillary search and unpacker common routines
 # We need [ 'CSPP_RT_HOME', 'ADL_HOME', 'CSPP_RT_ANC_TILE_PATH', 'CSPP_RT_ANC_CACHE_DIR', 'CSPP_RT_ANC_PATH' ] environment 
 # variables to be set...
 from adl_common import sh, anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
-from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE,check_and_convert_path
 
 # log file scanning
 import adl_log
@@ -716,7 +717,23 @@ def main():
 
     # Set up the logging
     levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
-    configure_logging(level = levels[min(options.verbosity,3)])
+
+    level = levels[options.verbosity if options.verbosity<4 else 3]
+
+
+    work_dir= check_and_convert_path("WORK_DIR",options.work_dir)
+    d = dt.datetime.now()
+    timestamp = d.isoformat()
+    logname= "viirs_edr."+timestamp+".log"
+    logfile= os.path.join(work_dir, logname )
+    configure_logging(level,FILE=logfile)
+
+
+
+
+
+
+#    configure_logging(level = levels[min(options.verbosity,3)])
 
     # Determine the correct input file path and glob
     if not options.skipSdrUnpack :
@@ -726,7 +743,7 @@ def main():
             sys.exit(1)
 
     # Set the work directory
-    work_dir = path.abspath(options.work_dir)
+#    work_dir = path.abspath(options.work_dir)
     LOG.debug('Setting the work directory to %r' % (work_dir))
 
     # Check the environment variables, and whether we can write to the working directory
