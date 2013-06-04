@@ -72,12 +72,9 @@ import optparse as optparse
 from time import time
 from datetime import datetime,timedelta
 
-from scipy import round_
-
 import numpy as np
 from numpy import ma
 import copy
-from bisect import bisect_left,bisect_right
 
 import ctypes
 from numpy.ctypeslib import ndpointer
@@ -85,14 +82,6 @@ from numpy.ctypeslib import ndpointer
 import tables as pytables
 from tables import exceptions as pyEx
 
-import ViirsData
-
-from thermo import rh_to_mr
-rh_to_mr_vec = np.vectorize(rh_to_mr)
-
-#from NAAPStoBlob import NAAPSclass
-#import pyhdf.SD as SD
-from HDF4File import HDF4File
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
@@ -103,7 +92,8 @@ import datetime as dt
 # ancillary search and unpacker common routines
 # We need [ 'CSPP_RT_HOME', 'ADL_HOME', 'CSPP_RT_ANC_TILE_PATH', 'CSPP_RT_ANC_CACHE_DIR', 'CSPP_RT_ANC_PATH' ] environment 
 # variables to be set...
-from adl_common import sh, anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
+from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
+from adl_common import check_and_convert_path
 from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE,check_and_convert_path
 
 # log file scanning
@@ -715,25 +705,20 @@ def main():
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
+    # Set the work directory
+    work_dir = check_and_convert_path("WORK_DIR",options.work_dir)
+    LOG.debug('Setting the work directory to %r' % (work_dir))
+
     # Set up the logging
-    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
-
-    level = levels[options.verbosity if options.verbosity<4 else 3]
-
-
-    work_dir= check_and_convert_path("WORK_DIR",options.work_dir)
-    d = dt.datetime.now()
+    d = datetime.now()
     timestamp = d.isoformat()
     logname= "viirs_edr."+timestamp+".log"
-    logfile= os.path.join(work_dir, logname )
+    logfile= path.join(work_dir, logname )
+
+    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+    level = levels[min(options.verbosity,3)]
     configure_logging(level,FILE=logfile)
 
-
-
-
-
-
-#    configure_logging(level = levels[min(options.verbosity,3)])
 
     # Determine the correct input file path and glob
     if not options.skipSdrUnpack :
@@ -741,10 +726,6 @@ def main():
         if inputGlobs['GEO'] is None or inputGlobs['MOD'] is None or inputGlobs['IMG'] is None :
             LOG.error("No input files found matching %s, aborting..."%(options.inputFiles))
             sys.exit(1)
-
-    # Set the work directory
-#    work_dir = path.abspath(options.work_dir)
-    LOG.debug('Setting the work directory to %r' % (work_dir))
 
     # Check the environment variables, and whether we can write to the working directory
     check_env(work_dir)
