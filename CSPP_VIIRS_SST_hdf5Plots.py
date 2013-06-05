@@ -61,38 +61,10 @@ import matplotlib.pyplot as ppl
 import optparse as optparse
 
 import ViirsData
-import viirs_cloud_mask as viirsCM
-import viirs_cloud_products as viirsCld
-import viirs_aerosol_products as viirsAero
-import viirs_sst_products as viirsSST
 
 import tables as pytables
 from tables import exceptions as pyEx
 
-##############
-
-#import numpy as np
-#from os import path,readlink
-#import string
-#from numpy import ma
-#from glob import glob
-#import re
-
-#import matplotlib
-#import matplotlib.cm as cm
-#from matplotlib.colors import ListedColormap
-#from matplotlib.figure import Figure
-
-#matplotlib.use('Agg')
-#from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-
-## This must come *after* the backend is specified.
-#import matplotlib.pyplot as ppl
-#from mpl_toolkits.basemap import Basemap,addcyclic,shiftgrid
-
-#import ViirsData as ViirsData
-
-#import tables as pytables
 
 # every module should have a LOG object
 # e.g. LOG.warning('my dog has fleas')
@@ -107,25 +79,27 @@ trimObj = ViirsData.ViirsTrimTable()
 modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
 
 
-def get_hdf5_dict(hdf5Dir,filePrefix):
+def get_hdf5_dict(hdf5Path,filePrefix):
     hdf5_asc_Files = {}
     
-    hdf5Dir = path.abspath(path.expanduser(hdf5Dir))
+    hdf5Path = path.abspath(path.expanduser(hdf5Path))
+    print "hdf5Path = %s" % (hdf5Path)
+
+    hdf5Dir = path.dirname(hdf5Path)
+    hdf5Glob = path.basename(hdf5Path)
+
     print "hdf5Dir = %s" % (hdf5Dir)
+    print "hdf5Glob = %s" % (hdf5Glob)
 
-    if path.isdir(hdf5Dir):
-        pass
+    if (hdf5Glob == '' or hdf5Glob == '*'):
+        print "prefix = %s" % (filePrefix)
+        hdf5Glob = path.join(hdf5Dir,'%s_*.h5'%(filePrefix))
     else :
-        hdf5Dir = path.dirname(hdf5Dir)
-        print "hdf5Dir = %s" % (hdf5Dir)
+        hdf5Glob = path.join(hdf5Dir,'%s'%(hdf5Glob))
 
-    #for prefix in filePrefix :
-    #print '%s --> ' % (shortName)
-    print "prefix = %s" % (filePrefix)
-    fileGlob = path.join(path.expanduser(hdf5Dir),'%s_*.h5'%(filePrefix))
-    print "fileGlob = %s" % (fileGlob)
+    print "Final hdf5Glob = %s" % (hdf5Glob)
 
-    hdf5Files = glob(fileGlob)
+    hdf5Files = glob(hdf5Glob)
     if hdf5Files != []:
         hdf5Files.sort()
         hdf5Dict = {}
@@ -172,7 +146,7 @@ class SSTclass():
         self.hdf5_dict = get_hdf5_dict(hdf5Dir,'VSSTO')
 
 
-    def plot_SST_granules(self,pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_SST_granules(self,plotProd='EDR',vmin=None,vmax=None,pngDir=None,pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -189,12 +163,29 @@ class SSTclass():
 
             print 'shortName = %s' % (shortName)
 
-            dataName = self.dataName[shortName][0]
-            factorsName = self.dataFactors[shortName][0]
-            plotDescr = plotDescr[shortName][0]
+            if (plotProd == 'EDR'):
+
+                dataNames = self.dataName[shortName]
+                factorsNames = self.dataFactors[shortName]
+                plotDescrs = plotDescr[shortName]
+                prodNames = ['SkinSST','BulkSST']
+
+            elif (plotProd == 'Skin'):
+
+                dataNames = [self.dataName[shortName][0]]
+                factorsNames = [self.dataFactors[shortName][0]]
+                plotDescrs = [plotDescr[shortName][0]]
+                prodNames = ['SkinSST']
+
+            elif (plotProd == 'Bulk'):
+
+                dataNames = [self.dataName[shortName][1]]
+                factorsNames = [self.dataFactors[shortName][1]]
+                plotDescrs = [plotDescr[shortName][1]]
+                prodNames = ['BulkSST']
+
 
             for granID in  hdf5_dict[shortName].keys() :
-            #for granID in  [hdf5_dict[shortName].keys()[0]] :
 
                 print '%s --> %s ' % (shortName, granID)
 
@@ -205,106 +196,104 @@ class SSTclass():
                 print 'N_Day_Night_Flag = %s' % (dayNightFlag)
                 orient = -1 if dayNightFlag == 'Day' else 1
 
-                data = hdf5Obj.getNode(dataName)[:,:]
-                factors = hdf5Obj.getNode(factorsName)[:]
-                data = data*factors[0] + factors[1]
+                for dataName,factorsName,plotDescr,prodName in zip(dataNames,factorsNames,plotDescrs,prodNames):
 
-                SSTqualFlag = hdf5Obj.getNode('/All_Data/VIIRS-SST-EDR_All/QF1_VIIRSSSTEDR')
-                SSTqualFlag = np.bitwise_and(SSTqualFlag,3) >> 0
-                SSTqualFlagMask = ma.masked_equal(SSTqualFlag,0).mask
+                    data = hdf5Obj.getNode(dataName)[:,:]
+                    factors = hdf5Obj.getNode(factorsName)[:]
+                    data = data*factors[0] + factors[1]
+
+                    SSTqualFlag = hdf5Obj.getNode('/All_Data/VIIRS-SST-EDR_All/QF1_VIIRSSSTEDR')
+                    SSTqualFlag = np.bitwise_and(SSTqualFlag,3) >> 0
+                    SSTqualFlagMask = ma.masked_equal(SSTqualFlag,0).mask
+
+                    pixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
+                    print "pixelTrimValue is %r" % (pixelTrimValue)
+
+                    # Apply the moderate pixel trim, so that we can properly mask them out at plot time.
+                    data = ma.array(data,mask=modTrimMask,fill_value=trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name])
+                    data = data.filled()
+
+                    #vmin,vmax = plotLims[shortName]
+                    plotTitle = '%s : %s %s' % (shortName,granID,annotation)
+                    cbTitle = plotDescr
+
+                    # Create figure with default size, and create canvas to draw on
+                    scale=1.5
+                    fig = Figure(figsize=(scale*8,scale*3))
+                    canvas = FigureCanvas(fig)
+
+                    # Create main axes instance, leaving room for colorbar at bottom,
+                    # and also get the Bbox of the axes instance
+                    ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
+                    ax = fig.add_axes(ax_rect)
+
+                    # Granule axis title
+                    ax_title = ppl.setp(ax,title=plotTitle)
+                    ppl.setp(ax_title,fontsize=12)
+                    ppl.setp(ax_title,family="sans-serif")
+
+                    # Plot the data
+                    print "%s is of kind %r" % (shortName,data.dtype.kind)
+                    if (data.dtype.kind =='i' or data.dtype.kind =='u'):
+                        fill_mask = ma.masked_greater(data,200).mask
+                    else:
+                        fill_mask = ma.masked_less(data,-800.).mask
+
+                    # Construct the total mask
+
+                    totalMask = SSTqualFlagMask + fill_mask
+
+                    # Mask the aerosol so we only have the retrievals
+                    data = ma.masked_array(data,mask=totalMask)
+                    
+                    im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
+                    
+                    ppl.setp(ax.get_xticklabels(), visible=False)
+                    ppl.setp(ax.get_yticklabels(), visible=False)
+                    ppl.setp(ax.get_xticklines(),visible=False)
+                    ppl.setp(ax.get_yticklines(),visible=False)
+
+                    # add a colorbar axis
+                    cax_rect = [0.05 , 0.05, 0.9 , 0.10 ] # [left,bottom,width,height]
+                    cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
+
+                    # Plot the colorbar.
+                    cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+                    ppl.setp(cax.get_xticklabels(),fontsize=9)
+                    ppl.setp(cax.get_xticklines(),visible=True)
+
+                    # Colourbar title
+                    cax_title = ppl.setp(cax,title=cbTitle)
+                    ppl.setp(cax_title,fontsize=10)
+
+                    # Turn off the tickmarks on the colourbar
+                    #ppl.setp(cb.ax.get_xticklines(),visible=False)
+                    #ppl.setp(cb.ax.get_xticklabels(),fontsize=9)
+
+                    # Redraw the figure
+                    canvas.draw()
+
+                    # Save the figure to a png file...
+                    pngFile = path.join(pngDir,'%s%s_%s_%s.png' % (pngPrefix,shortName,granID,prodName))
+                    canvas.print_figure(pngFile,dpi=dpi)
+
+                    ppl.close('all')
 
                 hdf5Obj.close()
 
-                pixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
-                print "pixelTrimValue is %r" % (pixelTrimValue)
 
-                # Apply the moderate pixel trim, so that we can properly mask them out at plot time.
-                data = ma.array(data,mask=modTrimMask,fill_value=trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name])
-                data = data.filled()
-
-                vmin,vmax = plotLims[shortName]
-                plotTitle = '%s : %s %s' % (shortName,granID,annotation)
-                cbTitle = plotDescr
-
-                # Create figure with default size, and create canvas to draw on
-                scale=1.5
-                fig = Figure(figsize=(scale*8,scale*3))
-                canvas = FigureCanvas(fig)
-
-                # Create main axes instance, leaving room for colorbar at bottom,
-                # and also get the Bbox of the axes instance
-                ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
-                ax = fig.add_axes(ax_rect)
-
-                # Granule axis title
-                ax_title = ppl.setp(ax,title=plotTitle)
-                ppl.setp(ax_title,fontsize=12)
-                ppl.setp(ax_title,family="sans-serif")
-
-                # Plot the data
-                print "%s is of kind %r" % (shortName,data.dtype.kind)
-                if (data.dtype.kind =='i' or data.dtype.kind =='u'):
-                    #data = ma.masked_equal(data,pixelTrimValue)
-                    #data = ma.masked_greater(data,200)
-                    fill_mask = ma.masked_greater(data,200).mask
-                else:
-                    #data = ma.masked_less(data,-800.)
-                    fill_mask = ma.masked_less(data,-800.).mask
-
-                # Construct the total mask
-
-                totalMask = SSTqualFlagMask + fill_mask
-
-                # Mask the aerosol so we only have the retrievals
-                data = ma.masked_array(data,mask=totalMask)
-                
-                im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
-                #im = ax.imshow(ma.masked_equal(data,pixelTrimValue),axes=ax,interpolation='nearest',vmin=vmin,vmax=vmax)
-                #im = ax.imshow(data,axes=ax,interpolation='nearest',vmin=vmin,vmax=vmax)
-                #im = ax.imshow(ma.masked_less(data,-800.),axes=ax,interpolation='nearest')
-                
-                ppl.setp(ax.get_xticklabels(), visible=False)
-                ppl.setp(ax.get_yticklabels(), visible=False)
-                ppl.setp(ax.get_xticklines(),visible=False)
-                ppl.setp(ax.get_yticklines(),visible=False)
-
-                # add a colorbar axis
-                cax_rect = [0.05 , 0.05, 0.9 , 0.10 ] # [left,bottom,width,height]
-                cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
-
-                # Plot the colorbar.
-                cb = fig.colorbar(im, cax=cax, orientation='horizontal')
-                ppl.setp(cax.get_xticklabels(),fontsize=9)
-                ppl.setp(cax.get_xticklines(),visible=True)
-
-                # Colourbar title
-                cax_title = ppl.setp(cax,title=cbTitle)
-                ppl.setp(cax_title,fontsize=10)
-
-                # Turn off the tickmarks on the colourbar
-                #ppl.setp(cb.ax.get_xticklines(),visible=False)
-                #ppl.setp(cb.ax.get_xticklabels(),fontsize=9)
-
-                # Redraw the figure
-                canvas.draw()
-
-                # Save the figure to a png file...
-                pngFile = path.join(pngDir,'%s%s_%s.png' % (pngPrefix,shortName,granID))
-                canvas.print_figure(pngFile,dpi=dpi)
-
-                ppl.close('all')
-
-
-    def plot_SST_tests(self,pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_SST_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
 
-        plotDescr = self.plotDescr
-        plotLims = self.plotLims
-
         hdf5_dict = self.hdf5_dict
         collShortNames = hdf5_dict.keys()
+
+        if (plotProd == 'QF'):
+            byteList = [0,1,2,3]
+        else :
+            byteList = [int(plotProd.strip('QF'))]
 
         print 'collShortNames = %r' % (collShortNames)
 
@@ -314,10 +303,7 @@ class SSTclass():
 
             print 'shortName = %s' % (shortName)
 
-            dataName = self.dataName[shortName]
-
             for granID in  hdf5_dict[shortName].keys() :
-            #for granID in  [hdf5_dict[shortName].keys()[0]] :
 
                 print '%s --> %s ' % (shortName, granID)
                 hdf5Obj = hdf5_dict[shortName][granID][1]
@@ -327,8 +313,7 @@ class SSTclass():
                 print 'N_Day_Night_Flag = %s' % (dayNightFlag)
                 orient = -1 if dayNightFlag == 'Day' else 1
 
-                for byte in [0,1,2,3] :
-                #for byte in [0] :
+                for byte in byteList :
 
                     print ""
 
@@ -486,6 +471,15 @@ def main():
                       #default='',
                       type="string",
                       help="The map legend describing the dataset being shown. [default: IPPROD]")
+    optionalGroup.add_option('-p','--product',
+                      action="store",
+                      dest="plotProduct",
+                      type="choice",
+                      choices=prodChoices,
+                      help='''The VIIRS SST EDR or QF datasets to plot.\n\n
+                           Possible values are...
+                           %s
+                           ''' % (prodChoices.__str__()[1:-1]))
     optionalGroup.add_option('--png_dir',
                       action="store",
                       dest="pngDir" ,
@@ -497,7 +491,7 @@ def main():
                       default="",
                       type="string",
                       help="""String to prefix to the automatically generated png names, which are of
-                      the form <N_Granule_ID>_<CollectionShortName>_<dset>.png. [default: %default]""")
+the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default]""")
 
     parser.add_option_group(optionalGroup)
 
@@ -518,12 +512,6 @@ def main():
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
-    # Check that the input files actually exist
-    #if not glob(options.geoFile) :
-        #parser.error("Geolocation file \n\t%s\ndoes not exist, aborting..." % (options.geoFile))
-    #if not glob(options.ipFile) :
-        #parser.error("Product file \n\t%s\ndoes not exist, aborting..." % (options.ipFile))
-
     vmin = options.plotMin
     vmax = options.plotMax
 
@@ -536,21 +524,39 @@ def main():
 
     pngPrefix = options.outputFilePrefix
     dpi = options.dpi
+    plotProduct = options.plotProduct
 
-    #try :
-        #SSTobj = SSTclass(hdf5Path)
-        #SSTobj.plot_SST_granules(pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
-        #pytables.file.close_open_files()
-    #except Exception, err:
-        #print "%s" % (str(err))
-        #pytables.file.close_open_files()
+    plotEDR = False
+    plotQF = False
 
-    try :
-        SSTobj = SSTclass(hdf5Path)
-        SSTobj.plot_SST_tests(pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
-    except Exception, err:
-        print "%s" % (str(err))
-        pytables.file.close_open_files()
+    if (plotProduct is None):
+        plotEDR = True
+        plotQF = True
+    else :
+        if ('EDR' in plotProduct) \
+           or ('Skin' in plotProduct) \
+           or ('Bulk' in plotProduct) :
+               plotEDR = True
+
+        if ('QF' in plotProduct) :
+            plotQF = True
+
+    if plotEDR :
+        try :
+            SSTobj = SSTclass(hdf5Path)
+            SSTobj.plot_SST_granules(plotProd=plotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+            pytables.file.close_open_files()
+        except Exception, err:
+            print "%s" % (str(err))
+            pytables.file.close_open_files()
+
+    if plotQF :
+        try :
+            SSTobj = SSTclass(hdf5Path)
+            SSTobj.plot_SST_tests(plotProd=plotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+        except Exception, err:
+            print "%s" % (str(err))
+            pytables.file.close_open_files()
 
 
 

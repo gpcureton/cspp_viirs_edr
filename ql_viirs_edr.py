@@ -3082,7 +3082,7 @@ def main():
     This is a brief description of %prog
     '''
     usage = "usage: %prog [mandatory args] [options]"
-    version = version="%prog NCT3"
+    version = version="%prog"
     parser = optparse.OptionParser(description=description,usage=usage,version=version)
 
     # Mandatory arguments
