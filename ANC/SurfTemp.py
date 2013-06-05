@@ -59,6 +59,7 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 
+
 class SurfTemp() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
