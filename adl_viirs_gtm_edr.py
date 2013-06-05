@@ -880,7 +880,7 @@ def main():
         parser.print_help()
         return 1
 
-    register_sigterm()
+    # register_sigterm()
 
     num_procs = args.processors
     if num_procs <= 0:
