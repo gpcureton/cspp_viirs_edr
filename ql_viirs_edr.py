@@ -2208,7 +2208,7 @@ def gran_SST(geoList,sstList,shrink=1):
     print "lat_0,lon_0 = ",lat_0,lon_0
 
     try :
-        # Determine masks for each fill type, for the SST EDR
+        #Determine masks for each fill type, for the SST EDR
         sstFillMasks = {}
         for fillType in trimObj.sdrTypeFill.keys() :
             fillValue = trimObj.sdrTypeFill[fillType][sstArr.dtype.name]
@@ -2224,31 +2224,29 @@ def gran_SST(geoList,sstList,shrink=1):
                 print "Dataset was neither int not float... a worry"
                 pass
 
-        # Construct the total mask from all of the various fill values
+        #Construct the total mask from all of the various fill values
         fillMask = ma.array(np.zeros(sstArr.shape,dtype=np.bool))
         for fillType in trimObj.sdrTypeFill.keys() :
             if sstFillMasks[fillType] is not None :
                 fillMask = fillMask * ma.array(np.zeros(sstArr.shape,dtype=np.bool),\
                     mask=sstFillMasks[fillType])
 
-        # Define any masks based on the quality flags...
-        #sstQualMaskValue = np.bitwise_and(qf1Arr,12) >> 2
-        #lowSSTqualMask = ma.masked_less(sstQualMaskValue,2)     # Bulk SST quality != HIGH
-        cloudMaskValue = np.bitwise_and(qf2Arr,12) >> 2
-        cloudMask = ma.masked_not_equal(cloudMaskValue,0)     # VCM != Conf. Clear
-
-
-        # Combine the fill mask and quality masks...
-        #totalMask = fillMask * lowSSTqualMask
-        totalMask = fillMask * cloudMask
 
         # Unscale the SST dataset
         sstArr =  sstArr * viirsSSTObj.sstFactors[0] + viirsSSTObj.sstFactors[1]
 
+        # Define some masks...
+        #fillMask = ma.masked_less(sstArr,-800.).mask
+        SSTqualFlag = np.bitwise_and(qf1Arr,3) >> 0
+        sstQualMask = ma.masked_equal(SSTqualFlag,0).mask
+
+        # Combine the fill mask and quality masks...
+        totalMask = fillMask.mask + sstQualMask
+
         try :
-            data = ma.array(sstArr,mask=totalMask.mask)
-            lats = ma.array(latArr,mask=totalMask.mask)
-            lons = ma.array(lonArr,mask=totalMask.mask)
+            data = ma.array(sstArr,mask=totalMask)
+            lats = ma.array(latArr,mask=totalMask)
+            lons = ma.array(lonArr,mask=totalMask)
         except ma.core.MaskError :
             print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
             sys.exit(1)
@@ -2629,7 +2627,7 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
 
     # Plot the granule data
     #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
-    gridData = ma.masked_outside(gridData,vmin,vmax)
+    #gridData = ma.masked_outside(gridData,vmin,vmax)
     cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     print "orthoPlot_SST ModeGran = ",ModeGran
@@ -3324,8 +3322,8 @@ def main():
     elif 'SST_EDR' in options.ipProd :
         print "Calling SST_EDR ingester..."
         stride = stride_IP if options.stride==None else options.stride
-        vmin = 290. if (vmin==None) else vmin
-        vmax = 305. if (vmax==None) else vmax
+        #vmin = 290. if (vmin==None) else vmin
+        #vmax = 305. if (vmax==None) else vmax
 
         lats,lons,sstData,gran_lat_0,gran_lon_0,ModeGran = gran_SST(geoList,prodList,shrink=stride)
         
@@ -3335,7 +3333,7 @@ def main():
         print "Calling SST plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_SST(lats,lons,sstData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
+            pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     if 'COT_EDR' in options.ipProd :

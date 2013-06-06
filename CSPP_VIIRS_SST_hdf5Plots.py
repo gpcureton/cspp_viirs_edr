@@ -15,11 +15,11 @@ Minimum commandline...
 export CSPP_EDR_HOME=$(readlink -f /path/to/EDR)
 source $CSPP_EDR_HOME/cspp_edr_env.sh
 
-python CSPP_VIIRS_SST_hdf5Plots.py -g '/path/to/files/GMTCO*.h5' -i '/path/to/files/IICMO*.h5' -p VCM
+python CSPP_VIIRS_SST_hdf5Plots.py -i '/path/to/files/VSSTO*.h5'
 
   or
 
-python CSPP_VIIRS_SST_hdf5Plots.py --geo_file=/path/to/files/GMTCO*.h5 --ip_file=/path/to/files/IICMO*.h5 -p VCM
+python CSPP_VIIRS_SST_hdf5Plots.py --input_files=/path/to/files/VSSTO*.h5
 
 
 Created by Geoff Cureton on 2013-06-04.
@@ -213,7 +213,6 @@ class SSTclass():
                     data = ma.array(data,mask=modTrimMask,fill_value=trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name])
                     data = data.filled()
 
-                    #vmin,vmax = plotLims[shortName]
                     plotTitle = '%s : %s %s' % (shortName,granID,annotation)
                     cbTitle = plotDescr
 
@@ -276,6 +275,7 @@ class SSTclass():
                     # Save the figure to a png file...
                     pngFile = path.join(pngDir,'%s%s_%s_%s.png' % (pngPrefix,shortName,granID,prodName))
                     canvas.print_figure(pngFile,dpi=dpi)
+                    print "Writing to %s..." % (pngFile)
 
                     ppl.close('all')
 
@@ -431,11 +431,11 @@ def main():
     mandatoryGroup = optparse.OptionGroup(parser, "Mandatory Arguments",
                         "At a minimum these arguments must be specified")
 
-    mandatoryGroup.add_option('--dir',
+    mandatoryGroup.add_option('-i','--input_files',
                       action="store",
-                      dest="hdf5Dir" ,
+                      dest="hdf5Files" ,
                       type="string",
-                      help="The directory containing the VSSTO HDF5 files.")
+                      help="The fully qualified path to the input VSSTO HDF5 files. May be a directory or a file glob.")
 
     parser.add_option_group(mandatoryGroup)
 
@@ -501,8 +501,8 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
 
     # Check that all of the mandatory options are given. If one or more 
     # are missing, print error message and exit...
-    mandatories = ['hdf5Dir']
-    mand_errors = ["Missing mandatory argument [-d DIR | --dir=DIR]"
+    mandatories = ['hdf5Files']
+    mand_errors = ["Missing mandatory argument [-i HDF5FILES | --input_files=HDF5FILES]"
                   ]
     isMissingMand = False
     for m,m_err in zip(mandatories,mand_errors):
@@ -515,7 +515,7 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     vmin = options.plotMin
     vmax = options.plotMax
 
-    hdf5Path = path.abspath(path.expanduser(options.hdf5Dir))
+    hdf5Path = path.abspath(path.expanduser(options.hdf5Files))
 
     print "hdf5Path = %s" % (hdf5Path)
     pngDir = '.' if (options.pngDir is None) else options.pngDir
@@ -532,19 +532,23 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     if (plotProduct is None):
         plotEDR = True
         plotQF = True
+        edrPlotProduct = 'EDR'
+        qfPlotProduct = 'QF'
     else :
         if ('EDR' in plotProduct) \
            or ('Skin' in plotProduct) \
            or ('Bulk' in plotProduct) :
-               plotEDR = True
+            plotEDR = True
+            edrPlotProduct = plotProduct
 
         if ('QF' in plotProduct) :
             plotQF = True
+            qfPlotProduct = plotProduct
 
     if plotEDR :
         try :
             SSTobj = SSTclass(hdf5Path)
-            SSTobj.plot_SST_granules(plotProd=plotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+            SSTobj.plot_SST_granules(plotProd=edrPlotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
             pytables.file.close_open_files()
         except Exception, err:
             print "%s" % (str(err))
@@ -553,12 +557,10 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     if plotQF :
         try :
             SSTobj = SSTclass(hdf5Path)
-            SSTobj.plot_SST_tests(plotProd=plotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+            SSTobj.plot_SST_tests(plotProd=qfPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
         except Exception, err:
             print "%s" % (str(err))
             pytables.file.close_open_files()
-
-
 
     print "Exiting..."
     sys.exit(0)
