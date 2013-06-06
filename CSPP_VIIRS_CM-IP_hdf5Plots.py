@@ -8,10 +8,6 @@ Purpose: Create swath projection quicklook PNGs from the VIIRS SST EDR HDF5 file
 
 Minimum commandline...
 
-#export CSPP_HOME=/path/to/CSPP
-#source $CSPP_HOME/cspp_edr_env.sh
-#source $CSPP_HOME/common/cspp_common.sh
-
 export CSPP_EDR_HOME=$(readlink -f /path/to/EDR)
 source $CSPP_EDR_HOME/cspp_edr_env.sh
 

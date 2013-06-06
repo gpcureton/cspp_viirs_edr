@@ -7,9 +7,8 @@ Purpose: Create quicklook PNGs for VIIRS EDR products.
 
 Minimum commandline...
 
-export CSPP_HOME=/path/to/CSPP
-source $CSPP_HOME/cspp_edr_env.sh
-source $CSPP_HOME/common/cspp_common.sh
+export CSPP_EDR_HOME=$(readlink -f /path/to/EDR)
+source $CSPP_EDR_HOME/cspp_edr_env.sh
 
 python ql_viirs_edr.py -g '/path/to/files/GMTCO*.h5' -i '/path/to/files/IICMO*.h5' -p VCM
 
