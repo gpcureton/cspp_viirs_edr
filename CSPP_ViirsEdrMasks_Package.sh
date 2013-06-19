@@ -27,6 +27,8 @@ trace_cmd()
 
 get_opens_and_xml_and_exe()
 {
+    echo "Running get_opens_and_xml_and_exe()..."
+
     echo "Parsing the strace file to get the opens, exe and xml files..."
     rm *.txt
 
@@ -47,6 +49,8 @@ get_opens_and_xml_and_exe()
 
 combine_lib_and_xml_and_exe()
 {
+    echo "Running combine_lib_and_xml_and_exe()..."
+
     echo "Combine the lib, xml and exe path lists..."
 
     # combine opened, executed and miscellaneous lists.
@@ -58,6 +62,8 @@ combine_lib_and_xml_and_exe()
 
 remove_unwanted_paths()
 {
+    echo "Running remove_unwanted_paths()..."
+
     echo "Removing all system related paths, and other unwanted paths..."
 
     # remove system stuff 
@@ -79,6 +85,7 @@ remove_unwanted_paths()
 
 check_if_files_exist()
 {
+    echo "Running check_if_files_exist()..."
 
     # check that files realy exist. strace records all opens,  this includes search path attempts
     fileList=$(cat filteredFileList.txt)
@@ -102,6 +109,8 @@ check_if_files_exist()
 
 add_python()
 {
+    echo "Running add_python()..."
+
     # Add the ShellB3 python distro...
     echo "${CSPP_HOME}/common/ShellB3/include/" >> filesExist.txt
     echo "${CSPP_HOME}/common/ShellB3/bin/" >> filesExist.txt
@@ -113,35 +122,39 @@ add_python()
 # Add various things that might not have been captured by the strace...
 add_misc_files()
 {
+    echo "Running add_misc_files()..."
+
     echo "${CSPP_HOME}/cspp_env.sh" >> filesExist.txt
     echo "${CSPP_HOME}/viirs/edr/ql_viirs_edr.py" >> filesExist.txt
     echo "${CSPP_HOME}/viirs/edr/viirs_aerosol_products.py" >> filesExist.txt
     echo "${CSPP_HOME}/viirs/edr/viirs_cloud_mask.py" >> filesExist.txt
     echo "${CSPP_HOME}/viirs/edr/viirs_cloud_products.py" >> filesExist.txt
 
-    for libs in $(find /usr/lib64/ -maxdepth 1 -name 'libgfortran.so*' -print | sort | uniq );
-    do
-        cp -v $libs ${CSPP_HOME}/common/local/lib64/
-    done
-    for libs in $(find ${CSPP_HOME}/common/local/lib64/ -maxdepth 1 -name 'libgfortran.so*' -print | sort | uniq );
-    do
-        echo $libs >> filesExist.txt
-    done
+    #for libs in $(find /usr/lib64/ -maxdepth 1 -name 'libgfortran.so*' -print | sort | uniq );
+    #do
+        #cp -v $libs ${CSPP_HOME}/common/local/lib64/
+    #done
+    #for libs in $(find ${CSPP_HOME}/common/local/lib64/ -maxdepth 1 -name 'libgfortran.so*' -print | sort | uniq );
+    #do
+        #echo $libs >> filesExist.txt
+    #done
 }
 
 prepare_txt()
 {
     # Massage the various file paths to remove artefacts
 
-    leave=$(basename ${CSPP_HOME})
-    repo_leave=$(basename ${REPO_HOME})
+    echo "Running prepare_txt()..."
 
+    leave=$(basename ${CSPP_EDR_HOME})
     echo "leave = "$leave
+
+    repo_leave=$(basename $REPO_HOME)
     echo "repo_leave = "$repo_leave
 
     cat filesExist.txt \
         | sed s#\/\/#\/# \
-        | sed s#${CSPP_HOME}#${leave}# \
+        | sed s#${CSPP_EDR_HOME}#${leave}# \
         | sed s#$leave/ADL/bin/../../common#$leave/common# \
         | sed s#$leave/ADL/bin/../lib#$leave/ADL/lib# \
         | sed s#$leave/ADL/tools/bin/../../../common#$leave/common# \
@@ -327,7 +340,7 @@ main ()
 {
     echo "Starting"
 
-    trace_cmd 
+    #trace_cmd 
     
     get_opens_and_xml_and_exe
     combine_lib_and_xml_and_exe
@@ -337,9 +350,12 @@ main ()
     add_misc_files
     prepare_txt
 
-    create_viirs_edr_list
-    create_viirs_edr_tarball
+    #create_viirs_edr_list
+    #create_viirs_edr_tarball
 
+    ########################################
+    #             Obselete                 #
+    ########################################
     #create_viirs_edr_auxillary_data_list
     #create_viirs_edr_auxillary_data_tarball
 
@@ -359,8 +375,8 @@ echo "WORK_DIR = "$WORK_DIR
 export CNAME=$(basename ${CMD%.sh})
 echo "CNAME = "$CNAME
 
-export REPO_HOME=$CSPP_RT_HOME'repos'
-echo "REPO_HOME = "$REPO_HOME
+#export REPO_HOME=$CSPP_RT_HOME'repos'
+#echo "REPO_HOME = "$REPO_HOME
 
 export TRACE=${WORK_DIR}/${CNAME}.strace.log
 echo "TRACE = "$TRACE
