@@ -63,7 +63,8 @@ do
             /Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0
 
     do
-        $CSPP_HOME/common/ShellB3/bin/h5diff  -v $newFile $fileName $dataSet \
+        #$CSPP_EDR_HOME/common/ShellB3/bin/h5diff  -v $newFile $fileName $dataSet \
+        SSEC/sshfs/rh5b/RH5B/CSPP/common/local/bin/h5diff  -v $newFile $fileName $dataSet \
         || echo ERROR: $dataSet mismatch in $fileName
         echo ""
     done
