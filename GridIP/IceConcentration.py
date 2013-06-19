@@ -58,8 +58,9 @@ try :
 except :
     LOG = logging.getLogger('IceConcentration')
 
-from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile, plotArr
+from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
+#from Utils import plotArr
 
 class IceConcentration() :
 

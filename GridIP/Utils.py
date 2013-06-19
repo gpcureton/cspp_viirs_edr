@@ -31,18 +31,6 @@ from bisect import bisect_left,bisect_right
 import adl_blob
 from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
-# Plotting stuff
-import matplotlib
-import matplotlib.cm as cm
-from matplotlib.colors import ListedColormap
-from matplotlib.figure import Figure
-
-matplotlib.use('Agg')
-from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
-
-# This must come *after* the backend is specified.
-import matplotlib.pyplot as ppl
-
 # every module should have a LOG object
 try :
     sourcename= file_Id.split(" ")
@@ -377,6 +365,18 @@ def plotArr(data,pngName):
     '''
     Plot the input array, with a colourbar.
     '''
+
+    # Plotting stuff
+    import matplotlib
+    import matplotlib.cm as cm
+    from matplotlib.colors import ListedColormap
+    from matplotlib.figure import Figure
+
+    matplotlib.use('Agg')
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+    # This must come *after* the backend is specified.
+    import matplotlib.pyplot as ppl
 
     plotTitle =  string.replace(pngName,".png","")
     cbTitle   =  "Value"
