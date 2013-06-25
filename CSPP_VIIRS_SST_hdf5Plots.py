@@ -180,8 +180,10 @@ class SSTclass():
                 plotDescrs = [plotDescr[shortName][1]]
                 prodNames = ['BulkSST']
 
+            granID_list =  hdf5_dict[shortName].keys()
+            granID_list.sort()
 
-            for granID in  hdf5_dict[shortName].keys() :
+            for granID in granID_list :
 
                 print '%s --> %s ' % (shortName, granID)
 
@@ -299,7 +301,10 @@ class SSTclass():
 
             print 'shortName = %s' % (shortName)
 
-            for granID in  hdf5_dict[shortName].keys() :
+            granID_list =  hdf5_dict[shortName].keys()
+            granID_list.sort()
+
+            for granID in granID_list :
 
                 print '%s --> %s ' % (shortName, granID)
                 hdf5Obj = hdf5_dict[shortName][granID][1]

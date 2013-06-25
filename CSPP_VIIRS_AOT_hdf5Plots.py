@@ -185,8 +185,10 @@ class AOTclass():
                 plotDescrs = [plotDescr[shortName][2]]
                 prodNames = ['aotSlant550']
 
+            granID_list =  hdf5_dict[shortName].keys()
+            granID_list.sort()
 
-            for granID in  hdf5_dict[shortName].keys() :
+            for granID in granID_list :
 
                 print '%s --> %s ' % (shortName, granID)
 
@@ -303,7 +305,10 @@ class AOTclass():
 
             dataName = self.dataName[shortName]
 
-            for granID in  hdf5_dict[shortName].keys() :
+            granID_list =  hdf5_dict[shortName].keys()
+            granID_list.sort()
+
+            for granID in granID_list :
 
                 print '%s --> %s ' % (shortName, granID)
                 hdf5Obj = hdf5_dict[shortName][granID][1]
