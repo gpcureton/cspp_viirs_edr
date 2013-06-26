@@ -57,7 +57,8 @@ import matplotlib.pyplot as ppl
 
 import optparse as optparse
 
-import ViirsData
+from ViirsData import ViirsTrimTable
+import viirs_edr_data
 
 import tables as pytables
 from tables import exceptions as pyEx
@@ -72,7 +73,7 @@ dpi=200
 
 ### Moderate and Imager resolution trim table arrays. These are 
 ### bool arrays, and the trim pixels are set to True.
-trimObj = ViirsData.ViirsTrimTable()
+trimObj = ViirsTrimTable()
 modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
 
 
@@ -297,7 +298,7 @@ class AOTclass():
 
         print 'collShortNames = %r' % (collShortNames)
 
-        CMD = ViirsData.AerosolProdData
+        CMD = viirs_edr_data.AerosolProdData
 
         for shortName in collShortNames :
 

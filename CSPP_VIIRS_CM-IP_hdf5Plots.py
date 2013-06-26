@@ -36,7 +36,7 @@ __docformat__ = 'Epytext'
 
 import string, sys
 from glob import glob
-from os import path,uname
+from os import path, uname, environ, getenv
 from time import time
 
 import numpy as np
@@ -56,7 +56,14 @@ import matplotlib.pyplot as ppl
 
 import optparse as optparse
 
-import ViirsData
+print "CSPP_EDR_HOME = %s" % (environ['CSPP_EDR_HOME'])
+print "CSPP_EDR_HOME = %s" % (getenv('CSPP_EDR_HOME'))
+environ['PYTHONPATH'] = "%s/common" % (environ['CSPP_EDR_HOME'])
+#print "PYTHONPATH = %s" % (environ['PYTHONPATH'])
+print "PYTHONPATH = %s" % (getenv('PYTHONPATH'))
+
+from ViirsData import ViirsTrimTable
+import viirs_edr_data
 
 import tables as pytables
 from tables import exceptions as pyEx
@@ -71,7 +78,7 @@ dpi=200
 
 ### Moderate and Imager resolution trim table arrays. These are 
 ### bool arrays, and the trim pixels are set to True.
-trimObj = ViirsData.ViirsTrimTable()
+trimObj = ViirsTrimTable()
 modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
 
 
@@ -158,7 +165,7 @@ class VCMclass():
 
         print 'collShortNames = %r' % (collShortNames)
 
-        CMD = ViirsData.CloudMaskData
+        CMD = viirs_edr_data.CloudMaskData
 
         for shortName in collShortNames :
 
@@ -313,7 +320,7 @@ class VCMclass():
 
         print 'collShortNames = %r' % (collShortNames)
 
-        CMD = ViirsData.CloudMaskData
+        CMD = viirs_edr_data.CloudMaskData
 
         for shortName in collShortNames :
 

@@ -33,7 +33,8 @@ import tables as pytables
 from tables import exceptions as pyEx
 
 ### Local libraries
-import ViirsData as VD
+from ViirsData import ViirsTrimTable
+import viirs_edr_data as VD
 
 class viirsSST:
 

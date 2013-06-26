@@ -23,11 +23,7 @@ export CSPP_RT_ANC_TILE_PATH=${CSPP_EDR_ANC_TILE_PATH}
 # load in commonly-used routines and derived environment
 # sources CSPP_RT_env.sh if needed
 #source $CSPP_RT_HOME/common/cspp_common.sh
-
-
-
 . ${CSPP_EDR_HOME}/common/cspp_common.sh
-
 
 
 # set up CSPP_RT_ANC_PATH to find VIIRS default configuration
@@ -46,6 +42,10 @@ test -f "$CSPP_RT_HOME/viirs/adl_viirs_edr.py" \
     || oops "$CSPP_RT_HOME/viirs/adl_viirs_edr.py not found"
 test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe" \
     || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe not found"
+test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsAerosolController.exe" \
+    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsAerosolController.exe not found"
+test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSstController.exe" \
+    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSstController.exe not found"
 test -x "$PY" \
     || oops "Common CSPP_RT python interpreter $PY not found"
 test -w "$CSPP_RT_ANC_CACHE_DIR" \

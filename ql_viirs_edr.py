@@ -33,7 +33,7 @@ __docformat__ = 'Epytext'
 
 import string, sys
 from glob import glob
-from os import path,uname
+from os import path, uname, environ
 from time import time
 
 import numpy as np
@@ -55,8 +55,8 @@ from mpl_toolkits.basemap import Basemap
 
 import optparse as optparse
 
-#import VIIRS as VIIRS
-import ViirsData
+from ViirsData import ViirsTrimTable
+import viirs_edr_data
 import viirs_cloud_mask as viirsCM
 import viirs_cloud_products as viirsCld
 import viirs_aerosol_products as viirsAero
@@ -150,12 +150,12 @@ def gran_VCM(geoList,cmList,shrink=1):
 
     # Define the colourmap we want to use.
     print "Importing the CloudMaskProduct object..."
-    CloudMaskProduct = ViirsData.CloudMaskData
+    CloudMaskProduct = viirs_edr_data.CloudMaskData
     print "done"
 
     try :
         reload(viirsCM)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsCMobj)
         del(latArr)
         del(lonArr)
@@ -169,7 +169,7 @@ def gran_VCM(geoList,cmList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -253,7 +253,7 @@ def gran_COP(geoList,copList,dataSet,shrink=1):
 
     try :
         reload(viirsCld)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -268,7 +268,7 @@ def gran_COP(geoList,copList,dataSet,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -346,7 +346,7 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
 
     try :
         reload(viirsAero)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsAeroObj)
         del(latArr)
         del(lonArr)
@@ -360,7 +360,7 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -619,7 +619,7 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
 
     try :
         reload(viirsCld)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -633,7 +633,7 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -884,7 +884,7 @@ def gran_CTp(geoList,ctpList,dataSet,shrink=1):
 
     try :
         reload(viirsCld)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -899,7 +899,7 @@ def gran_CTp(geoList,ctpList,dataSet,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -976,7 +976,7 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
 
     try :
         reload(viirsCld)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -990,7 +990,7 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -1240,7 +1240,7 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
 
     try :
         reload(viirsCld)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -1254,7 +1254,7 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -1505,7 +1505,7 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
 
     try :
         reload(viirsCld)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsCldObj)
         del(latArr)
         del(lonArr)
@@ -1519,7 +1519,7 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
@@ -1770,7 +1770,7 @@ def gran_AOT(geoList,aotList,shrink=1):
 
     try :
         reload(viirsAero)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsAeroObj)
         del(latArr)
         del(lonArr)
@@ -1787,7 +1787,7 @@ def gran_AOT(geoList,aotList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     # Build up the swath...
@@ -1889,7 +1889,7 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
 
     try :
         reload(viirsAero)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsAeroObj)
         del(latArr)
         del(lonArr)
@@ -1908,7 +1908,7 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for geoFile,aotFile in zip(geoList,aotList):
@@ -2146,7 +2146,7 @@ def gran_SST(geoList,sstList,shrink=1):
 
     try :
         reload(viirsSST)
-        reload(ViirsData)
+        reload(viirs_edr_data)
         del(viirsSSTObj)
         del(latArr)
         del(lonArr)
@@ -2161,7 +2161,7 @@ def gran_SST(geoList,sstList,shrink=1):
     print "done"
 
     # Determine the correct fillValue
-    trimObj = ViirsData.ViirsTrimTable()
+    trimObj = ViirsTrimTable()
 
     # Build up the swath...
     for grans in np.arange(len(geoList)):
@@ -2270,8 +2270,8 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     '''
 
     # The min and max values of the dataset
-    vmin = np.min(ViirsData.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
-    vmax = np.max(ViirsData.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
+    vmin = np.min(viirs_edr_data.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
+    vmax = np.max(viirs_edr_data.CloudMaskData.ViirsCMvalues[cmByte][cmBit])
 
     # If we have a zero size data array, make a dummy dataset
     # to span the allowed data range, which will be plotted with 
@@ -2288,18 +2288,18 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     figWidth = 5. # inches
     figHeight = 4. # inches
 
-    cmap = ListedColormap(ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit])
-    numCats = np.array(ViirsData.CloudMaskData.ViirsCMfillColours[cmByte][cmBit]).size
+    cmap = ListedColormap(viirs_edr_data.CloudMaskData.ViirsCMfillColours[cmByte][cmBit])
+    numCats = np.array(viirs_edr_data.CloudMaskData.ViirsCMfillColours[cmByte][cmBit]).size
     numBounds = numCats + 1
     print "Number of Categories: %d" %(numCats)
     print "Number of Boundaries: %d" %(numBounds)
 
     # The tick positions in colourbar ([0..1]) coordinates
-    ViirsData.CloudMaskData.ViirsCMTickPos = np.arange(float(numBounds))/float(numCats)
-    ViirsData.CloudMaskData.ViirsCMTickPos = ViirsData.CloudMaskData.ViirsCMTickPos[0 :-1] + \
-        ViirsData.CloudMaskData.ViirsCMTickPos[1]/2.
+    viirs_edr_data.CloudMaskData.ViirsCMTickPos = np.arange(float(numBounds))/float(numCats)
+    viirs_edr_data.CloudMaskData.ViirsCMTickPos = viirs_edr_data.CloudMaskData.ViirsCMTickPos[0 :-1] + \
+        viirs_edr_data.CloudMaskData.ViirsCMTickPos[1]/2.
 
-    print "ViirsData.CloudMaskData.ViirsCMTickPos: %r" %(ViirsData.CloudMaskData.ViirsCMTickPos)
+    print "viirs_edr_data.CloudMaskData.ViirsCMTickPos: %r" %(viirs_edr_data.CloudMaskData.ViirsCMTickPos)
 
     # Create figure with default size, and create canvas to draw on
     fig = Figure(figsize=((figWidth,figHeight)))
@@ -2363,8 +2363,8 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     #tickPos = np.array([0,1,2,3])
 
     # Convert the tick positions to data coordinates
-    tickPos = ViirsData.CloudMaskData.ViirsCMTickPos  * numCats - 0.5
-    tickLabels = ViirsData.CloudMaskData.ViirsCMtickNames[cmByte][cmBit]
+    tickPos = viirs_edr_data.CloudMaskData.ViirsCMTickPos  * numCats - 0.5
+    tickLabels = viirs_edr_data.CloudMaskData.ViirsCMtickNames[cmByte][cmBit]
 
     #tickPos = [0.25,0.5,0.75]
     #tickLabels = ['0.25','0.5','0.75']
@@ -2433,7 +2433,7 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     Plots the VIIRS Aerosol Optical Thickness on an orthographic projection
     '''
 
-    reload(ViirsData)
+    reload(viirs_edr_data)
 
     # The plot range...
     print "vmin,vmax = ",vmin,vmax 
@@ -2562,7 +2562,7 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
     Plots the VIIRS Sea Surface Temperature on an orthographic projection
     '''
 
-    reload(ViirsData)
+    reload(viirs_edr_data)
 
     # The plot range...
     print "vmin,vmax = ",vmin,vmax 
@@ -2693,8 +2693,8 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     '''
 
     # Setup plotting data
-    reload(ViirsData)
-    CloudProduct = ViirsData.CloudProdData.CloudProduct[dataSet][abScale]
+    reload(viirs_edr_data)
+    CloudProduct = viirs_edr_data.CloudProdData.CloudProduct[dataSet][abScale]
 
     pointSize_water = pointSize
     pointSize_ice = pointSize
@@ -2893,8 +2893,8 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
     '''
 
     # Setup plotting data
-    reload(ViirsData)
-    CloudProduct = ViirsData.CloudProdData.CloudProduct[dataSet]
+    reload(viirs_edr_data)
+    CloudProduct = viirs_edr_data.CloudProdData.CloudProduct[dataSet]
 
     pointSize_water = pointSize
     pointSize_ice = pointSize
@@ -3236,9 +3236,9 @@ def main():
     vmin = options.plotMin
     vmax = options.plotMax
 
-    CloudData = ViirsData.CloudProdData.CloudProd()
+    CloudData = viirs_edr_data.CloudProdData.CloudProd()
     cloud_cmap = CloudData.cmap_ice_water
-    CloudProdData = ViirsData.CloudProdData.CloudProduct
+    CloudProdData = viirs_edr_data.CloudProdData.CloudProduct
 
     # Some defaults plot values if the are not specified on the command line...
 

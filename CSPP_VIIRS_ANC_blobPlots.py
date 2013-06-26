@@ -18,7 +18,7 @@ import matplotlib.pyplot as ppl
 from mpl_toolkits.basemap import Basemap,addcyclic,shiftgrid
 
 import adl_blob
-from VIIRS import ViirsData as ViirsData
+from ViirsData import ViirsTrimTable
 
 # every module should have a LOG object
 # e.g. LOG.warning('my dog has fleas')
@@ -29,7 +29,7 @@ logging.basicConfig()
 
 ### Moderate and Imager resolution trim table arrays. These are 
 ### bool arrays, and the trim pixels are set to True.
-trimObj = ViirsData.ViirsTrimTable()
+trimObj = ViirsTrimTable()
 modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
 
 #xmlDir = '/home/geoffc/SSEC/sshfs/rh5b/RH5B/CSPP/EDR/common/ADL/xml/VIIRS'

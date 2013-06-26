@@ -33,7 +33,8 @@ import tables as pytables
 from tables import exceptions as pyEx
 
 ### Local libraries
-import ViirsData as VD
+from ViirsData import ViirsTrimTable
+import viirs_edr_data as VD
 
 class viirsAero:
 
@@ -191,7 +192,7 @@ class viirsAero:
         self.scale = scale
 
         # Determine the correct fillValue
-        trimObj = VD.ViirsTrimTable()
+        trimObj = ViirsTrimTable()
         eps = 1.e-6
 
         # Read in geolocation...

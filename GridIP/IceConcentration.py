@@ -9,14 +9,14 @@ Created by Geoff Cureton on 2013-02-27.
 Copyright (c) 2013 University of Wisconsin SSEC. All rights reserved.
 """
 
-file_Date = '$Date: 2013-03-31 00:03:44 -0700 (Sun, 31 Mar 2013) $'
-file_Revision = '$Revision: 1264 $'
-file_Author = '$Author: geoffc $'
-file_HeadURL = '$HeadURL: https://svn.ssec.wisc.edu/repos/jpss_adl/trunk/scripts/edr/GridIP/IceConcentration.py $'
-file_Id = '$Id: IceConcentration.py 1264 2013-03-31 07:03:44Z geoffc $'
+file_Date = '$Date$'
+file_Revision = '$Revision$'
+file_Author = '$Author$'
+file_HeadURL = '$HeadURL$'
+file_Id = '$Id$'
 
 __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
-__version__ = '$Id: IceConcentration.py 1264 2013-03-31 07:03:44Z geoffc $'
+__version__ = '$Id$'
 __docformat__ = 'Epytext'
 
 import os, sys, logging, traceback
