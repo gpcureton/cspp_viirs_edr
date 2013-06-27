@@ -36,7 +36,7 @@ __docformat__ = 'Epytext'
 
 import string, sys
 from glob import glob
-from os import path,uname
+from os import path, uname, mkdir
 from time import time
 import traceback
 
@@ -523,6 +523,14 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     pngDir = '.' if (options.pngDir is None) else options.pngDir
     pngDir = path.abspath(path.expanduser(pngDir))
     print "pngDir = %s" % (pngDir)
+    if not path.isdir(pngDir):
+        print "Output image directory %s does not exist, creating..." % (pngDir)
+        try:
+            mkdir(pngDir,0755)
+        except Exception, err :
+            print "%s" % (err)
+            print "Creating directory %s failed, aborting..." % (pngDir)
+            sys.exit(1)
 
     pngPrefix = options.outputFilePrefix
     dpi = options.dpi

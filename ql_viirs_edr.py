@@ -33,7 +33,7 @@ __docformat__ = 'Epytext'
 
 import string, sys
 from glob import glob
-from os import path, uname, environ
+from os import path, uname
 from time import time
 
 import numpy as np
@@ -3118,10 +3118,6 @@ def main():
                       default=string.split(__version__," ")[2],
                       type="string",
                       help="The Subversion revision number/tag of this script")
-    optionalGroup.add_option('--radiance',
-                      action="store_true",
-                      dest="isRadiance",
-                      help="Show radiance for the VIIRS SDR.")
     optionalGroup.add_option('-R','--svn_repo_path',
                       action="store",
                       dest="svnRepoPath",
@@ -3230,6 +3226,7 @@ def main():
     # We should have everything we need, run the program...
 
     #prodFileName='''%s\n%s %s''' % (path.basename(options.ipFile),options.svnRepoPath,str(options.svnRevision))
+    #prodFileName='''%s''' % (path.basename(options.ipFile))
     prodFileName=''
     dataSet = string.lower((options.ipProd).lstrip())
     mapRes = str(options.mapRes)
