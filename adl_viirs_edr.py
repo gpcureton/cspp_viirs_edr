@@ -785,7 +785,7 @@ def _granulate_GridIP(inDir,geoDicts,algList):
 def main():
 
     endianChoices = ['little','big']
-    algorithmChoices = ['VCM','AOT','SST']
+    algorithmChoices = ['VCM','AOT','SST','SRFREF']
 
     description = '''Run the ADL VIIRS EDR Masks Controller.'''
     usage = "usage: %prog [mandatory args] [options]"

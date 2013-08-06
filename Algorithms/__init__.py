@@ -20,18 +20,22 @@ __docformat__ = 'Epytext'
 import CloudMaskIP
 import AerosolOpticalThicknessIP
 import SeaSurfaceTemperatureEDR
+import SurfaceReflectanceIP
 
 modules = {}
 modules['VCM'] = 'CloudMaskIP'
 modules['AOT'] = 'AerosolOpticalThicknessIP'
 modules['SST'] = 'SeaSurfaceTemperatureEDR'
+modules['SRFREF'] = 'SurfaceReflectanceIP'
 
 crossGranules = {}
 crossGranules['VCM'] = 1
 crossGranules['AOT'] = 1
 crossGranules['SST'] = 0
+crossGranules['SRFREF'] = 0
 
 prerequisites = {}
 prerequisites['VCM'] = []
 prerequisites['AOT'] = ['VCM']
 prerequisites['SST'] = ['VCM','AOT']
+prerequisites['SRFREF'] = ['VCM','AOT']
