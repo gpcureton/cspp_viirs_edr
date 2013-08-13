@@ -51,6 +51,25 @@ AlgorithmString = 'SST'
 
 AlgorithmName = 'Sea Surface Temperature EDR'
 
+GEO_collectionShortNames = [
+                            'VIIRS-MOD-GEO-TC'
+                          ]
+
+SDR_collectionShortNames = [
+                              'VIIRS-M12-SDR',
+                              'VIIRS-M15-SDR',
+                              'VIIRS-M16-SDR'
+                          ]
+
+ANC_collectionShortNames = [
+                           'VIIRS-ANC-Preci-Wtr-Mod-Gran',
+                           'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
+                           'VIIRS-ANC-Wind-Speed-Mod-Gran',
+                           'VIIRS-ANC-Wind-Direction-Mod-Gran',
+                           'VIIRS-ANC-Tot-Col-Mod-Gran',
+                           'VIIRS-ANC-Press-Surf-Mod-Gran',
+                           'VIIRS-ANC-Optical-Depth-Mod-Gran'
+                          ]
 ANC_collectionShortNames = [
                              'VIIRS-ANC-Temp-Skin-Mod-Gran'
                            ]
@@ -168,7 +187,7 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
 
 
 def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS EDR SST XML input in sequence.
+    """Run each VIIRS Sea Surface Temperature EDR xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
     """

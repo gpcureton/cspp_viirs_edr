@@ -51,6 +51,30 @@ AlgorithmString = 'VCM'
 
 AlgorithmName = 'Cloud Mask IP'
 
+GEO_collectionShortNames = [
+                            'VIIRS-MOD-GEO-TC'
+                          ]
+
+SDR_collectionShortNames = [
+                              'VIIRS-I1-SDR',
+                              'VIIRS-I2-SDR',
+                              'VIIRS-I4-SDR',
+                              'VIIRS-I5-SDR',
+                              'VIIRS-M1-SDR',
+                              'VIIRS-M4-SDR',
+                              'VIIRS-M5-SDR',
+                              'VIIRS-M7-SDR',
+                              'VIIRS-M9-SDR',
+                              'VIIRS-M10-SDR',
+                              'VIIRS-M11-SDR',
+                              'VIIRS-M12-SDR',
+                              'VIIRS-M13-SDR',
+                              'VIIRS-M14-SDR',
+                              'VIIRS-M15-SDR',
+                              'VIIRS-M16-SDR'
+                          ]
+
+
 ANC_collectionShortNames = [
                            'VIIRS-ANC-Preci-Wtr-Mod-Gran',
                            'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
@@ -158,7 +182,7 @@ def setupAuxillaryFiles(Alg_objects,workDir):
 
 
 def generate_viirs_edr_xml(work_dir, granule_seq):
-    "generate XML files for VIIRS Masks EDR granule generation"
+    "generate XML files for VIIRS Cloud Mask IP granule generation"
     to_process = []
     for gran in granule_seq:
         name = gran['N_Granule_ID']
@@ -171,7 +195,7 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
 
 
 def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS EDR MASKS XML input in sequence.
+    """Run each VIIRS Cloud Mask IP xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
     """

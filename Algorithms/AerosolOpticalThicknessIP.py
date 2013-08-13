@@ -51,6 +51,27 @@ AlgorithmString = 'AOT'
 
 AlgorithmName = 'Aerosol Optical Thickness IP'
 
+GEO_collectionShortNames = [
+                            'VIIRS-MOD-GEO-TC'
+                          ]
+
+SDR_collectionShortNames = [
+                              'VIIRS-M1-SDR',
+                              'VIIRS-M2-SDR',
+                              'VIIRS-M3-SDR',
+                              'VIIRS-M4-SDR',
+                              'VIIRS-M5-SDR',
+                              'VIIRS-M6-SDR',
+                              'VIIRS-M7-SDR',
+                              'VIIRS-M8-SDR',
+                              'VIIRS-M9-SDR',
+                              'VIIRS-M10-SDR',
+                              'VIIRS-M11-SDR',
+                              'VIIRS-M12-SDR',
+                              'VIIRS-M15-SDR',
+                              'VIIRS-M16-SDR'
+                          ]
+
 ANC_collectionShortNames = [
                            'VIIRS-ANC-Preci-Wtr-Mod-Gran',
                            'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
@@ -159,47 +180,6 @@ xmlTemplate = """<InfTkConfig>
 </InfTkConfig>
 """
 
-xmlTemplate_new = """<InfTkConfig>
-  <idpProcessName>ProEdrViirsAerosolController.exe</idpProcessName>
-  <siSoftwareId></siSoftwareId>
-  <isRestart>FALSE</isRestart>
-  <useExtSiWriter>FALSE</useExtSiWriter>
-  <debugLogLevel>LOW</debugLogLevel>
-  <debugLevel>DBG_HIGH</debugLevel>
-  <dbgDest>D_FILE</dbgDest>
-  <enablePerf>FALSE</enablePerf>
-  <perfPath>${WORK_DIR}/perf</perfPath>
-  <dbgPath>${WORK_DIR}/log</dbgPath>
-  <initData>
-     <domain>OPS</domain>
-     <subDomain>SUBDOMAIN</subDomain>
-     <startMode>INF_STARTMODE_COLD</startMode>
-     <executionMode>INF_EXEMODE_PRIMARY</executionMode>
-     <healthTimeoutPeriod>30</healthTimeoutPeriod>
-  </initData>
-  <lockinMem>FALSE</lockinMem>
-  <rootDir>${WORK_DIR}</rootDir>
-  <inputPath>${WORK_DIR}</inputPath>
-  <outputPath>${WORK_DIR}</outputPath>
-  <dataStartIET>0</dataStartIET>
-  <dataEndIET>0</dataEndIET>
-  <actualScans>0</actualScans>
-  <previousActualScans>0</previousActualScans>
-  <nextActualScans>0</nextActualScans>
-  <usingMetadata>TRUE</usingMetadata>
-  <configGuideName>ProEdrViirsAerosolController_GuideList.cfg</configGuideName>
-
-  <task>
-    <taskType>EDR</taskType>
-    <taskDetails1>%(N_Granule_ID)s</taskDetails1>
-    <taskDetails2>%(N_Granule_Version)s</taskDetails2>
-    <taskDetails3>NPP</taskDetails3>
-    <taskDetails4>VIIRS</taskDetails4>
-  </task>
-
-</InfTkConfig>
-"""
-
 
 def setupAuxillaryFiles(Alg_objects,workDir):
     '''
@@ -211,7 +191,7 @@ def setupAuxillaryFiles(Alg_objects,workDir):
 
 
 def generate_viirs_edr_xml(work_dir, granule_seq):
-    "generate XML files for VIIRS Masks EDR granule generation"
+    "generate XML files for VIIRS Aerosol Optical Thickness IP granule generation"
     to_process = []
     for gran in granule_seq:
         name = gran['N_Granule_ID']
@@ -224,7 +204,7 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
 
 
 def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS EDR AEROSOL XML input in sequence.
+    """Run each VIIRS Aerosol Optical Thickness IP xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
     """

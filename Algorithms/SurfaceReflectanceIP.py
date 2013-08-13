@@ -9,14 +9,14 @@ Created by Geoff Cureton on 2013-08-02.
 Copyright (c) 2013 University of Wisconsin SSEC. All rights reserved.
 """
 
-file_Date = '$Date: 2013-03-31 00:03:44 -0700 (Sun, 31 Mar 2013) $'
-file_Revision = '$Revision: 1264 $'
-file_Author = '$Author: geoffc $'
-file_HeadURL = '$HeadURL: https://svn.ssec.wisc.edu/repos/jpss_adl/trunk/scripts/edr/Algorithms/AerosolOpticalThicknessIP.py $'
-file_Id = '$Id: AerosolOpticalThicknessIP.py 1264 2013-03-31 07:03:44Z geoffc $'
+file_Date = '$Date$'
+file_Revision = '$Revision$'
+file_Author = '$Author$'
+file_HeadURL = '$HeadURL$'
+file_Id = '$Id$'
 
 __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
-__version__ = '$Id: AerosolOpticalThicknessIP.py 1264 2013-03-31 07:03:44Z geoffc $'
+__version__ = '$Id$'
 __docformat__ = 'Epytext'
 
 
@@ -50,6 +50,26 @@ except :
 AlgorithmString = 'SRFREF'
 
 AlgorithmName = 'Surface Reflectance IP'
+
+GEO_collectionShortNames = [
+                            'VIIRS-MOD-GEO-TC'
+                          ]
+
+SDR_collectionShortNames = [
+                            'VIIRS-I1-SDR',
+                            'VIIRS-I2-SDR',
+                            'VIIRS-I3-SDR',
+                            'VIIRS-M1-SDR',
+                            'VIIRS-M2-SDR',
+                            'VIIRS-M3-SDR',
+                            'VIIRS-M4-SDR',
+                            'VIIRS-M5-SDR',
+                            'VIIRS-M7-SDR',
+                            'VIIRS-M8-SDR',
+                            'VIIRS-M10-SDR',
+                            'VIIRS-M11-SDR'
+                          ]
+
 
 ANC_collectionShortNames = [
                            'VIIRS-ANC-Preci-Wtr-Mod-Gran',
@@ -108,7 +128,7 @@ AUX_Paths = [
             ]
 
 controllerBinary = 'ProEdrViirsSurfReflectController.exe'
-ADL_VIIRS_SURFREF_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsSurfReflectController.exe'))
+ADL_VIIRS_SURFREF_IP=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsSurfReflectController.exe'))
 
 algorithmLWxml = 'edr_viirs_surfref'
 
@@ -173,7 +193,7 @@ def setupAuxillaryFiles(Alg_objects,workDir):
 
 
 def generate_viirs_edr_xml(work_dir, granule_seq):
-    "generate XML files for VIIRS Masks EDR granule generation"
+    "generate XML files for VIIRS Surface Reflectance IP granule generation"
     to_process = []
     for gran in granule_seq:
         name = gran['N_Granule_ID']
@@ -186,7 +206,7 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
 
 
 def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS IP SURFACE REFLECTANCE XML input in sequence.
+    """Run each VIIRS Surface Reflectance IP xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
     """
@@ -205,18 +225,18 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
 
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol IP files
     surfref_prior_granules, surfrefIp_ID = h5_xdr_inventory(surfRefIpPattern, SURFREF_IP_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing SURF REF granules... %s' % (repr(surfref_prior_granules)))
+    LOG.debug('Existing Surface Reflectance granules... %s' % (repr(surfref_prior_granules)))
 
     surfref_prior_granules = set(surfref_prior_granules.keys())
-    LOG.debug('Set of existing SURF REF granules... %s' % (repr(surfref_prior_granules)))
+    LOG.debug('Set of existing Surface Reflectance  granules... %s' % (repr(surfref_prior_granules)))
 
 
     for granule_id, xml in xml_files_to_process:
 
         t1 = time()
         
-        cmd = [ADL_VIIRS_SURFREF_EDR, xml]
-        #cmd = ['/usr/bin/gdb', ADL_VIIRS_SURFREF_EDR] # for debugging with gdb...
+        cmd = [ADL_VIIRS_SURFREF_IP, xml]
+        #cmd = ['/usr/bin/gdb', ADL_VIIRS_SURFREF_IP] # for debugging with gdb...
         
         if setup_only:
             print ' '.join(cmd)
