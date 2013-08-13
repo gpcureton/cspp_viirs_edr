@@ -185,20 +185,21 @@ def _create_input_file_globs(inputFiles):
         LOG.debug('Path1')
         inputGlob = '*.h5'
 
-    elif ("*" in input_files):
-        # Input file glob is of form "/path/to/files/*"
+    elif path.isfile(input_path) :
+        # Input file glob is of form "/path/to/files/GMTCO_npp_d_t_e_b_c_cspp_dev.h5" 
         LOG.debug('Path2')
-        inputGlob = '*%s*.h5' % (input_files)
+        fileGlob = string.rstrip(string.lstrip(string.split(input_files,"b")[0],charsToKill),charsToKill)
+        LOG.debug("fileGlob = %s" %(fileGlob))
+        inputGlob = "*%s*.h5" %(fileGlob)
         LOG.debug("Initial inputGlob = %s" %(inputGlob))
         while (string.find(inputGlob,"**")!= -1): 
             inputGlob = string.replace(inputGlob,"**","*")
             LOG.debug("New inputGlob = %s" %(inputGlob))
 
-    elif path.isfile(input_path) :
-        # Input file glob is of form "/path/to/files/GMTCO_npp_d_t_e_b_c_cspp_dev.h5" 
+    elif ("*" in input_files):
+        # Input file glob is of form "/path/to/files/*"
         LOG.debug('Path3')
         fileGlob = string.rstrip(string.lstrip(string.split(input_files,"b")[0],charsToKill),charsToKill)
-        LOG.debug("fileGlob = %s" %(fileGlob))
         inputGlob = "*%s*.h5" %(fileGlob)
         LOG.debug("Initial inputGlob = %s" %(inputGlob))
         while (string.find(inputGlob,"**")!= -1): 
@@ -1034,8 +1035,6 @@ def main():
     # Determine the number of VIIRS SDR cross granules required to 
     # process the algorithm chain.
     cumulativeCrossGranules = _get_alg_cross_granules(algList,options.noAlgChain)
-
-    #sys.exit(0) # FIXME
 
     # Determine what geolocation types are required for each algorithm
     requiredGeoShortname,requiredGeoPrefix = _get_geo_prefixes(algorithms)

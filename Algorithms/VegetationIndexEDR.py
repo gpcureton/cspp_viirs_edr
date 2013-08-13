@@ -242,7 +242,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         LOG.warning('Granules that crashed ADL: %s' % (', '.join(crashed_runs)))
     if bad_log_runs:
         LOG.warning('Granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
-    if not surfref_granules_made:
+    if not vegIdxEdr_granules_made:
         LOG.warning('No Vegetation Index EDR HDF5 files were created')
 
     return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
