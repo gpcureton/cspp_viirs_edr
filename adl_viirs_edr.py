@@ -176,37 +176,104 @@ def _create_input_file_globs(inputFiles):
     LOG.debug("input_dir = %s" %(input_dir))
     LOG.debug("input_files = %s" %(input_files))
 
-    inputGlobs = {"GEO":None,\
-                  "MOD":None,\
-                  "IMG":None}
+    inputGlob = None
 
     charsToKill = string.ascii_letters + string.digits + "."
 
-    if ((input_files is None) or (input_files == "*")):
-        # Input file glob is of form "/path/to/files" or "/path/to/files/*"
-        inputGlobs['GEO'] = 'GMTCO_npp*.h5'
-        inputGlobs['MOD'] = 'SVM*_npp*.h5'
-        inputGlobs['IMG'] = 'SVI*_npp*.h5'
-    elif ((('GMTCO' in input_files) or ('SVM' in input_files) or ('SVI' in input_files)) and ('*' in input_files)) :
-        # Input file glob is of form "/path/to/files/GMTCO*" or "/path/to/files/SVI*" or "/path/to/files/SVM*" 
-        fileGlob = string.rstrip(string.lstrip(input_files,charsToKill),charsToKill)
-        LOG.debug("fileGlob = %s" %(fileGlob))
-        inputGlobs['GEO'] = "GMTCO%s.h5" %(fileGlob)
-        inputGlobs['MOD'] = "SVM*%s.h5" %(fileGlob)
-        inputGlobs['IMG'] = "SVI*%s.h5" %(fileGlob)
-        for fileType in ['GEO','MOD','IMG']:
-            inputGlobs[fileType] = string.replace(inputGlobs[fileType],"**","*")
+    if (input_files is None):
+        # Input file glob is of form "/path/to/files"
+        LOG.debug('Path1')
+        inputGlob = '*.h5'
+
+    elif ("*" in input_files):
+        # Input file glob is of form "/path/to/files/*"
+        LOG.debug('Path2')
+        inputGlob = '*%s*.h5' % (input_files)
+        LOG.debug("Initial inputGlob = %s" %(inputGlob))
+        while (string.find(inputGlob,"**")!= -1): 
+            inputGlob = string.replace(inputGlob,"**","*")
+            LOG.debug("New inputGlob = %s" %(inputGlob))
+
     elif path.isfile(input_path) :
         # Input file glob is of form "/path/to/files/GMTCO_npp_d_t_e_b_c_cspp_dev.h5" 
+        LOG.debug('Path3')
         fileGlob = string.rstrip(string.lstrip(string.split(input_files,"b")[0],charsToKill),charsToKill)
         LOG.debug("fileGlob = %s" %(fileGlob))
-        inputGlobs['GEO'] = "GMTCO%s*.h5" %(fileGlob)
-        inputGlobs['MOD'] = "SVM*%s*.h5" %(fileGlob)
-        inputGlobs['IMG'] = "SVI*%s*.h5" %(fileGlob)
-        for fileType in ['GEO','MOD','IMG']:
-            inputGlobs[fileType] = string.replace(inputGlobs[fileType],"**","*")
+        inputGlob = "*%s*.h5" %(fileGlob)
+        LOG.debug("Initial inputGlob = %s" %(inputGlob))
+        while (string.find(inputGlob,"**")!= -1): 
+            inputGlob = string.replace(inputGlob,"**","*")
+            LOG.debug("New inputGlob = %s" %(inputGlob))
 
-    return input_dir,inputGlobs
+    return input_dir,inputGlob
+
+
+def _get_alg_cross_granules(algList,noAlgChain):
+    # Determine the number of VIIRS SDR cross granules required to 
+    # process the algorithm chain.
+    cumulativeCrossGranules = {}
+    for alg in algList :
+        if not noAlgChain : 
+            crossSum = Algorithms.crossGranules[alg]
+            for preReq in Algorithms.prerequisites[alg]:
+                if preReq is None :
+                    pass
+                else :
+                    crossSum += Algorithms.crossGranules[preReq]
+            cumulativeCrossGranules[alg] = crossSum
+        else :
+            cumulativeCrossGranules[alg] = Algorithms.crossGranules[alg]
+
+        LOG.info("We require %d cross granules for %s" % (cumulativeCrossGranules[alg],alg))
+
+    return cumulativeCrossGranules
+
+def _get_geo_prefixes(algorithms):
+    '''
+    Determine the correct geolocation file HDF5 prefixes for unpacking
+    '''
+    # Determine what geolocation types are required for each algorithm
+    requiredGeoShortname = []
+    requiredGeoPrefix = []
+    for alg in algorithms :
+        for shortName in alg.GEO_collectionShortNames :
+            LOG.info("Algorithm '%s' requires geolocation type %r (%s*.h5)" % \
+                    (alg.AlgorithmName,shortName,Algorithms.geo_hdf5_prefix[shortName]))
+            requiredGeoShortname.append(shortName)
+            requiredGeoPrefix.append(Algorithms.geo_hdf5_prefix[shortName])
+
+    requiredGeoShortname = list(set(requiredGeoShortname))
+    requiredGeoPrefix = list(set(requiredGeoPrefix))
+
+    LOG.info('Required geolocation shortnames: %r' % (requiredGeoShortname))
+    LOG.info('Required geolocation prefixes: %r' % (requiredGeoPrefix))
+
+    return requiredGeoShortname,requiredGeoPrefix
+
+
+def _get_radio_prefixes(algorithms):
+    '''
+    Determine the correct radiometric file HDF5 prefixes for unpacking
+    '''
+    # Determine what radiometric types are required for each algorithm
+    requiredSdrShortname = []
+    requiredSdrPrefix = []
+    for alg in algorithms :
+        for shortName in alg.SDR_collectionShortNames :
+            LOG.info("Algorithm '%s' requires radiometric type %r (%s*.h5)" % \
+                    (alg.AlgorithmName,shortName,Algorithms.sdr_hdf5_prefix[shortName]))
+            requiredSdrShortname.append(shortName)
+            requiredSdrPrefix.append(Algorithms.sdr_hdf5_prefix[shortName])
+
+    requiredSdrShortname = list(set(requiredSdrShortname))
+    requiredSdrShortname.sort()
+    requiredSdrPrefix = list(set(requiredSdrPrefix))
+    requiredSdrPrefix.sort()
+
+    LOG.info('Required radiometric shortnames: %r' % (requiredSdrShortname))
+    LOG.info('Required radiometric prefixes: %r' % (requiredSdrPrefix))
+
+    return requiredSdrShortname,requiredSdrPrefix
 
 
 def _unpack_sdr(work_dir,input_dir,inputGlob):
@@ -214,7 +281,10 @@ def _unpack_sdr(work_dir,input_dir,inputGlob):
     Unpack HDF5 VIIRS SDRs from the input directory to the work directory
     '''
     unpacking_problems = 0
-    h5_names = glob(path.join(input_dir,inputGlob))
+
+    fileGlob = path.join(input_dir,inputGlob)
+    h5_names = glob(fileGlob)
+    h5_names.sort()
 
     t1 = time()
     for fn in h5_names:
@@ -785,9 +855,9 @@ def _granulate_GridIP(inDir,geoDicts,algList):
 def main():
 
     endianChoices = ['little','big']
-    algorithmChoices = ['VCM','AOT','SST','SRFREF']
+    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI']
 
-    description = '''Run the ADL VIIRS EDR Masks Controller.'''
+    description = '''Run one or more ADL VIIRS EDR Controllers.'''
     usage = "usage: %prog [mandatory args] [options]"
     version = "%prog "+__version__
 
@@ -921,14 +991,6 @@ def main():
     level = levels[min(options.verbosity,3)]
     configure_logging(level,FILE=logfile)
 
-
-    # Determine the correct input file path and glob
-    if not options.skipSdrUnpack :
-        input_dir,inputGlobs = _create_input_file_globs(options.inputFiles)
-        if inputGlobs['GEO'] is None or inputGlobs['MOD'] is None or inputGlobs['IMG'] is None :
-            LOG.error("No input files found matching %s, aborting..."%(options.inputFiles))
-            sys.exit(1)
-
     # Check the environment variables, and whether we can write to the working directory
     check_env(work_dir)
     
@@ -941,15 +1003,6 @@ def main():
         LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
 
-
-    # Unpack HDF5 VIIRS geolocation SDRs in the input directory to the work directory
-    geo_unpacking_problems = 0
-    if not options.skipSdrUnpack :
-        geo_unpacking_problems = _unpack_sdr(work_dir,input_dir,inputGlobs['GEO'])
-    else :
-        LOG.info('Skipping SDR GEO unpacking, assuming all VIIRS SDR blob and asc files are present.')
-
-
     # Ordered list of required algorithms (to be passed in)
     algList = [options.algorithm]
 
@@ -958,32 +1011,17 @@ def main():
     if not options.noAlgChain : 
         LOG.info("We ARE chaining algorithms...")
         thisAlg = algList[0]
+        LOG.info("thisAlg: %r" % (thisAlg))
         thisAlgPreReqs = copy.copy(Algorithms.prerequisites[thisAlg])
+        LOG.info("thisAlgPreReqs: %r" % (thisAlgPreReqs))
         thisAlgPreReqs.append(thisAlg)
+        LOG.info("thisAlgPreReqs: %r" % (thisAlgPreReqs))
         algList = thisAlgPreReqs
+        LOG.info("algList: %r" % (algList))
     else :
         LOG.info("We are NOT chaining algorithms...")
 
     LOG.info("Required algorithms: %r" % (algList))
-
-    # Determine the number of VIIRS SDR cross granules required to 
-    # process the algorithm chain.
-    cumulativeCrossGranules = {}
-    for alg in algList :
-        if not options.noAlgChain : 
-            crossSum = Algorithms.crossGranules[alg]
-            for preReq in Algorithms.prerequisites[alg]:
-                if preReq is None :
-                    pass
-                else :
-                    crossSum += Algorithms.crossGranules[preReq]
-            cumulativeCrossGranules[alg] = crossSum
-        else :
-            cumulativeCrossGranules[alg] = Algorithms.crossGranules[alg]
-
-    for alg in algList :
-        LOG.info("We require %d cross granules for %s" % (cumulativeCrossGranules[alg],alg))
-    LOG.info("")
 
     # Create a list of algorithm module "pointers"
     algorithms = []
@@ -991,15 +1029,45 @@ def main():
         algName = Algorithms.modules[alg]
         algorithms.append(getattr(Algorithms,algName))
 
+    LOG.debug("Algorithm Pointers: %r"%(algorithms))
+
+    # Determine the number of VIIRS SDR cross granules required to 
+    # process the algorithm chain.
+    cumulativeCrossGranules = _get_alg_cross_granules(algList,options.noAlgChain)
+
+    #sys.exit(0) # FIXME
+
+    # Determine what geolocation types are required for each algorithm
+    requiredGeoShortname,requiredGeoPrefix = _get_geo_prefixes(algorithms)
+
+    # Determine what radiometric types are required for each algorithm
+    requiredSdrShortname,requiredSdrPrefix = _get_radio_prefixes(algorithms)
+
+    # Determine the correct input file path and glob
+    if not options.skipSdrUnpack :
+        input_dir,inputGlob = _create_input_file_globs(options.inputFiles)
+
+        if inputGlob is None :
+            LOG.error("No input files found matching %s, aborting..."%(options.inputFiles))
+            sys.exit(1)
+
+    # Unpack HDF5 VIIRS geolocation SDRs in the input directory to the work directory
+    geo_unpacking_problems = 0
+    if not options.skipSdrUnpack :
+        for prefix in requiredGeoPrefix:
+            fileGlob = "%s%s" % (prefix,inputGlob)
+            LOG.info("Unpacking files matching %r" % (fileGlob))
+            geo_unpacking_problems += _unpack_sdr(work_dir,input_dir,fileGlob)
+    else :
+        LOG.info('Skipping SDR GEO unpacking, assuming all VIIRS SDR blob and asc files are present.')
+
     # Read through ascii metadata and build up information table
     LOG.info('Sifting through geolocation metadata to find VIIRS SDR processing candidates...')
-    #geolocationShortNames = ['VIIRS-MOD-RGEO-TC','VIIRS-MOD-RGEO','VIIRS-MOD-GEO-TC','VIIRS-MOD-GEO']
-    geolocationShortNames = ['VIIRS-MOD-GEO-TC']
     anc_granules_to_process = None
 
     # Determine the candidate geolocation granules for which to generate ancillary.
     # Hint: ... Make ALL THE ANCILLARY! :-)
-    for geoType in geolocationShortNames :
+    for geoType in requiredGeoShortname :
         LOG.info("Searching for candidate %s geolocation granules for VIIRS ancillary..." % (geoType))
         anc_granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType,crossGran=None,work_dir=work_dir)))
         if anc_granules_to_process :
@@ -1019,7 +1087,7 @@ def main():
 
     # Determine the candidate geolocation granules for which we can generate VIIRS products.
     for alg in algorithms :
-        for geoType in geolocationShortNames :
+        for geoType in requiredGeoShortname :
             LOG.info("Searching for candidate %s geolocation granules for VIIRS %s ..." % (geoType,alg.AlgorithmName))
             crossGranules = cumulativeCrossGranules[alg.AlgorithmString]
             alg.granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType, \
@@ -1108,18 +1176,19 @@ def main():
         LOG.info('Skipping retrieval and granulation of ancillary data.')
 
     # Unpack HDF5 VIIRS radiometric SDRs in the input directory to the work directory
-    mod_unpacking_problems = 0
-    img_unpacking_problems = 0
+    radio_unpacking_problems = 0
     unpacking_problems = 0
     if not options.skipSdrUnpack :
-        mod_unpacking_problems = _unpack_sdr(work_dir,input_dir,inputGlobs['MOD'])
-        img_unpacking_problems = _unpack_sdr(work_dir,input_dir,inputGlobs['IMG'])
+        for prefix in requiredSdrPrefix:
+            fileGlob = "%s%s" % (prefix,inputGlob)
+            LOG.info("Unpacking files matching %r" % (fileGlob))
+            radio_unpacking_problems = _unpack_sdr(work_dir,input_dir,fileGlob)
 
-        unpacking_problems = geo_unpacking_problems + mod_unpacking_problems + img_unpacking_problems
+        unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
         LOG.debug("Total VIIRS SDR unpacking problems = %d" % (unpacking_problems))
     else :
         LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
-        unpacking_problems = geo_unpacking_problems + mod_unpacking_problems + img_unpacking_problems
+        unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
 
     # Check radiometric SDR metadata for wrong N_Granule_Version, and fix...
     sdr_blob_names = glob(path.join(work_dir,"*.*SDR"))

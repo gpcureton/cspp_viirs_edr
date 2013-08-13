@@ -46,6 +46,10 @@ test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsAerosolController.exe" \
     || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsAerosolController.exe not found"
 test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSstController.exe" \
     || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSstController.exe not found"
+test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSurfReflectController.exe" \
+    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSurfReflectController.exe not found"
+test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsVI.exe" \
+    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsVI.exe not found"
 test -x "$PY" \
     || oops "Common CSPP_RT python interpreter $PY not found"
 test -w "$CSPP_RT_ANC_CACHE_DIR" \
@@ -77,7 +81,7 @@ Options:
 
     --alg=ALG           The VIIRS algorithm to run.
                         Possible values are...
-                        'VCM','AOT','SST','SRFREF'
+                        'VCM','AOT','SST','SRFREF','VI'
     
   Extra Options:
     These options may be used to customize behaviour of this program.
