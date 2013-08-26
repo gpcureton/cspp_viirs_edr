@@ -9,14 +9,14 @@ Created by Geoff Cureton on 2013-08-22.
 Copyright (c) 2013 University of Wisconsin SSEC. All rights reserved.
 """
 
-file_Date = '$Date: 2013-08-13 09:24:34 -0700 (Tue, 13 Aug 2013) $'
-file_Revision = '$Revision: 1578 $'
-file_Author = '$Author: geoffc $'
-file_HeadURL = '$HeadURL: https://svn.ssec.wisc.edu/repos/jpss_adl/trunk/scripts/edr/Algorithms/CloudMaskIP.py $'
-file_Id = '$Id: CloudMaskIP.py 1578 2013-08-13 16:24:34Z geoffc $'
+file_Date = '$Date$'
+file_Revision = '$Revision$'
+file_Author = '$Author$'
+file_HeadURL = '$HeadURL$'
+file_Id = '$Id$'
 
 __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
-__version__ = '$Id: CloudMaskIP.py 1578 2013-08-13 16:24:34Z geoffc $'
+__version__ = '$Id$'
 __docformat__ = 'Epytext'
 
 
