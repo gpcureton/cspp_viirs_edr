@@ -252,9 +252,13 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
     """upon successful run, clean out work directory"""
 
     LOG.info("Cleaning up work directory...")
-    for fn in glob(path.join(work_dir, '????????-?????-????????-????????.*')):
-        LOG.debug('removing %s' % (fn))
-        os.unlink(fn)
+
+    # Remove asc/blob file pairs...
+    ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
+    if ascBlobFiles != [] :
+        for files in ascBlobFiles:
+            LOG.debug('removing %s' % (files))
+            os.unlink(files)
 
     LOG.info("Removing task xml files...")
     for fn in glob(path.join(work_dir, xml_glob)):

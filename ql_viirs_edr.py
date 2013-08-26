@@ -1911,10 +1911,9 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
     trimObj = ViirsTrimTable()
     eps = 1.e-6
 
-    for geoFile,aotFile in zip(geoList,aotList):
-        print "files: ",geoFile,aotFile
-
+    # Build up the swath...
     for grans in np.arange(len(geoList)):
+
         print "Ingesting EDR granule %d ..." % (grans)
 
         # Read in geolocation...
@@ -1967,30 +1966,39 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
         try :
             dataName = 'Latitude'
             print "Reading %s dataset..." % (dataName)
-            latArr = geoLatNode[:,:]
+            latArr = np.vstack((latArr,geoLatNode[:,:]))
             geoLatNode.close()
             latArr = np.squeeze(latArr)
             print "done"
             dataName = 'Longitude'
             print "Reading %s dataset..." % (dataName)
-            lonArr = geoLonNode[:,:]
+            lonArr = np.vstack((lonArr,geoLonNode[:,:]))
             geoLonNode.close()
             lonArr = np.squeeze(lonArr)
             print "done"
             dataName = 'SolarZenithAngle'
             print "Reading %s dataset..." % (dataName)
-            szaArr = geoSzaNode[:,:]
+            szaArr = np.vstack((szaArr,geoSzaNode[:,:]))
             geoSzaNode.close()
             szaArr = np.squeeze(szaArr)
             print "done"
             print "Closing geolocation file"
             ViirsGeoFileObj.close()
-        except :
-            print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+        except NameError :
+            latArr = geoLatNode[:,:]
+            lonArr = geoLonNode[:,:]
+            szaArr = geoSzaNode[:,:]
             geoLatNode.close()
             geoLonNode.close()
+            geoSzaNode.close()
             ViirsGeoFileObj.close()
-            sys.exit(1)
+        #except :
+            #print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+            #geoLatNode.close()
+            #geoLonNode.close()
+            #geoSzaNode.close()
+            #ViirsGeoFileObj.close()
+            #sys.exit(1)
 
         
         # Try to determine if this is a day or night granule. Night will be determined
@@ -2051,7 +2059,7 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
         try :
             dataName = 'AerosolOpticalDepth_at_550nm'
             print "Reading %s dataset..." % (dataName)
-            aot550 = aot550Node[:,:]
+            aot550 = np.vstack((aot550,aot550Node[:,:]))
             aot550 = np.squeeze(aot550)
             aot550Node.close()
             print "done"
@@ -2068,12 +2076,19 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
             print "Shape of latsArr is %s" % (repr(np.shape(latArr)))
             print "Shape of lonsArr is %s" % (repr(np.shape(lonArr)))
 
-        except :
-            print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+        except NameError :
+            aot550 = aot550Node[:,:]
+            aotFactors = aotFactorsNode[:]
             aot550Node.close()
             aotFactorsNode.close()
             ViirsEDRFileObj.close()
-            sys.exit(1)
+
+        #except :
+            #print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+            #aot550Node.close()
+            #aotFactorsNode.close()
+            #ViirsEDRFileObj.close()
+            #sys.exit(1)
         
         print "Creating some masks"
         try :
@@ -3071,7 +3086,8 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
 
 def main():
 
-    prodChoices=['VCM','VCP','COT','COT_EDR','EPS','EPS_EDR','CTT','CTT_EDR','CTH','CTH_EDR','CTP','CTP_EDR','AOT','AOT_EDR','SST_EDR','SDR']
+    #prodChoices=['VCM','VCP','COT','COT_EDR','EPS','EPS_EDR','CTT','CTT_EDR','CTH','CTH_EDR','CTP','CTP_EDR','AOT','AOT_EDR','SST_EDR','SDR']
+    prodChoices=['VCM','VCP','AOT','AOT_EDR','SST_EDR']
     mapRes = ['c','l','i']
 
     description = \

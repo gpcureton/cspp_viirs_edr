@@ -82,13 +82,15 @@ from numpy.ctypeslib import ndpointer
 import tables as pytables
 from tables import exceptions as pyEx
 
+from multiprocessing import Pool, Lock, Value, cpu_count
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 
-import datetime as dt
+#import datetime as dt
+
 # ancillary search and unpacker common routines
 # We need [ 'CSPP_RT_HOME', 'ADL_HOME', 'CSPP_RT_ANC_TILE_PATH', 'CSPP_RT_ANC_CACHE_DIR', 'CSPP_RT_ANC_PATH' ] environment 
 # variables to be set...
@@ -432,7 +434,8 @@ def _convert_datetime(s):
     pt = s.rfind('.')
     micro_s = s[pt+1:]
     micro_s += '0'*(6-len(micro_s))
-    when = dt.datetime.strptime(s[:pt], '%Y-%m-%d %H:%M:%S').replace(microsecond = int(micro_s))
+    #when = dt.datetime.strptime(s[:pt], '%Y-%m-%d %H:%M:%S').replace(microsecond = int(micro_s))
+    when = datetime.strptime(s[:pt], '%Y-%m-%d %H:%M:%S').replace(microsecond = int(micro_s))
     return when
 
 
@@ -856,7 +859,7 @@ def _granulate_GridIP(inDir,geoDicts,algList):
 def main():
 
     endianChoices = ['little','big']
-    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI']
+    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','MPC']
 
     description = '''Run one or more ADL VIIRS EDR Controllers.'''
     usage = "usage: %prog [mandatory args] [options]"
@@ -931,6 +934,12 @@ def main():
                       dest="noAlgChain",
                       default=False,
                       help="Do not run prerequisite algorithms.")
+
+    optionalGroup.add_option('-p','--processors',
+                      action="store",
+                      dest="processors",
+                      default=1,
+                      help="Number of cpus to use for granule processing.")
 
     optionalGroup.add_option('--sdr_endianness',
                       action="store",

@@ -58,7 +58,6 @@ classNames['VIIRS-ANC-Temp-Skin-Mod-Gran'] = 'SkinTemp'
 #from NhfWaterVaporMixRatio     import NhfWaterVaporMixRatio
 #from NitrateDepletion          import NitrateDepletion
 #from PresLevelTemp             import PresLevelTemp
-#from SkinTemp                  import SkinTemp
 #from SurfPresCorrection        import SurfPresCorrection
 #from TropoGeopotentialHeight   import TropoGeopotentialHeight
 #from WaterVaporMixRatio        import WaterVaporMixRatio

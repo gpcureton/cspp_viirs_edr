@@ -22,6 +22,7 @@ import AerosolOpticalThicknessIP
 import SeaSurfaceTemperatureEDR
 import SurfaceReflectanceIP
 import VegetationIndexEDR
+import dummy_multiprocessing
 
 modules = {}
 modules['VCM'] = 'CloudMaskIP'
@@ -29,6 +30,7 @@ modules['AOT'] = 'AerosolOpticalThicknessIP'
 modules['SST'] = 'SeaSurfaceTemperatureEDR'
 modules['SRFREF'] = 'SurfaceReflectanceIP'
 modules['VI'] = 'VegetationIndexEDR'
+modules['MPC'] = 'dummy_multiprocessing'
 
 # What are the cross granule requirements for each algorithm?
 crossGranules = {}
@@ -37,6 +39,7 @@ crossGranules['AOT'] = 1
 crossGranules['SST'] = 0
 crossGranules['SRFREF'] = 0
 crossGranules['VI'] = 0
+crossGranules['MPC'] = 0
 
 # What previous alg products are *explicitly* required for each algorithm.
 prerequisites = {}
@@ -45,6 +48,7 @@ prerequisites['AOT'] = ['VCM']
 prerequisites['SST'] = ['VCM','AOT']
 prerequisites['SRFREF'] = ['VCM','AOT']
 prerequisites['VI'] = ['VCM','AOT','SRFREF']
+prerequisites['MPC'] = []
 
 geo_hdf5_prefix={}
 geo_hdf5_prefix['VIIRS-MOD-GEO'] = 'GMODO'
