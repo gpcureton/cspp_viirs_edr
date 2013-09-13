@@ -2441,7 +2441,7 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
 
 
 def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
-        vmin=-0.05,vmax=0.8,scale=1.3, \
+        vmin=0.0,vmax=1.0,scale=1.3, \
         lat_0=0.,lon_0=0.,pointSize=1.,mapRes='c',cmap=None, \
         prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS AOT'):
     '''
@@ -3300,8 +3300,8 @@ def main():
     if 'AOT_EDR' in options.ipProd :
         print "Calling AOT EDR ingester..."
         stride = stride_EDR if options.stride==None else options.stride
-        vmin = -0.05 if (vmin==None) else vmin
-        vmax = 0.8 if (vmax==None) else vmax
+        vmin = 0.0 if (vmin==None) else vmin
+        vmax = 1.0   if (vmax==None) else vmax
 
         lats,lons,aotData,gran_lat_0,gran_lon_0,ModeGran = gran_AOT_EDR(geoList,prodList,shrink=stride)
         
@@ -3317,8 +3317,8 @@ def main():
     elif 'AOT' in options.ipProd :
         print "Calling AOT ingester..."
         stride = stride_IP if options.stride==None else options.stride
-        vmin = -0.05 if (vmin==None) else vmin
-        vmax = 0.8 if (vmax==None) else vmax
+        vmin = 0.0 if (vmin==None) else vmin
+        vmax = 1.0   if (vmax==None) else vmax
 
         lats,lons,aotData,gran_lat_0,gran_lon_0,ModeGran = gran_AOT(geoList,prodList,shrink=stride)
         
