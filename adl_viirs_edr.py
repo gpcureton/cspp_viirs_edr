@@ -66,7 +66,7 @@ import re
 import uuid
 import shlex, subprocess
 from subprocess import CalledProcessError, call
-from shutil import rmtree
+from shutil import rmtree,copyfile
 from glob import glob
 import optparse as optparse
 from time import time
@@ -227,7 +227,7 @@ def _get_alg_cross_granules(algList,noAlgChain):
         else :
             cumulativeCrossGranules[alg] = Algorithms.crossGranules[alg]
 
-        LOG.info("We require %d cross granules for %s" % (cumulativeCrossGranules[alg],alg))
+        LOG.info("We require {} cross granules for {}".format(cumulativeCrossGranules[alg],alg))
 
     return cumulativeCrossGranules
 
@@ -386,7 +386,7 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
 
     geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)))
 
-    LOG.debug('geoGroupList : %r'%(geoGroupList))
+    LOG.debug('geoGroupList : {}'.format(geoGroupList))
 
     if len(geoGroupList)==0:
         LOG.debug('No geoGroupList found...')
@@ -396,19 +396,42 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
     for group in _contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)):
         ##- for VIIRS, we can process everything but the first and last granule
         ##- for CrIS, use [4:-4]
-        LOG.info('Contiguous granule group of length: %r' % (len(group),))
+        LOG.info('Contiguous granule group of length: {}'.format(len(group),))
 
         if not crossGran :
             startGran,endGran = None,None
         else :
             startGran,endGran = crossGran,-1*crossGran
 
+        if startGran is not None:
+            granIdx = startGran
+            LOG.info("granIdx = {}".format(granIdx))
+        else :
+            granIdx = None
+
         for gran in group[startGran:endGran]:
             if not granule_groups_contain(geoGroupList, gran):
-                LOG.info("Insufficient VIIRS SDR coverage to process %s @ %s (%s) - skipping" % (gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
+                LOG.info("Insufficient VIIRS SDR coverage to process {} @ {} ({}) - skipping".format(gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
                 continue
                 #pass
-            LOG.info('Processing opportunity: %r at %s with uuid %s' % (gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
+
+            # If we have cross granules, add them to the dictionary
+            if granIdx is not None:
+                granIdx_prev = granIdx - 1
+                granIdx_next = granIdx + 1
+                granId_prev = group[granIdx_prev]['N_Granule_ID']
+                granId = gran['N_Granule_ID']
+                granId_next = group[granIdx_next]['N_Granule_ID']
+                #LOG.info("Granule indicies are (%r,%r,%r)" % (granIdx_prev,granIdx,granIdx_next))
+                #LOG.info("granId are (%r,%r,%r)" % (granId_prev,granId,granId_next))
+                #LOG.info("Prev diff = %d" % ( long(granId[3:]) - long(granId_prev[3:]) ))
+                #LOG.info("Next diff = %d" % ( long(granId_next[3:]) - long(granId[3:]) ))
+                gran['N_Granule_ID_prev'] = granId_prev
+                gran['N_Granule_ID_next'] = granId_next
+                granIdx = granIdx + 1
+                LOG.info("Granule IDs are ({},{},{})".format(gran['N_Granule_ID_prev'],gran['N_Granule_ID'],gran['N_Granule_ID_next']))
+
+            LOG.info('Processing opportunity: {} at {} with uuid {}'.format(gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
             yield gran
 
 
@@ -436,6 +459,15 @@ def _convert_datetime(s):
     micro_s += '0'*(6-len(micro_s))
     #when = dt.datetime.strptime(s[:pt], '%Y-%m-%d %H:%M:%S').replace(microsecond = int(micro_s))
     when = datetime.strptime(s[:pt], '%Y-%m-%d %H:%M:%S').replace(microsecond = int(micro_s))
+    return when
+
+def _convert_isodatetime(s):
+    "converter which takes strings from ASC and converts to computable datetime objects"
+    pt = s.rfind('.')
+    micro_s = s[pt+1:]
+    micro_s += '0'*(6-len(micro_s))
+    #when = dt.datetime.strptime(s[:pt], '%Y-%m-%d %H:%M:%S').replace(microsecond = int(micro_s))
+    when = datetime.strptime(s[:pt], '%Y-%m-%dT%H:%M:%S').replace(microsecond = int(micro_s))
     return when
 
 
@@ -479,11 +511,76 @@ def _fuse(*exps):
     return '|'.join(r'(?:%s)' % x for x in exps)
 
 
-def _create_dummy_geo(inDir,geoDicts):
+def _get_granule_ID(IET_StartTime,IET_EndTime):
     """
-    Examine the geolocation granules in geoDicts, and generate two dummy granules to bound
-    the valid granules.
+    Calculates the deterministic granule ID. From...
+    ADL/CMN/Utilities/INF/util/gran/src/InfUtil_GranuleID.cpp
     """
+    # 
+    NPP_GRANULE_ID_BASETIME = int(os.environ.get('NPP_GRANULE_ID_BASETIME', 1698019234000000))
+    #granuleSize = 85350000.0    # microseconds
+    granuleSize = 85350000      # microseconds
+
+    # Subtract the spacecraft base time from the arbitrary time to obtain
+    # an elapsed time. 
+    elapsedTime = IET_StartTime - NPP_GRANULE_ID_BASETIME
+
+    # Divide the elapsed time by the granule size to obtain the granule number; 
+    # the integer division will give the desired floor value.
+    granuleNumber = np.floor(elapsedTime / granuleSize)
+    #granuleNumber = np.ceil(elapsedTime / granuleSize)
+
+    # Multiply the granule number by the granule size, then add the spacecraft
+    # base time to obtain the granule start boundary time. Add the granule
+    # size to the granule start boundary time to obtain the granule end
+    # boundary time.
+    startBoundary = (granuleNumber * granuleSize) + NPP_GRANULE_ID_BASETIME
+    endBoundary = startBoundary + granuleSize
+
+    # assign the granule start and end boundary times to the class members 
+    granuleStartTime = startBoundary
+    granuleEndTime = endBoundary
+    
+    # multiply the granule number by the granule size
+    # then divide by 10^5 to convert the microseconds to tenths of a second; 
+    # the integer division will give the desired floor value.
+    #timeCode = int((granuleNumber * granuleSize) / 100000.)
+    timeCode = int((granuleNumber * granuleSize) / 100000)
+
+    N_Granule_ID = 'NPP{:0>12d}'.format(timeCode)
+
+    return N_Granule_ID,granuleStartTime,granuleEndTime
+
+
+def _get_bounding_granule_ID(IET_StartTime):
+    """
+    Given the IET start time of a granule, calculates the 
+    previous and next N_Granule_ID.
+    """
+    granuleSize = 85350000.0    # microseconds
+
+    granuleStartTime = IET_StartTime
+    granuleEndTime = granuleStartTime + granuleSize
+
+    prevGranuleStartTime = granuleStartTime - granuleSize
+    nextGranuleStartTime = granuleStartTime + granuleSize
+
+    prevGranuleEndTime = prevGranuleStartTime + granuleSize
+    nextGranuleEndTime = nextGranuleStartTime + granuleSize
+
+    prev_N_Granule_ID = _get_granule_ID(prevGranuleStartTime,prevGranuleEndTime)[0]
+    next_N_Granule_ID = _get_granule_ID(nextGranuleStartTime,nextGranuleEndTime)[0]
+
+    return prev_N_Granule_ID,next_N_Granule_ID
+
+
+def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranules):
+    """
+    Examine the unpacked geolocation and radiometric blob/asc pairs for a DB pass, and 
+    generate enough bounding dummy blob/asc pairs to ensure there are at least as many
+    VIIRS EDR outputs as geolocation inputs, for each algorithm.
+    """
+
     PAT_URID = r'"(?P<URID>[-a-zA-Z0-9]+)" UR "(?P<UnpackTime>[- \d:.]+)"'
     PAT_GRANULE_ID = r'\("N_Granule_ID" STRING EQ "(?P<N_Granule_ID>\w+)"\)'
     PAT_GRANULE_VERSION = r'\("N_Granule_Version" STRING EQ "(?P<N_Granule_Version>\w+)"\)'
@@ -493,7 +590,7 @@ def _create_dummy_geo(inDir,geoDicts):
     PAT_BLOBPATH = r'\("(?P<BlobPath>.*?)" FILE'
     PAT_EFFECTIVEDATETIME = r'\("Effectivity" DATETIMERANGE EQ "(?P<EffectiveStartTime>[- \d:.]+)" "(?P<EffectiveEndTime>[- \d:.]+)"\)'
     PAT_OBSERVEDDATETIME = r'\("ObservedDateTime" DATETIMERANGE EQ "(?P<ObservedStartTime>[- \d:.]+)" "(?P<ObservedEndTime>[- \d:.]+)"\)'
-    #PAT_CREATEDATETIME   = r'\("CreationDateTime" DATETIME EQ "(?P<CreationDateTime>[- \d:.]+)"'
+    PAT_CREATEDATETIME   = r'\("CreationDateTime" DATETIME EQ "(?P<CreationDateTime>[- \d:.]+)"'
 
     RE_LINE = re.compile(_fuse(PAT_GRANULE_ID, PAT_GRANULE_VERSION, PAT_COLLECTION, PAT_RANGEDATETIME, PAT_SOURCE, PAT_URID, PAT_BLOBPATH, PAT_EFFECTIVEDATETIME, PAT_OBSERVEDDATETIME), re.M)
 
@@ -507,6 +604,7 @@ def _create_dummy_geo(inDir,geoDicts):
     patternDict['BLOBPATH']          = PAT_BLOBPATH
     patternDict['EFFECTIVEDATETIME'] = PAT_EFFECTIVEDATETIME
     patternDict['OBSERVEDDATETIME']  = PAT_OBSERVEDDATETIME
+    patternDict['CREATEDATETIME']    = PAT_CREATEDATETIME
 
     patternRe = {}
     for key in patternDict.keys():
@@ -515,121 +613,203 @@ def _create_dummy_geo(inDir,geoDicts):
     # A key for sorting lists of granule dictionaries according to N_Granule_ID
     granIdKey = lambda x: (x['N_Granule_ID'])
 
-    granule_IDs = []
-    for dicts in sorted(geoDicts,key=granIdKey) :
-        granule_IDs.append(dicts['N_Granule_ID'])
+    ascFileTimeFormatStr = '%Y-%m-%d %H:%M:%S.%f'
 
-    LOG.info("granules %r" % (granule_IDs))
+    global sdrEndian 
 
-    for dicts in sorted(geoDicts,key=granIdKey) :
-        granID = int(dicts['N_Granule_ID'][3:])
-        prevGranID = granID-854
-        nextGranID = granID+853
-        #LOG.info("Previous Granule ID: %d"%(prevGranID))
-        #LOG.info(" Current Granule ID: %d"%(granID))
-        #LOG.info("    Next Granule ID: %d"%(nextGranID))
+    # Make a list of the required filetypes....
+    requiredShortnames = requiredGeoShortname + requiredSdrShortname
+    LOG.info("Required types : {}".format(requiredShortnames))
 
-        #LOG.info("%r"%(dicts.keys()))
-        LOG.info("  %15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
-        #LOG.info("%r %r"%(dicts['_filename'],dicts['BlobPath']))
+    geo_sdr_Dicts = {}
 
-        isFirstGranule = False
-        isLastGranule = False
+    for shortName in requiredShortnames :
+        LOG.info("Searching for candidate {} granules...".format(shortName))
+        granuleList = sorted(list(sift_metadata_for_viirs_sdr(shortName,crossGran=None,work_dir=inDir)))
+        if granuleList :
+            granule_IDs = []
+            sorted_Dicts = []
+            for dicts in sorted(granuleList,key=granIdKey) :
+                granule_IDs.append(dicts['N_Granule_ID'])
+                sorted_Dicts.append(dicts)
+            LOG.info("granules {}".format(granule_IDs))
+            geo_sdr_Dicts[shortName] = {'granule_IDs':granule_IDs,'sorted_Dicts':sorted_Dicts}
+        else :
+            LOG.info("\tNo {} granules for VIIRS".format(shortName))
 
-        if (dicts['N_Granule_ID'] == granule_IDs[0] ): isFirstGranule = True
-        if (dicts['N_Granule_ID'] == granule_IDs[-1]): isLastGranule = True
 
-        # If this is the first granule, make another...
-        if (isFirstGranule):
-            LOG.info("This is the first granule %s" % (dicts['N_Granule_ID']))
-            LOG.info("First granule %s" % (granule_IDs[0]))
-           
+    for shortName in requiredShortnames :
+
+        # Generate the dummy granules for the first real granule
+        firstDict = geo_sdr_Dicts[shortName]['sorted_Dicts'][0]
+
+        first_N_Collection_Short_Name = firstDict['N_Collection_Short_Name']
+        first_blobDir = path.dirname(firstDict['_filename'])
+        first_URID = firstDict['URID']
+        first_BlobFile = path.join(first_blobDir,"{}.{}".format(first_URID,first_N_Collection_Short_Name))
+
+        # If this is the geolocation, get the IET start time of the first scan...
+        if shortName == requiredGeoShortname[0]:
+            first_XmlFile = "{}.xml".format(string.replace(first_N_Collection_Short_Name,'-','_'))
+            first_XmlFile = path.join(ADL_HOME,'xml/VIIRS',first_XmlFile)
+            first_BlobObj = adl_blob.map(first_XmlFile,first_BlobFile,writable=False,endian=sdrEndian)
+            first_BlobArrObj = first_BlobObj.as_arrays()
+            first_scanStartTime = getattr(first_BlobArrObj,'scanStartTime')[0]
+
+        first_ascFile = firstDict['_filename']
+        LOG.debug("The first file for {} is {}".format(shortName,first_ascFile))
+
+        first_ObservedStartTime = firstDict['ObservedStartTime']
+        first_ObservedEndTime = firstDict['ObservedEndTime']
+        first_StartTime = firstDict['StartTime']
+        first_EndTime = firstDict['EndTime']
+
+        for crossGranIdx in range(1,crossGranules+1):
+
+            scanStartTime = first_scanStartTime - crossGranIdx * 85404800 # microseconds
+            N_Granule_ID = _get_granule_ID(scanStartTime,scanStartTime+83625544)[0]
+            ObservedStartTime = first_ObservedStartTime - timedelta(microseconds=crossGranIdx*85404800)
+            ObservedEndTime = first_ObservedEndTime - timedelta(microseconds=crossGranIdx*85404800)
+            StartTime = first_StartTime - timedelta(microseconds=crossGranIdx*85350000)
+            EndTime = first_EndTime - timedelta(microseconds=crossGranIdx*85350000)
+
             URID_dict = _getURID()
             URID = URID_dict['URID']
             creationDate_nousecStr = URID_dict['creationDate_nousecStr']
             creationDateStr = URID_dict['creationDateStr']
 
-            LOG.info("URID_dict keys = %r" % (URID_dict.keys()))
+            newAscFileName = path.join(first_blobDir,"{}.asc".format(URID))
 
-            dirName = path.dirname(dicts['_filename'])
-            newAscFileName = path.join(dirName,"%s_pre.asc"%(URID))
-            
-            #LOG.info("%r %r"%(dicts['_filename'],dicts['BlobPath']))
-
+            # Populate dictionary for the previous granule
             granDict = {}
-            granDict['GRANULE_ID']        = '  ("N_Granule_ID" STRING EQ "NPP%s")\n' % (str(granID-854))
+            granDict['URID']              = '("{}" UR "{}"\n'.format(URID,creationDate_nousecStr)
+            granDict['GRANULE_ID']        = '  ("N_Granule_ID" STRING EQ "{}")\n'.format(N_Granule_ID)
             granDict['GRANULE_VERSION']   = '  ("N_Granule_Version" STRING EQ "A1")\n'
-            granDict['COLLECTION']        = '  ("N_Collection_Short_Name" STRING EQ "VIIRS-MOD-GEO-TC")\n'
-            granDict['RANGEDATETIME']     = None
+            granDict['COLLECTION']        = '  ("N_Collection_Short_Name" STRING EQ "{}")\n'.format(first_N_Collection_Short_Name)
+            granDict['RANGEDATETIME']     = '  ("RangeDateTime" DATETIMERANGE EQ "{}" "{}")\n'.format(StartTime.strftime(ascFileTimeFormatStr),EndTime.strftime(ascFileTimeFormatStr))
             granDict['SOURCE']            = None #'  ("N_Dataset_Source" STRING EQ "nfts")\n'
-            granDict['URID']              = '("%s" UR "%s"\n' % (URID,creationDate_nousecStr)
-            granDict['BLOBPATH']          = '  ("%s/%s.VIIRS-MOD-GEO-TC" FILE\n'  % (dirName,URID)
+            granDict['URID']              = '("{}" UR "{}"\n'.format(URID,creationDate_nousecStr)
+            granDict['BLOBPATH']          = '  ("{}/{}.{}" FILE\n'.format(first_blobDir,URID,first_N_Collection_Short_Name)
             granDict['EFFECTIVEDATETIME'] = None
-            granDict['OBSERVEDDATETIME']  = None
-
+            granDict['OBSERVEDDATETIME']  = '  ("ObservedDateTime" DATETIMERANGE EQ "{}" "{}")\n'.format(ObservedStartTime.strftime(ascFileTimeFormatStr),ObservedEndTime.strftime(ascFileTimeFormatStr))
+            granDict['CREATEDATETIME']  = '  ("CreationDateTime" DATETIME EQ "{}")\n'.format(creationDateStr)
 
             try:
-                ascFile = open(dicts['_filename'],"r") # Open template file for reading
+                ascFile = open(first_ascFile,"r") # Open template file for reading
             except Exception, err :
-                LOG.error("%s, aborting." % (err))
+                LOG.error("{}, aborting.".format(err))
 
             try:
                 newAscFile = open(newAscFileName,"w") # Open template file for reading
             except Exception, err :
-                LOG.error("%s, aborting." % (err))
+                LOG.error("{}, aborting.".format(err))
 
-            LOG.info("Copying %s to %s"%(dicts['_filename'],newAscFileName))
+            LOG.debug("Copying {} to {}".format(first_ascFile,newAscFileName))
 
             for line in ascFile.readlines():
                 for key in patternRe.keys():
                     m = patternRe[key].search(line)
                     if m:
-                        LOG.info("%s --> %r" % (key,m.group()))
                         if granDict[key] is not None:
                             line = line.replace(line,granDict[key])
+                            LOG.debug("{} --> {}".format(key,line[:-1]))
 
                 newAscFile.write(line) 
 
             ascFile.close()
             newAscFile.close()
 
+            # Copy the first blob file...
+            newBlobFileName = "{}.{}".format(URID,first_N_Collection_Short_Name)
+            LOG.debug("Copying {} to {}".format(first_BlobFile,path.join(first_blobDir,newBlobFileName)))
+            copyfile(first_BlobFile,path.join(first_blobDir,newBlobFileName))
 
-        # If this is the first granule, make another...
-        if (isLastGranule):
-            LOG.info("This is the last granule %s" % (dicts['N_Granule_ID']))
-            LOG.info("Last granule %s" % (granule_IDs[-1]))
+
+    for shortName in requiredShortnames :
+
+        # Generate the dummy granules for the last real granule
+        lastDict = geo_sdr_Dicts[shortName]['sorted_Dicts'][-1]
+
+        last_N_Collection_Short_Name = lastDict['N_Collection_Short_Name']
+        last_blobDir = path.dirname(lastDict['_filename'])
+        last_URID = lastDict['URID']
+        last_BlobFile = path.join(last_blobDir,"{}.{}".format(last_URID,last_N_Collection_Short_Name))
+
+        # If this is the geolocation, get the IET start time of the first scan...
+        if shortName == requiredGeoShortname[0]:
+            last_XmlFile = "{}.xml".format(string.replace(last_N_Collection_Short_Name,'-','_'))
+            last_XmlFile = path.join(ADL_HOME,'xml/VIIRS',last_XmlFile)
+            last_BlobObj = adl_blob.map(last_XmlFile,last_BlobFile,writable=False,endian=sdrEndian)
+            last_BlobArrObj = last_BlobObj.as_arrays()
+            last_scanStartTime = getattr(last_BlobArrObj,'scanStartTime')[0]
+
+        last_ascFile = lastDict['_filename']
+        LOG.debug("The last file for {} is {}".format(shortName,last_ascFile))
+
+        last_ObservedStartTime = lastDict['ObservedStartTime']
+        last_ObservedEndTime = lastDict['ObservedEndTime']
+        last_StartTime = lastDict['StartTime']
+        last_EndTime = lastDict['EndTime']
+
+        for crossGranIdx in range(1,crossGranules+1):
+
+            scanStartTime = last_scanStartTime + crossGranIdx * 85404800 # microseconds
+            N_Granule_ID = _get_granule_ID(scanStartTime,scanStartTime+83625544)[0]
+            ObservedStartTime = last_ObservedStartTime + timedelta(microseconds=crossGranIdx*85404800)
+            ObservedEndTime = last_ObservedEndTime + timedelta(microseconds=crossGranIdx*85404800)
+            StartTime = last_StartTime + timedelta(microseconds=crossGranIdx*85350000)
+            EndTime = last_EndTime + timedelta(microseconds=crossGranIdx*85350000)
 
             URID_dict = _getURID()
             URID = URID_dict['URID']
             creationDate_nousecStr = URID_dict['creationDate_nousecStr']
             creationDateStr = URID_dict['creationDateStr']
 
-            dirName = path.dirname(dicts['_filename'])
-            newAscFileName = path.join(dirName,"%s_post.asc"%(URID))
-            
-            try:
-                ascFile = open(dicts['_filename'],"r") # Open template file for reading
-            except Exception, err :
-                LOG.error("%s, aborting." % (err))
+            newAscFileName = path.join(last_blobDir,"{}.asc".format(URID))
+
+            # Populate dictionary for the previous granule
+            granDict = {}
+            granDict['URID']              = '("{}" UR "{}"\n'.format(URID,creationDate_nousecStr)
+            granDict['GRANULE_ID']        = '  ("N_Granule_ID" STRING EQ "{}")\n'.format(N_Granule_ID)
+            granDict['GRANULE_VERSION']   = '  ("N_Granule_Version" STRING EQ "A1")\n'
+            granDict['COLLECTION']        = '  ("N_Collection_Short_Name" STRING EQ "{}")\n'.format(last_N_Collection_Short_Name)
+            granDict['RANGEDATETIME']     = '  ("RangeDateTime" DATETIMERANGE EQ "{}" "{}")\n'.format(StartTime.strftime(ascFileTimeFormatStr),EndTime.strftime(ascFileTimeFormatStr))
+            granDict['SOURCE']            = None #'  ("N_Dataset_Source" STRING EQ "nfts")\n'
+            granDict['URID']              = '("{}" UR "{}"\n'.format(URID,creationDate_nousecStr)
+            granDict['BLOBPATH']          = '  ("{}/{}.{}" FILE\n'.format(last_blobDir,URID,last_N_Collection_Short_Name)
+            granDict['EFFECTIVEDATETIME'] = None
+            granDict['OBSERVEDDATETIME']  = '  ("ObservedDateTime" DATETIMERANGE EQ "{}" "{}")\n'.format(ObservedStartTime.strftime(ascFileTimeFormatStr),ObservedEndTime.strftime(ascFileTimeFormatStr))
+            granDict['CREATEDATETIME']  = '  ("CreationDateTime" DATETIME EQ "{}")\n'.format(creationDateStr)
 
             try:
-                newAscFile = open(newAscFileName,"w+") # Open template file for reading
+                ascFile = open(last_ascFile,"r") # Open template file for reading
             except Exception, err :
-                LOG.error("%s, aborting." % (err))
+                LOG.error("{}, aborting.".format(err))
 
-            LOG.info("Copying %s to %s"%(dicts['_filename'],newAscFileName))
+            try:
+                newAscFile = open(newAscFileName,"w") # Open template file for reading
+            except Exception, err :
+                LOG.error("{}, aborting.".format(err))
+
+            LOG.debug("Copying {} to {}".format(last_ascFile,newAscFileName))
 
             for line in ascFile.readlines():
                 for key in patternRe.keys():
                     m = patternRe[key].search(line)
                     if m:
-                        LOG.info("%s --> %r" % (key,m.group()))
-                        #line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
+                        if granDict[key] is not None:
+                            line = line.replace(line,granDict[key])
+                            LOG.debug("{} --> {}".format(key,line[:-1]))
 
                 newAscFile.write(line) 
 
             ascFile.close()
             newAscFile.close()
+
+            # Copy the last blob file...
+            newBlobFileName = "{}.{}".format(URID,last_N_Collection_Short_Name)
+            LOG.debug("Copying {} to {}".format(last_BlobFile,path.join(last_blobDir,newBlobFileName)))
+            copyfile(last_BlobFile,path.join(last_blobDir,newBlobFileName))
 
 
 def _granulate_ANC(inDir,geoDicts,algList):
@@ -1044,6 +1224,8 @@ def main():
     # Determine the number of VIIRS SDR cross granules required to 
     # process the algorithm chain.
     cumulativeCrossGranules = _get_alg_cross_granules(algList,options.noAlgChain)
+    LOG.info("We require {} cross granules for {}".format(cumulativeCrossGranules[options.algorithm],\
+                                                          options.algorithm))
 
     # Determine what geolocation types are required for each algorithm
     requiredGeoShortname,requiredGeoPrefix = _get_geo_prefixes(algorithms)
@@ -1069,6 +1251,13 @@ def main():
     else :
         LOG.info('Skipping SDR GEO unpacking, assuming all VIIRS SDR blob and asc files are present.')
 
+    # Set the VIIRS SDR endianness from the input option...
+    global sdrEndian
+    set_sdr_endian(options.sdr_Endianness)
+
+    # Create any required dummy geolocation and radiometric granules
+    _create_dummy_sdr(work_dir,requiredGeoShortname,requiredSdrShortname,cumulativeCrossGranules[options.algorithm])
+
     # Read through ascii metadata and build up information table
     LOG.info('Sifting through geolocation metadata to find VIIRS SDR processing candidates...')
     anc_granules_to_process = None
@@ -1093,6 +1282,7 @@ def main():
                 fileChanged = _strReplace(grans["_filename"],\
                         '("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
 
+
     # Determine the candidate geolocation granules for which we can generate VIIRS products.
     for alg in algorithms :
         for geoType in requiredGeoShortname :
@@ -1112,18 +1302,39 @@ def main():
     granIdKey = lambda x: (x['N_Granule_ID'])
 
     if anc_granules_to_process :
-        LOG.info("We have %d candidate granules for ancillary." % (len(anc_granules_to_process)))
-        LOG.info("  %13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime'))
+        LOG.info("We have {} candidate granules for ancillary.".format(len(anc_granules_to_process)))
+        LOG.info("{:^19}{:^30}{:^30}{:^20}{:^30}{:^30}{:^20}".format('N_Granule_ID',\
+                                                         'ObservedStartTime',\
+                                                         'ObservedEndTime',\
+                                                         'Observed Duration',\
+                                                         'StartTime',\
+                                                         'EndTime',\
+                                                         'Duration'
+                                                         ))
         for dicts in sorted(anc_granules_to_process,key=granIdKey) :
-            LOG.info("  %15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
+            LOG.info("{:^19}{:^30}{:^30}{:^20}{:^30}{:^30}{:^20}".format(dicts['N_Granule_ID'], \
+                                                      dicts['ObservedStartTime'].isoformat(), \
+                                                      dicts['ObservedEndTime'].isoformat(), \
+                                                      (dicts['ObservedEndTime']-dicts['ObservedStartTime']), \
+                                                      dicts['StartTime'].isoformat(), \
+                                                      dicts['EndTime'].isoformat(), \
+                                                      (dicts['EndTime']-dicts['StartTime'])
+                                                      ))
 
     for alg in algorithms :
         if alg.granules_to_process :
             LOG.info("")
-            LOG.info("We have %d candidate granules for %s" % (len(alg.granules_to_process),alg.AlgorithmName))
-            LOG.info("  %13s%28s%29s" % ('N_Granule_ID','ObservedStartTime','ObservedEndTime'))
+            LOG.info("We have {} candidate granules for {}".format(len(alg.granules_to_process),alg.AlgorithmName))
+            LOG.info("{:^19}{:^30}{:^30}{:^30}{:^30}{:^51}".format('N_Granule_ID','ObservedStartTime','ObservedEndTime','StartTime','EndTime','(prev,curr,next) N_Granule_ID'))
             for dicts in sorted(alg.granules_to_process,key=granIdKey) :
-                LOG.info("  %15s%30s%30s"%(dicts['N_Granule_ID'],dicts['ObservedStartTime'],dicts['ObservedEndTime']))
+                LOG.info("{:^19}{:^30}{:^30}{:^30}{:^30}({:^17}{:^17}{:^17})".format(dicts['N_Granule_ID'], \
+                                                          dicts['ObservedStartTime'].isoformat(), \
+                                                          dicts['ObservedEndTime'].isoformat(), \
+                                                          dicts['StartTime'].isoformat(), \
+                                                          dicts['EndTime'].isoformat(), \
+                                                          dicts['N_Granule_ID_prev'], \
+                                                          dicts['N_Granule_ID'], \
+                                                          dicts['N_Granule_ID_next']))
         else :
             LOG.info("We have %d candidate granules for %s" % (len(alg.granules_to_process),alg.AlgorithmName))
             num_xml_files_to_process = 0
@@ -1138,10 +1349,6 @@ def main():
     LOG.info('Finished sifting through metadata to find VIIRS SDR processing candidates')
 
     
-    # Set the VIIRS SDR endianness from the input option...
-    global sdrEndian
-    set_sdr_endian(options.sdr_Endianness)
-
     # Set the VIIRS ancillary endianness from the input option...
     global ancEndian
     set_anc_endian(options.anc_Endianness)
@@ -1158,9 +1365,6 @@ def main():
     LOG.debug("CSPP_RT_ANC_TILE_PATH:  %s" % (CSPP_RT_ANC_TILE_PATH))
     LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
     LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
-
-    # Examine the gelocation granules to create dummy bounding granules.
-    #_create_dummy_geo(work_dir,anc_granules_to_process) #-- FIXME
 
     # Retrieve and granulate the required ancillary data...
     if not options.skipAncillary :
@@ -1250,6 +1454,8 @@ def main():
             LOG.info("Building %s XML files for %d granules" % \
                     (alg.AlgorithmString,len(alg.granules_to_process)))
 
+            #LOG.info("alg.granules_to_process: %r" %(alg.granules_to_process))
+
             # Generate the VIIRS LW xml files for each N_Granule_ID for this algorithm.
             xml_files_to_process = alg.generate_viirs_edr_xml(work_dir, alg.granules_to_process)
         
@@ -1277,7 +1483,7 @@ def main():
                 LOG.warn("Non-zero error code %d for %s, aborting." % (rc, alg.AlgorithmName))
                 return rc
 
-        ## if no errors or only non-critical errors: clean up
+        # if no errors or only non-critical errors: clean up
         LOG.info("Return code : %d" % (rc))
         if rc == 0 and not options.cspp_debug:
             LOG.info("Cleaning up workspace...")
