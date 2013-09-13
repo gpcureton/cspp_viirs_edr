@@ -39,7 +39,7 @@ crossGranules['AOT'] = 1
 crossGranules['SST'] = 0
 crossGranules['SRFREF'] = 0
 crossGranules['VI'] = 0
-crossGranules['MPC'] = 0
+crossGranules['MPC'] = 1
 
 # What previous alg products are *explicitly* required for each algorithm.
 prerequisites = {}
