@@ -199,7 +199,6 @@ class AWIPS2_NetCDF4(object):
     row_dim_name, col_dim_name = None, None
     fac_dim_name, env_dim_name = None, None
 
-
     def create_dimensions(self, along, cross, factors):
         # Create Dimensions
         _nc = self._nc
@@ -207,11 +206,13 @@ class AWIPS2_NetCDF4(object):
         self.fac_dim_name = "Granule-%d" % factors # FIXME???
         self.col_dim_name = "CrossTrack-%d" % cross
         self.env_dim_name = "CrossTrack-3"   # FIXME??
+        LOG.debug('along-track %d' % along)
+        LOG.debug('cross-track %d' % cross)
+        LOG.debug('factors %d' % factors)
         _nc.createDimension(self.row_dim_name, along)
         _nc.createDimension(self.fac_dim_name, factors)
         _nc.createDimension(self.col_dim_name, cross)
         _nc.createDimension(self.env_dim_name, 3)
-
 
     def create_time_attrs(self, sdt, edt):
         # Create Global Attributes
@@ -228,13 +229,15 @@ class AWIPS2_NetCDF4(object):
     def create_image_vars(self, kind, collection, data, factors):
         # Create and write Variables
         # Image data
+        LOG.debug('data shape is %s' % repr(data.shape))
         bt_var = self._nc.createVariable("{0:s}@{1:s}".format(kind, collection), 'u2',
                                     dimensions=(self.row_dim_name, self.col_dim_name))
         bt_var[:, :] = data
         bt_var.setncattr("missing_value", "65535 65534 65533 65532 65531 65530 65529 65528")  # FUTURE: fix this
-        # XXX: Need missing_valuename?
+        # FIXME: Need missing_valuename?
         # Scaling Factors
         prefix = re.match(r'^([A-Z][a-z]+).*', kind).group(1)   # BrightnessTemperature -> Brightness
+        LOG.debug('%s is prefix' % prefix)
 
         bt_factors_var = self._nc.createVariable(
             "{0:s}Factors@{1:s}".format(prefix, collection),
@@ -255,7 +258,6 @@ class AWIPS2_NetCDF4(object):
                                           dimensions=(self.row_dim_name, self.env_dim_name))
         lon_var[:, :] = lon_envelope
         lon_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
-
 
     def __init__(self, filename):
         self._nc = Dataset(filename, 'w')
@@ -287,18 +289,29 @@ def _nc_filename_from_edr_path(gran, id='TIPB99', org='KNES'):
 
 
 def transform(edr_path, geo_path, nc_path = None):
+    LOG.info('opening files')
     gran = Granule(edr_path, geo_path)
     ncfn = _nc_filename_from_edr_path(gran) # FIXME id/org
     start, end = gran.start_end
+    LOG.debug('start, end = %s, %s' % (start,end))
+    LOG.info('creating output file %s' % ncfn)
     nc = AWIPS2_NetCDF4(ncfn)
+    LOG.debug('adding dimensions')
     nc.create_dimensions(gran.along_track_pixels, gran.cross_track_pixels, gran.factor_count)
+    LOG.debug('adding time attributes')
     nc.create_time_attrs(start, end)
+    LOG.debug('accessing G-Ring navigation')
     gr = gran.gring_lat_lon
+    LOG.debug("writing G-Ring attributes")
     nc.create_g_ring_attrs(g_ring_lat=gr.lat, g_ring_lon=gr.lon)
+    LOG.debug('transferring image data')
     nc.create_image_vars(gran.kind, gran.collection, gran.data, gran.factors)
+    LOG.debug('transferring lat-lon envelope')
     env = gran.lat_lon_envelope
     nc.create_geo_vars(gran.collection, lat_envelope=env.lat, lon_envelope=env.lon)
+    LOG.debug('syncing file')
     nc.close()
+    LOG.info('done!')
 
 
 
@@ -306,8 +319,6 @@ def main():
     import optparse
     usage = """
 %prog [options] VIIRS-imagery-file.h5 {VIIRS-geo-file.h5} {output-nc-file.h5}
-
-
 """
     parser = optparse.OptionParser(usage)
     #parser.add_option('-t', '--test', dest="self_test",
@@ -324,11 +335,11 @@ def main():
     global OPTS
     OPTS = options
 
-    if options.self_test:
-        # FIXME - run any self-tests
-        # import doctest
-        # doctest.testmod()
-        sys.exit(2)
+    #if options.self_test:
+    #    # FIXME - run any self-tests
+    #    # import doctest
+    #    # doctest.testmod()
+    #    sys.exit(2)
 
     levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
     logging.basicConfig(level = levels[min(3,options.verbosity)])
