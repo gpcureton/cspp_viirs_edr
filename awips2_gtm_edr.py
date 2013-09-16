@@ -31,22 +31,29 @@ LOG = logging.getLogger(__name__)
 
 
 def h5path(elf, path, groups=None):
+    LOG.debug('path search for %s' % repr(path))
     if not path:
         return elf
     if isinstance(path, str):
-        path = h5path(elf, path.split('/'), groups)
+        return h5path(elf, path.split('/'), groups)
+    LOG.debug('compiling %r' % path)
+    assert(isinstance(path[0], str))
     rx = re.compile(path[0])
     for k, v in elf.iteritems():
         m = rx.match(k)
-        if m:
-            if groups is not None:
-                groups.update(m.groupdict())
-            return h5path(v, path[1:], groups)
+        LOG.debug('checking %s' % k)
+        if not m:
+            continue
+        if groups is not None:
+            LOG.debug('updating information to include %s' % repr(m.groupdict()))
+            groups.update(m.groupdict())
+        return h5path(v, path[1:], groups) if len(path) > 1 else v
+    LOG.warning('no match for %s' % path[0])
     return None
 
 EDR_PATH = r'All_Data/(?P<collection>VIIRS-.*-EDR)_All/(?P<kind>BrightnessTemperature)'
 # where to find Latitude and Longitude
-GEO_PATH = r'All_Data/VIIRS-.*GTM-EDR_GEO_All'
+GEO_PATH = r'All_Data/VIIRS-.*GTM-EDR-GEO_All'
 TIME_PATH = r'Data_Products/VIIRS-.*GTM-EDR-GEO/VIIRS-.*-EDR-GEO_Aggr'
 GRING_PATH = r'Data_Products/VIIRS-.*GTM-EDR-GEO/VIIRS-.*-EDR-GEO_Gran_0'
 
@@ -110,6 +117,8 @@ class Granule(object):
         if geo_path is None:
             geo_ref = self.edr.attrs.get('N_GEO_Ref', None)
             if geo_ref:
+                geo_ref = str(geo_ref[0,0])
+                LOG.debug("N_GEO_Ref is %s" % geo_ref)
                 _, geo_filename = os.path.split(geo_ref)
                 geo_dir, _ = os.path.split(edr_path)
                 geo_path = os.path.join(geo_dir, geo_filename)
@@ -123,7 +132,8 @@ class Granule(object):
             self.geo_path = edr_path
             self.geo = self.edr
         self._info = {}
-        self._data = h5path(self.edr, EDR_PATH, self._info)[:]
+        h5v = h5path(self.edr, EDR_PATH, self._info)
+        self._data = h5v[:]
 
     @property
     def factors(self):
@@ -269,7 +279,7 @@ class AWIPS2_NetCDF4(object):
 
 
 def _ncdatefmt(dt):
-    return dt.strftime('%Y%m%d%H%M%S') + ('%1d' % (dt.microseconds / 100000))
+    return dt.strftime('%Y%m%d%H%M%S') + ('%1d' % (dt.microsecond / 100000))
 
 
 # extract time information from filename
@@ -285,10 +295,10 @@ def _nc_filename_from_edr_path(gran, id='TIPB99', org='KNES'):
     collection = gran.collection
     ncs = _ncdatefmt(sdt)
     nce = _ncdatefmt(edt)
-    return '{collection:s}_{id:s}_{org:s}_{sat:s}_s%(ncs)_e{nce:s}_c{c:s}.nc'.format(**locals())
+    return '{collection:s}_{id:s}_{org:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}.nc'.format(**locals())
 
 
-def transform(edr_path, geo_path, nc_path = None):
+def transform(edr_path, geo_path=None, nc_path=None):
     LOG.info('opening files')
     gran = Granule(edr_path, geo_path)
     ncfn = _nc_filename_from_edr_path(gran) # FIXME id/org
