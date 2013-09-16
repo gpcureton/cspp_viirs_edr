@@ -36,7 +36,7 @@ def h5path(elf, path, groups=None):
     if isinstance(path, str):
         path = h5path(elf, path.split('/'), groups)
     rx = re.compile(path[0])
-    for k,v in elf.iteritems():
+    for k, v in elf.iteritems():
         m = rx.match(k)
         if m:
             if groups is not None:
@@ -59,10 +59,13 @@ class UTC(datetime.tzinfo):
     """Time zone class for UTC
     """
     ZERO = datetime.timedelta(0)
+
     def utcoffset(self, dt):
         return self.ZERO
+
     def tzname(self, dt):
         return "UTC"
+
     def dst(self, dt):
         return self.ZERO
 
@@ -72,13 +75,15 @@ def utc_now():
 
 
 def nppdatetime(d, t, e=None):
-    "given d,t,e strings from filename, return datetime object or objects"
+    """
+    given d,t,e strings from filename, return datetime object or objects
+    """
     assert(len(d) == 8)
     t = t.split('.')[0]
     assert(len(t) in (6,7))
     start = datetime.datetime.strptime(d + 'T' + t[:6], '%Y%m%dT%H%M%S')
     start = start.replace(tzinfo=UTC())
-    if len(t)==7:
+    if len(t) == 7:
         start = start.replace(microsecond=int(t[6]) * 100000)
     if not e:
         return start
@@ -88,17 +93,35 @@ def nppdatetime(d, t, e=None):
     return start, end
 
 
-
 class Granule(object):
     """
-
+    Tool for accessing necessary components of EDR + GEO HDF5 files in accordance to CDFCB
     """
-    def __init__(self, edr_path, geo_path):
-        self.edr_path = edr_path
-        self.geo_path = geo_path
-        self.edr = h5py.File(edr_path, 'r')
-        self.geo = h5py.File(geo_path, 'r')
+    kind = None
+    collection = None
+    edr_path = None
+    edr = None
+    geo_path = None
+    geo = None
 
+    def __init__(self, edr_path, geo_path=None):
+        self.edr_path = edr_path
+        self.edr = h5py.File(edr_path, 'r')
+        if geo_path is None:
+            geo_ref = self.edr.attrs.get('N_GEO_Ref', None)
+            if geo_ref:
+                _, geo_filename = os.path.split(geo_ref)
+                geo_dir, _ = os.path.split(edr_path)
+                geo_path = os.path.join(geo_dir, geo_filename)
+                LOG.debug("using %s as geo path via N_GEO_Ref" % geo_path)
+            else:
+                LOG.info('no N_GEO_Ref; assuming integrated geolocation')
+        if geo_path:
+            self.geo_path = geo_path
+            self.geo = h5py.File(geo_path, 'r')
+        else:
+            self.geo_path = edr_path
+            self.geo = self.edr
         self._info = {}
         self._data = h5path(self.edr, EDR_PATH, self._info)[:]
 
@@ -145,7 +168,7 @@ class Granule(object):
     @property
     def lat_lon_envelope(self):
         # Make data manipulations
-        # FIXME: missing value testing?
+        # FIXME: missing value testing? short granule testing?
         lat_data, lon_data = self.lat_lon
         mid_idx = lat_data.shape[-1] / 2
         lat_envelope = lat_data[:, (0, mid_idx, -1)]
@@ -155,30 +178,17 @@ class Granule(object):
     @property
     def start_end(self):
         base = h5path(self.geo, TIME_PATH)
-        start_date = base.attrs["AggregateBeginningDate"][0,0]
-        start_time = base.attrs["AggregateBeginningTime"][0,0]
-        end_date = base.attrs["AggregateEndingDate"][0,0]
-        end_time = base.attrs["AggregateEndingTime"][0,0]
+        start_date = base.attrs["AggregateBeginningDate"][0, 0]
+        start_time = base.attrs["AggregateBeginningTime"][0, 0]
+        end_date = base.attrs["AggregateEndingDate"][0, 0]
+        end_time = base.attrs["AggregateEndingTime"][0, 0]
         return nppdatetime(start_date, start_time), nppdatetime(end_date, end_time)
 
     @property
     def gring_lat_lon(self):
-        # FIXME this doesn't deal with aggregates having more than one granule
+        # FIXME this doesn't deal with aggregates having more than one granule, consistency could be improved on h5 paths
         base = h5path(self.geo, GRING_PATH)
         return latlon(base.attrs["G-Ring_Latitude"][:].astype(np.float64), base.attrs["G-Ring_Longitude"][:].astype(np.float64))
-
-    # FIXME deal with scale factors
-
-    #def geo_group(self):
-    #    for k,v in self.geo['All_Data'].iteritems():
-    #        if RE_GEO.match(k):
-    #            return v
-    #    return None
-    #
-    #def time_range(self):
-    #    for k,v in self.geo['Data_Products'].iteritems():
-    #        if RE_GEO.match(k):
-    #            return v
 
 
 class AWIPS2_NetCDF4(object):
@@ -186,6 +196,9 @@ class AWIPS2_NetCDF4(object):
     Tool for creating AWIPS2 NetCDF files
     """
     _nc = None
+    row_dim_name, col_dim_name = None, None
+    fac_dim_name, env_dim_name = None, None
+
 
     def create_dimensions(self, along, cross, factors):
         # Create Dimensions
@@ -287,6 +300,50 @@ def transform(edr_path, geo_path, nc_path = None):
     nc.create_geo_vars(gran.collection, lat_envelope=env.lat, lon_envelope=env.lon)
     nc.close()
 
+
+
+def main():
+    import optparse
+    usage = """
+%prog [options] VIIRS-imagery-file.h5 {VIIRS-geo-file.h5} {output-nc-file.h5}
+
+
+"""
+    parser = optparse.OptionParser(usage)
+    #parser.add_option('-t', '--test', dest="self_test",
+    #                action="store_true", default=False, help="run self-tests")
+    parser.add_option('-v', '--verbose', dest='verbosity', action="count", default=0,
+                    help='each occurrence increases verbosity 1 level through ERROR-WARNING-INFO-DEBUG')
+    # parser.add_option('-o', '--output', dest='output',
+    #                 help='location to store output')
+    # parser.add_option('-I', '--include-path', dest="includes",
+    #                 action="append", help="include path to append to GCCXML call")
+    (options, args) = parser.parse_args()
+
+    # make options a globally accessible structure, e.g. OPTS.
+    global OPTS
+    OPTS = options
+
+    if options.self_test:
+        # FIXME - run any self-tests
+        # import doctest
+        # doctest.testmod()
+        sys.exit(2)
+
+    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+    logging.basicConfig(level = levels[min(3,options.verbosity)])
+
+    if not args:
+        parser.error( 'incorrect arguments, try -h or --help.' )
+        return 9
+
+    transform(*args)
+
+    return 0
+
+
+if __name__=='__main__':
+    sys.exit(main())
 
 
 
