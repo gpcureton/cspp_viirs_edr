@@ -35,6 +35,7 @@ import string, sys
 from glob import glob
 from os import path, uname
 from time import time
+import traceback
 
 import numpy as np
 from  numpy import ma as ma
@@ -61,6 +62,7 @@ import viirs_cloud_mask as viirsCM
 import viirs_cloud_products as viirsCld
 import viirs_aerosol_products as viirsAero
 import viirs_sst_products as viirsSST
+import viirs_vi_products as viirsVI
 
 import tables as pytables
 from tables import exceptions as pyEx
@@ -2274,6 +2276,132 @@ def gran_SST(geoList,sstList,shrink=1):
     return lats,lons,data,lat_0,lon_0,ModeGran
 
 
+def gran_NDVI(geoList,ndviList,shrink=1):
+    '''
+    Returns the granulated AOT
+    '''
+
+    try :
+        reload(viirsVI)
+        reload(viirs_edr_data)
+        del(viirsNDVIObj)
+        del(latArr)
+        del(lonArr)
+        del(ndviArr)
+        #del(qf2Arr)
+    except :
+        pass
+
+    print "Creating viirsNDVIObj..."
+    reload(viirsVI)
+    viirsNDVIObj = viirsVI.viirsVI()
+    print "done"
+
+    # Determine the correct fillValue
+    trimObj = ViirsTrimTable()
+
+    # Build up the swath...
+    for grans in np.arange(len(geoList)):
+
+        print "\nIngesting granule %d ..." % (grans)
+        retList = viirsNDVIObj.ingest(geoList[grans],ndviList[grans],'ndvi',shrink)
+
+        try :
+            latArr  = np.vstack((latArr,viirsNDVIObj.Lat[:,:]))
+            lonArr  = np.vstack((lonArr,viirsNDVIObj.Lon[:,:]))
+            ModeGran = viirsNDVIObj.ModeGran
+            print "subsequent geo arrays..."
+        except NameError :
+            latArr  = viirsNDVIObj.Lat[:,:]
+            lonArr  = viirsNDVIObj.Lon[:,:]
+            ModeGran = viirsNDVIObj.ModeGran
+            print "first geo arrays..."
+
+        print "Intermediate latArr = %s" % (str(latArr.shape))
+        print "Intermediate lonArr = %s" % (str(lonArr.shape))
+
+        try :
+            ndviArr  = np.vstack((ndviArr ,viirsNDVIObj.ViirsVIprodSDS[:,:]))
+            #qf1Arr = np.vstack((qf1Arr,viirsNDVIObj.ViirsNDVI_QF1[:,:]))
+            #qf2Arr = np.vstack((qf2Arr,viirsNDVIObj.ViirsNDVI_QF2[:,:]))
+            #qf3Arr = np.vstack((qf3Arr,viirsNDVIObj.ViirsNDVI_QF3[:,:]))
+            print "subsequent ndvi arrays..."
+        except NameError :
+            ndviArr  = viirsNDVIObj.ViirsVIprodSDS[:,:]
+            #qf1Arr = viirsNDVIObj.ViirsNDVI_QF1[:,:]
+            #qf2Arr = viirsNDVIObj.ViirsNDVI_QF2[:,:]
+            #qf3Arr = viirsNDVIObj.ViirsNDVI_QF3[:,:]
+            #qf4Arr = viirsNDVIObj.ViirsNDVI_QF4[:,:]
+            print "first ndvi arrays..."
+
+        print "Intermediate ndviArr.shape = %s" % (str(ndviArr.shape))
+        #print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
+        #print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
+        #print "Intermediate qf3Arr.shape = %s" % (str(qf3Arr.shape))
+        #print "Intermediate qf4Arr.shape = %s" % (str(qf4Arr.shape))
+
+    lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
+    lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
+
+    print "lat_0,lon_0 = ",lat_0,lon_0
+
+    try :
+        #Determine masks for each fill type, for the NDVI EDR
+        ndviFillMasks = {}
+        for fillType in trimObj.sdrTypeFill.keys() :
+            fillValue = trimObj.sdrTypeFill[fillType][ndviArr.dtype.name]
+            if 'float' in fillValue.__class__.__name__ :
+                ndviFillMasks[fillType] = ma.masked_inside(ndviArr,fillValue-eps,fillValue+eps).mask
+                if (ndviFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    ndviFillMasks[fillType] = None
+            elif 'int' in fillValue.__class__.__name__ :
+                ndviFillMasks[fillType] = ma.masked_equal(ndviArr,fillValue).mask
+                if (ndviFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    ndviFillMasks[fillType] = None
+            else :
+                print "Dataset was neither int not float... a worry"
+                pass
+
+        #Construct the total mask from all of the various fill values
+        fillMask = ma.array(np.zeros(ndviArr.shape,dtype=np.bool))
+        for fillType in trimObj.sdrTypeFill.keys() :
+            if ndviFillMasks[fillType] is not None :
+                fillMask = fillMask * ma.array(np.zeros(ndviArr.shape,dtype=np.bool),\
+                    mask=ndviFillMasks[fillType])
+
+
+        # Unscale the NDVI dataset
+        ndviArr =  ndviArr * viirsNDVIObj.viFactors[0] + viirsNDVIObj.viFactors[1]
+
+        # Define some masks...
+        #fillMask = ma.masked_less(ndviArr,-800.).mask
+        #NDVIqualFlag = np.bitwise_and(qf1Arr,3) >> 0
+        #ndviQualMask = ma.masked_equal(NDVIqualFlag,0).mask
+
+        # Combine the fill mask and quality masks...
+        totalMask = fillMask.mask
+        #totalMask = fillMask.mask + ndviQualMask
+        #totalMask = np.zeros(ndviArr.shape,dtype=np.bool)
+
+        try :
+            data = ma.array(ndviArr,mask=totalMask)
+            lats = ma.array(latArr,mask=totalMask)
+            lons = ma.array(lonArr,mask=totalMask)
+        except ma.core.MaskError :
+            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            traceback.print_exc(file=sys.stdout)
+            sys.exit(1)
+
+    except Exception, err :
+        print ">> error: %s..." % (str(err))
+        traceback.print_exc(file=sys.stdout)
+        sys.exit(1)
+
+    print "gran_NDVI ModeGran = ",ModeGran
+
+    return lats,lons,data,lat_0,lon_0,ModeGran
+
+
 ###################################################
 #                 Plotting Functions              #
 ###################################################
@@ -2659,6 +2787,136 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
 
     # Colourbar title
     cax_title = ppl.setp(cax,title="Sea Surface Temperature ($\mathrm{K}$)")
+    ppl.setp(cax_title,fontsize=9)
+
+    #
+    # Add a small globe with the swath indicated on it #
+    #
+
+    # Create main axes instance, leaving room for colorbar at bottom,
+    # and also get the Bbox of the axes instance
+    glax_rect = [0.81, 0.75, 0.18, 0.20 ] # [left,bottom,width,height]
+    glax = fig.add_axes(glax_rect)
+
+    m_globe = Basemap(lat_0=0.,lon_0=0.,\
+        ax=glax,resolution='c',area_thresh=10000.,projection='robin')
+
+    # If we previously had a zero size data array, increase the pointSize
+    # so the data points are visible on the global plot
+    if (np.shape(gridLon)[0]==2) :
+        pointSize = 5.
+
+    x,y=m_globe(np.array(gridLon),np.array(gridLat))
+    swath = np.zeros(np.shape(x),dtype=int)
+
+    m_globe.drawmapboundary(linewidth=0.1)
+    m_globe.fillcontinents(ax=glax,color='gray',zorder=1)
+    m_globe.drawcoastlines(ax=glax,linewidth=0.1,zorder=3)
+
+    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none',zorder=2)
+
+    # Globe axis title
+    glax_xlabel = ppl.setp(glax,xlabel=titleStr)
+    ppl.setp(glax_xlabel,fontsize=6)
+
+    # Redraw the figure
+    canvas.draw()
+
+    # save image 
+    print "Writing file to ",outFileName
+    canvas.print_figure(outFileName,dpi=dpi)
+
+
+def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
+        vmin=-1.,vmax=1.,scale=1.3, \
+        lat_0=0.,lon_0=0.,pointSize=1.,mapRes='c',cmap=None, \
+        prodFileName='',outFileName='VIVIO.png',dpi=300,titleStr='VIIRS NDVI EDR'):
+    '''
+    Plots the VIIRS Normalised Vegetation Index on an orthographic projection
+    '''
+
+    reload(viirs_edr_data)
+
+    # The plot range...
+    print "vmin,vmax = ",vmin,vmax 
+
+    # If we have a zero size data array, make a dummy dataset
+    # to span the allowed data range, which will be plotted with 
+    # vanishing pointsize
+    if (np.shape(gridLon)[0]==0) :
+        print "We have no valid data, synthesising dummy data..."
+        gridLat = np.array([lat_0,lat_0])
+        gridLon = np.array([lon_0,lon_0])
+        gridData = np.array([0.,1.])
+        pointSize = 0.001
+
+    # Setup plotting data
+
+    figWidth = 5. # inches
+    figHeight = 4. # inches
+
+    # Create figure with default size, and create canvas to draw on
+    fig = Figure(figsize=((figWidth,figHeight)))
+    canvas = FigureCanvas(fig)
+
+    # Create main axes instance, leaving room for colorbar at bottom,
+    # and also get the Bbox of the axes instance
+    ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
+    ax = fig.add_axes(ax_rect)
+
+    # Granule axis title
+    ax_title = ppl.setp(ax,title=prodFileName)
+    ppl.setp(ax_title,fontsize=6)
+    ppl.setp(ax_title,family="monospace")
+
+    # Create Basemap instance
+    # set 'ax' keyword so pylab won't be imported.
+    windowWidth = scale *(0.35*12000000.)
+    windowHeight = scale *(0.50*9000000.)
+    m = Basemap(width=windowWidth,height=windowHeight,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(width=0.35*12000000.,height=0.65*9000000.,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=False,resolution=mapRes)
+    #m = Basemap(width=0.75*12000000.,height=9000000.,projection='merc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,\
+        #ax=ax,fix_aspect=True,resolution=mapRes,\
+        #llcrnrx = -1. * scale * 3200. * 750./2.,\
+        #llcrnry = -1. * scale * 3200. * 750./2.,\
+        #urcrnrx =       scale * 3200. * 750./2.,\
+        #urcrnry =       scale * 3200. * 750./2.)
+
+
+    x,y=m(np.array(gridLon),np.array(gridLat))
+
+    # Some map style configuration stufff
+    #m.drawlsmask(ax=ax,land_color='gray',ocean_color='black',lakes=True)
+    m.drawmapboundary(ax=ax,linewidth=0.01,fill_color='black')
+    m.drawcoastlines(ax=ax,linewidth=0.3,color='white')
+    m.fillcontinents(ax=ax,color='gray',lake_color='black',zorder=0)
+    #m.drawparallels(np.arange(-90.,120.,30.),color='white')
+    #m.drawmeridians(np.arange(0.,420.,60.),color='white')
+
+    #m.bluemarble()
+
+    # Plot the granule data
+    #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
+    #gridData = ma.masked_outside(gridData,vmin,vmax)
+    cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
+
+    print "orthoPlot_NDVI ModeGran = ",ModeGran
+    #if (ModeGran == 0) :
+        #print "Printing NIGHT text"
+        #fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
+
+    # add a colorbar axis
+    cax_rect = [0.05 , 0.05, 0.9 , 0.06 ] # [left,bottom,width,height]
+    cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
+
+    # Plot the colorbar.
+    cb = fig.colorbar(cs, cax=cax, orientation='horizontal')
+    ppl.setp(cax.get_xticklabels(),fontsize=9)
+
+    # Colourbar title
+    cax_title = ppl.setp(cax,title="TOA Normalised Vegetation Index (NDVI)")
     ppl.setp(cax_title,fontsize=9)
 
     #
@@ -3087,7 +3345,7 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
 def main():
 
     #prodChoices=['VCM','VCP','COT','COT_EDR','EPS','EPS_EDR','CTT','CTT_EDR','CTH','CTH_EDR','CTP','CTP_EDR','AOT','AOT_EDR','SST_EDR','SDR']
-    prodChoices=['VCM','VCP','AOT','AOT_EDR','SST_EDR']
+    prodChoices=['VCM','VCP','AOT','AOT_EDR','SST_EDR','NDVI']
     mapRes = ['c','l','i']
 
     description = \
@@ -3348,82 +3606,99 @@ def main():
             pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    if 'COT_EDR' in options.ipProd :
-        print "Calling COT EDR ingester..."
-        stride = stride_EDR if options.stride==None else options.stride
-        lats,lons,cotData,cotPhase,lat_0,lon_0 = gran_COT_EDR([options.geoFile],[options.ipFile],shrink=stride)
-        dset=string.split(dataSet,'_')[0]
-        print "Calling COT plotter...",dset
-        pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
-        orthoPlot_COP(lats,lons,cotData,cotPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
-            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
-
-    elif 'EPS_EDR' in options.ipProd :
-        print "Calling EPS EDR ingester..."
-        stride = stride_EDR if options.stride==None else options.stride
-        lats,lons,epsData,epsPhase,lat_0,lon_0 = gran_EPS_EDR([options.geoFile],[options.ipFile],shrink=stride)
-        dset=string.split(dataSet,'_')[0]
-        print "Calling EPS plotter...",dset
-        pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
-        orthoPlot_COP(lats,lons,epsData,epsPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
-            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
-
-    elif 'COT' in options.ipProd or 'EPS' in options.ipProd :
-        print "Calling COP ingester..."
+    elif 'NDVI' in options.ipProd :
+        print "Calling NDVI ingester..."
         stride = stride_IP if options.stride==None else options.stride
-        lats,lons,copData,copPhase,lat_0,lon_0 = gran_COP([options.geoFile],[options.ipFile],\
-            dataSet,shrink=stride)
-        print "Calling COP plotter..."
+        #vmin = 290. if (vmin==None) else vmin
+        #vmax = 305. if (vmax==None) else vmax
+
+        lats,lons,ndviData,gran_lat_0,gran_lon_0,ModeGran = gran_NDVI(geoList,prodList,shrink=stride)
+        
+        lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
+        lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
+
+        print "Calling NDVI plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
-        orthoPlot_COP(lats,lons,copData,copPhase,dataSet,lat_0=lat_0,lon_0=lon_0,\
-            abScale='log',pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+        orthoPlot_NDVI(lats,lons,ndviData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
+            pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    if 'CTT_EDR' in options.ipProd :
-        print "Calling CTT EDR ingester..."
-        stride = stride_EDR if options.stride==None else options.stride
-        lats,lons,cttData,cttPhase,lat_0,lon_0 = gran_CTT_EDR([options.geoFile],[options.ipFile],shrink=stride)
-        dset=string.split(dataSet,'_')[0]
-        print "Calling CTT plotter...",dset
-        pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
-        orthoPlot_CTp(lats,lons,cttData,cttPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
-            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+    #if 'COT_EDR' in options.ipProd :
+        #print "Calling COT EDR ingester..."
+        #stride = stride_EDR if options.stride==None else options.stride
+        #lats,lons,cotData,cotPhase,lat_0,lon_0 = gran_COT_EDR([options.geoFile],[options.ipFile],shrink=stride)
+        #dset=string.split(dataSet,'_')[0]
+        #print "Calling COT plotter...",dset
+        #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
+        #orthoPlot_COP(lats,lons,cotData,cotPhase,dset,lat_0=lat_0,lon_0=lon_0,\
+            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    elif 'CTP_EDR' in options.ipProd :
-        print "Calling CTP EDR ingester..."
-        stride = stride_EDR if options.stride==None else options.stride
-        lats,lons,ctpData,ctpPhase,lat_0,lon_0 = gran_CTP_EDR([options.geoFile],[options.ipFile],shrink=stride)
-        dset=string.split(dataSet,'_')[0]
-        print "Calling CTP plotter...",dset
-        pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
-        orthoPlot_CTp(lats,lons,ctpData,ctpPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
-            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+    #elif 'EPS_EDR' in options.ipProd :
+        #print "Calling EPS EDR ingester..."
+        #stride = stride_EDR if options.stride==None else options.stride
+        #lats,lons,epsData,epsPhase,lat_0,lon_0 = gran_EPS_EDR([options.geoFile],[options.ipFile],shrink=stride)
+        #dset=string.split(dataSet,'_')[0]
+        #print "Calling EPS plotter...",dset
+        #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
+        #orthoPlot_COP(lats,lons,epsData,epsPhase,dset,lat_0=lat_0,lon_0=lon_0,\
+            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    elif 'CTH_EDR' in options.ipProd :
-        print "Calling CTH EDR ingester..."
-        stride = stride_EDR if options.stride==None else options.stride
-        lats,lons,cthData,cthPhase,lat_0,lon_0 = gran_CTH_EDR([options.geoFile],[options.ipFile],shrink=stride)
-        dset=string.split(dataSet,'_')[0]
-        print "Calling CTH plotter...",dset
-        pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
-        orthoPlot_CTp(lats,lons,cthData,cthPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
-            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+    #elif 'COT' in options.ipProd or 'EPS' in options.ipProd :
+        #print "Calling COP ingester..."
+        #stride = stride_IP if options.stride==None else options.stride
+        #lats,lons,copData,copPhase,lat_0,lon_0 = gran_COP([options.geoFile],[options.ipFile],\
+            #dataSet,shrink=stride)
+        #print "Calling COP plotter..."
+        #pointSize = pointSize_IP if options.pointSize==None else options.pointSize
+        #orthoPlot_COP(lats,lons,copData,copPhase,dataSet,lat_0=lat_0,lon_0=lon_0,\
+            #abScale='log',pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    elif 'CTT' in options.ipProd or 'CTP' in options.ipProd or 'CTH' in options.ipProd :
-        print "Calling CTp ingester..."
-        stride = stride_IP if options.stride==None else options.stride
-        lats,lons,ctpData,ctpPhase,lat_0,lon_0 = gran_CTp([options.geoFile],[options.ipFile],\
-            dataSet,shrink=stride)
-        print "Calling CTp plotter..."
-        pointSize = pointSize_IP if options.pointSize==None else options.pointSize
-        orthoPlot_CTp(lats,lons,ctpData,ctpPhase,dataSet,lat_0=lat_0,lon_0=lon_0,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
-            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+    #if 'CTT_EDR' in options.ipProd :
+        #print "Calling CTT EDR ingester..."
+        #stride = stride_EDR if options.stride==None else options.stride
+        #lats,lons,cttData,cttPhase,lat_0,lon_0 = gran_CTT_EDR([options.geoFile],[options.ipFile],shrink=stride)
+        #dset=string.split(dataSet,'_')[0]
+        #print "Calling CTT plotter...",dset
+        #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
+        #orthoPlot_CTp(lats,lons,cttData,cttPhase,dset,lat_0=lat_0,lon_0=lon_0,\
+            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+
+    #elif 'CTP_EDR' in options.ipProd :
+        #print "Calling CTP EDR ingester..."
+        #stride = stride_EDR if options.stride==None else options.stride
+        #lats,lons,ctpData,ctpPhase,lat_0,lon_0 = gran_CTP_EDR([options.geoFile],[options.ipFile],shrink=stride)
+        #dset=string.split(dataSet,'_')[0]
+        #print "Calling CTP plotter...",dset
+        #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
+        #orthoPlot_CTp(lats,lons,ctpData,ctpPhase,dset,lat_0=lat_0,lon_0=lon_0,\
+            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+
+    #elif 'CTH_EDR' in options.ipProd :
+        #print "Calling CTH EDR ingester..."
+        #stride = stride_EDR if options.stride==None else options.stride
+        #lats,lons,cthData,cthPhase,lat_0,lon_0 = gran_CTH_EDR([options.geoFile],[options.ipFile],shrink=stride)
+        #dset=string.split(dataSet,'_')[0]
+        #print "Calling CTH plotter...",dset
+        #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
+        #orthoPlot_CTp(lats,lons,cthData,cthPhase,dset,lat_0=lat_0,lon_0=lon_0,\
+            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+
+    #elif 'CTT' in options.ipProd or 'CTP' in options.ipProd or 'CTH' in options.ipProd :
+        #print "Calling CTp ingester..."
+        #stride = stride_IP if options.stride==None else options.stride
+        #lats,lons,ctpData,ctpPhase,lat_0,lon_0 = gran_CTp([options.geoFile],[options.ipFile],\
+            #dataSet,shrink=stride)
+        #print "Calling CTp plotter..."
+        #pointSize = pointSize_IP if options.pointSize==None else options.pointSize
+        #orthoPlot_CTp(lats,lons,ctpData,ctpPhase,dataSet,lat_0=lat_0,lon_0=lon_0,\
+            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     print "Exiting..."
     sys.exit(0)
