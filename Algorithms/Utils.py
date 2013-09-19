@@ -85,7 +85,6 @@ def check_log_files(work_dir, pid, xml):
     """
     # retrieve exe name and log path from lw file
     logpat = path.join(work_dir, "log", "*%d*.log" % pid)
-    LOG.info("logpat : {}".format(logpat))
 
     n_err=0
     for logFile in glob(logpat):
