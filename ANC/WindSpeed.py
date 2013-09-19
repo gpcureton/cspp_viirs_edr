@@ -461,4 +461,4 @@ class WindSpeed() :
         ''' Pass the current class instance to this Utils method to generate 
             a blob/asc file pair from the input ancillary data object.'''
 
-        shipOutToFile(self)
+        return shipOutToFile(self)

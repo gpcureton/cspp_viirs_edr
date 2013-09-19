@@ -332,6 +332,8 @@ def shipOutToFile(ANCobj):
     ascFile.close()
     ascTemplateFile.close()
 
+    return URID
+
 
 def retrieve_NCEP_grib_files(geoDicts):
     ''' Download the GRIB files which cover the dates of the geolocation files.'''

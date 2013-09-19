@@ -382,3 +382,5 @@ class GridRowColumn() :
 
         ascFile.close()
         ascTemplateFile.close()
+
+        return URID

@@ -127,6 +127,10 @@ AUX_Paths = [
              'luts/viirs'
             ]
 
+EDR_collectionShortNames = [
+                           'VIIRS-Surf-Refl-IP'
+                          ]
+
 controllerBinary = 'ProEdrViirsSurfReflectController.exe'
 ADL_VIIRS_SURFREF_IP=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsSurfReflectController.exe'))
 

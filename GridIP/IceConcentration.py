@@ -824,10 +824,12 @@ class IceConcentration() :
         ascFile.close()
         ascTemplateFile.close()
 
+        return URID
+
 
     def shipOutToFile(self):
         ''' Pass the current class instance to this Utils method to generate 
             a blob/asc file pair from the input ancillary data object.'''
 
         #shipOutToFile(self)
-        self.__shipOutToFile()
+        return self.__shipOutToFile()

@@ -84,6 +84,10 @@ AUX_Paths = [
              'luts/viirs'
             ]
 
+EDR_collectionShortNames = [
+                           'VIIRS-VI-EDR'
+                          ]
+
 controllerBinary = 'ProEdrViirsVI.exe'
 ADL_VIIRS_VI_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsVI.exe'))
 

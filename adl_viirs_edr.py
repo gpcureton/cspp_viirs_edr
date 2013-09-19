@@ -581,6 +581,8 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
     VIIRS EDR outputs as geolocation inputs, for each algorithm.
     """
 
+    global sdrEndian 
+
     PAT_URID = r'"(?P<URID>[-a-zA-Z0-9]+)" UR "(?P<UnpackTime>[- \d:.]+)"'
     PAT_GRANULE_ID = r'\("N_Granule_ID" STRING EQ "(?P<N_Granule_ID>\w+)"\)'
     PAT_GRANULE_VERSION = r'\("N_Granule_Version" STRING EQ "(?P<N_Granule_Version>\w+)"\)'
@@ -613,9 +615,8 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
     # A key for sorting lists of granule dictionaries according to N_Granule_ID
     granIdKey = lambda x: (x['N_Granule_ID'])
 
+    # The time format required for the asc file time strings
     ascFileTimeFormatStr = '%Y-%m-%d %H:%M:%S.%f'
-
-    global sdrEndian 
 
     # Make a list of the required filetypes....
     requiredShortnames = requiredGeoShortname + requiredSdrShortname
@@ -637,6 +638,9 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
         else :
             LOG.info("\tNo {} granules for VIIRS".format(shortName))
 
+    # Make a list of dummy granule IDs
+    dummy_granule_IDs = [] 
+    dummy_granule_dict = {} 
 
     for shortName in requiredShortnames :
 
@@ -723,6 +727,16 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
             newBlobFileName = "{}.{}".format(URID,first_N_Collection_Short_Name)
             LOG.debug("Copying {} to {}".format(first_BlobFile,path.join(first_blobDir,newBlobFileName)))
             copyfile(first_BlobFile,path.join(first_blobDir,newBlobFileName))
+
+            dummy_granule_IDs.append(N_Granule_ID)
+
+            try :
+                dummy_granule_dict[N_Granule_ID][shortName] = None
+            except :
+                dummy_granule_dict[N_Granule_ID] = {shortName:None}
+
+            dummy_granule_dict[N_Granule_ID][shortName] = URID
+            #LOG.info("dummy_granule_dict['{}'] = {}".format(N_Granule_ID,dummy_granule_dict[N_Granule_ID]))
 
 
     for shortName in requiredShortnames :
@@ -811,8 +825,25 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
             LOG.debug("Copying {} to {}".format(last_BlobFile,path.join(last_blobDir,newBlobFileName)))
             copyfile(last_BlobFile,path.join(last_blobDir,newBlobFileName))
 
+            dummy_granule_IDs.append(N_Granule_ID)
 
-def _granulate_ANC(inDir,geoDicts,algList):
+            try :
+                dummy_granule_dict[N_Granule_ID][shortName] = None
+            except :
+                dummy_granule_dict[N_Granule_ID] = {shortName:None}
+
+            dummy_granule_dict[N_Granule_ID][shortName] = URID
+            #LOG.info("dummy_granule_dict['{}'] = {}".format(N_Granule_ID,dummy_granule_dict[N_Granule_ID]))
+
+
+    # Make a unique list of the collected dummy granule IDs
+    dummy_granule_dict['N_Granule_ID'] = list(set(dummy_granule_IDs))
+    
+
+    return dummy_granule_dict
+
+
+def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
     '''Granulates the input gridded blob files into the required ANC granulated datasets.'''
 
     import ANC
@@ -946,6 +977,7 @@ def _granulate_ANC(inDir,geoDicts,algList):
         else :
             ANC_objects[shortName].ingest()
 
+    #dummy_granule_dict = {} 
 
     # Loop through the required ANC datasets and create the blobs.
     granIdKey = lambda x: (x['N_Granule_ID'])
@@ -961,10 +993,23 @@ def _granulate_ANC(inDir,geoDicts,algList):
             ANC_objects[shortName].granulate(ANC_objects)
 
             # Shipout the granulated data in this ancillary object to a blob/asc pair.
-            ANC_objects[shortName].shipOutToFile()
+            URID = ANC_objects[shortName].shipOutToFile()
+
+            # If this granule ID is in the list of dummy IDs, add this URID to the 
+            # dummy_granule_dict dictionary.
+            N_Granule_ID = dicts['N_Granule_ID']
+            if N_Granule_ID in dummy_granule_dict.keys():
+                try :
+                    dummy_granule_dict[N_Granule_ID][shortName] = None
+                except :
+                    dummy_granule_dict[N_Granule_ID] = {shortName:None}
+
+                dummy_granule_dict[N_Granule_ID][shortName] = URID
+                
+    return dummy_granule_dict
 
 
-def _granulate_GridIP(inDir,geoDicts,algList):
+def _granulate_GridIP(inDir,geoDicts,algList,dummy_granule_dict):
     '''Granulates the input gridded static data into the required GridIP granulated datasets.'''
 
     import GridIP
@@ -1033,13 +1078,98 @@ def _granulate_GridIP(inDir,geoDicts,algList):
             GridIP_objects[shortName].granulate(GridIP_objects)
 
             # Shipout the granulated data in this ancillary object to a blob/asc pair.
-            GridIP_objects[shortName].shipOutToFile()
+            URID = GridIP_objects[shortName].shipOutToFile()
+
+            # If this granule ID is in the list of dummy IDs, add this URID to the 
+            # dummy_granule_dict dictionary.
+            N_Granule_ID = dicts['N_Granule_ID']
+            if N_Granule_ID in dummy_granule_dict.keys():
+                try :
+                    dummy_granule_dict[N_Granule_ID][shortName] = None
+                except :
+                    dummy_granule_dict[N_Granule_ID] = {shortName:None}
+
+                dummy_granule_dict[N_Granule_ID][shortName] = URID
+                
+    return dummy_granule_dict
+
+
+def __cleanup_dummy_files(work_dir, algList, noDummyGranules, dummy_granule_dict):
+    '''
+    Remove radiometric, geolocation and ancillary blob/asc pairs, and product HDF5
+    files that correspond to the dummy values of N_Granule_ID.
+    '''
+    # Remove dummy SDR and ancillary files
+    if not noDummyGranules:
+        LOG.info("Removing dummy SDR and ancillary blob/asc file pairs...")
+        for granID in dummy_granule_dict['N_Granule_ID']:
+            for shortName in dummy_granule_dict[granID].keys():
+                URID = dummy_granule_dict[granID][shortName]
+                dummyGlob = "{}.*".format(URID)
+                dummyFiles = glob(path.join(work_dir,dummyGlob))
+                for files in dummyFiles:
+                    if path.exists(files):
+                        LOG.info('Removing dummy {:15}:{:16} file -> {}'.format(granID,shortName,files))
+                        os.unlink(files)
+
+    # Remove dummy HDF5 product files
+    for alg in algList :
+        LOG.info("Removing dummy {} HDF5 files...".format(alg))
+        for prefix,nodeName in zip(Algorithms.edr_hdf5_prefix[alg],Algorithms.edr_hdf5_Gran_0[alg]):
+            edr_glob = "{}*.h5".format(prefix)
+            edr_glob = path.join(work_dir,edr_glob)
+            edr_hdf5_files = glob(edr_glob)
+            if edr_hdf5_files != []:
+                for hdf5File in edr_hdf5_files:
+                    try : 
+                        hdf5Obj = pytables.openFile(hdf5File)
+                        Gran_0 = hdf5Obj.getNode(nodeName)
+                        thisGranID =  getattr(Gran_0.attrs,'N_Granule_ID')[0][0]
+                        hdf5Obj.close()
+                        if thisGranID in dummy_granule_dict['N_Granule_ID']:
+                            LOG.info('Removing dummy {1:5} file with granule ID {0:15}: {2:}'.format(thisGranID,prefix,hdf5File))
+                            os.unlink(hdf5File)
+                    except Exception, err :
+                        LOG.warn("Problem deleting HDF5 file {}".format(hdf5File))
+                        LOG.warn("{}".format(err))
+                        LOG.debug(traceback.format_exc())
+
+
+def __cleanup(work_dir, dirs_to_remove):
+    '''
+    Remove radiometric, geolocation and ancillary blob/asc pairs, and product HDF5
+    files that correspond to the dummy values of N_Granule_ID.
+    '''
+    # Remove SDR asc/blob file pairs
+    LOG.info("Removing SDR blob/asc file pairs...")
+    sdr_glob = path.join(work_dir,"*.VIIRS-[MI][1-9]*-SDR")
+    geo_glob = path.join(work_dir,"*.VIIRS-[MI]*-GEO*")
+    blobFiles = glob(sdr_glob) + glob(geo_glob)
+    if blobFiles != [] :
+        for blobFile in blobFiles:
+            blobDir = path.dirname(blobFile)
+            URID = string.split(path.basename(blobFile),".")[0]
+            ascFile = path.join(blobDir,"{}.asc".format(URID))
+            LOG.info('Removing {}'.format(blobFile))
+            os.unlink(blobFile)
+            LOG.info('Removing {}'.format(ascFile))
+            os.unlink(ascFile)
+
+    # Remove log directory
+    LOG.info("Removing other directories ...")
+    for dirname in dirs_to_remove:
+        fullDirName = path.join(work_dir,dirname)
+        LOG.info('Removing {}'.format(fullDirName))
+        try :
+            rmtree(fullDirName, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "{}".format(str(err)))
 
 
 def main():
 
     endianChoices = ['little','big']
-    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','MPC']
+    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','ATMOS','LAND','OCEAN','MPC']
 
     description = '''Run one or more ADL VIIRS EDR Controllers.'''
     usage = "usage: %prog [mandatory args] [options]"
@@ -1101,7 +1231,7 @@ def main():
     optionalGroup.add_option('--skip_algorithm',
                       action="store_true",
                       dest="skipAlgorithm",
-                      help="Skip running the VIIRS Masks algorithm.")
+                      help="Skip running the VIIRS EDR algorithm(s).")
 
     optionalGroup.add_option('--debug',
                       action="store_true",
@@ -1114,6 +1244,12 @@ def main():
                       dest="noAlgChain",
                       default=False,
                       help="Do not run prerequisite algorithms.")
+
+    optionalGroup.add_option('--no_dummy_granules',
+                      action="store_true",
+                      dest="noDummyGranules",
+                      default=False,
+                      help="Do not generate dummy SDR cross granules.")
 
     optionalGroup.add_option('-p','--processors',
                       action="store",
@@ -1194,7 +1330,14 @@ def main():
         os.makedirs(log_dir)
 
     # Ordered list of required algorithms (to be passed in)
-    algList = [options.algorithm]
+    if (options.algorithm == 'ATMOS'):
+        algList = ['AOT']
+    elif (options.algorithm == 'OCEAN'):
+        algList = ['SST']
+    elif (options.algorithm == 'LAND'):
+        algList = ['VI']
+    else:
+        algList = [options.algorithm]
 
     # Determine the ordered list of algs to satisfy the required 
     # algorithm's dependencies.
@@ -1251,12 +1394,48 @@ def main():
     else :
         LOG.info('Skipping SDR GEO unpacking, assuming all VIIRS SDR blob and asc files are present.')
 
+    # Unpack HDF5 VIIRS radiometric SDRs in the input directory to the work directory
+    radio_unpacking_problems = 0
+    unpacking_problems = 0
+    if not options.skipSdrUnpack :
+        for prefix in requiredSdrPrefix:
+            fileGlob = "%s%s" % (prefix,inputGlob)
+            LOG.info("Unpacking files matching %r" % (fileGlob))
+            radio_unpacking_problems = _unpack_sdr(work_dir,input_dir,fileGlob)
+
+        unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
+        LOG.debug("Total VIIRS SDR unpacking problems = %d" % (unpacking_problems))
+    else :
+        LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
+        unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
+
+    # Check radiometric SDR metadata for wrong N_Granule_Version, and fix...
+    sdr_blob_names = glob(path.join(work_dir,"*.*SDR"))
+    for sdr_blob_name in sdr_blob_names:
+        ascName = corresponding_asc_path(sdr_blob_name)
+        fileChanged = _strReplace(ascName,'("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
+        if fileChanged :
+            LOG.info("Fixed N_Granule_Version in %s metadata" % (path.basename(sdr_blob_name)))
+
     # Set the VIIRS SDR endianness from the input option...
     global sdrEndian
     set_sdr_endian(options.sdr_Endianness)
 
     # Create any required dummy geolocation and radiometric granules
-    _create_dummy_sdr(work_dir,requiredGeoShortname,requiredSdrShortname,cumulativeCrossGranules[options.algorithm])
+    dummy_granule_dict = {}
+    if not options.noDummyGranules:
+        dummy_granule_dict = _create_dummy_sdr(work_dir,requiredGeoShortname,requiredSdrShortname,\
+                cumulativeCrossGranules[options.algorithm])
+
+        requiredShortnames = requiredGeoShortname + requiredSdrShortname
+
+        LOG.info("Dummy granule IDs : {}".format(dummy_granule_dict['N_Granule_ID']))
+
+        for granID in dummy_granule_dict['N_Granule_ID']:
+            for shortName in requiredShortnames:
+                LOG.info("dummy_granule_dict[{}][{}] = {}".format(\
+                        granID,shortName,dummy_granule_dict[granID][shortName]))
+
 
     # Read through ascii metadata and build up information table
     LOG.info('Sifting through geolocation metadata to find VIIRS SDR processing candidates...')
@@ -1374,10 +1553,10 @@ def main():
         LOG.info('Retrieving and granulating ancillary data...')
 
         # Granulate the VIIRS ANC data
-        _granulate_ANC(work_dir,anc_granules_to_process,algList)
+        dummy_granule_dict = _granulate_ANC(work_dir,anc_granules_to_process,algList,dummy_granule_dict)
 
         # Granulate the VIIRS GridIP data
-        _granulate_GridIP(work_dir,anc_granules_to_process,algList)
+        dummy_granule_dict = _granulate_GridIP(work_dir,anc_granules_to_process,algList,dummy_granule_dict)
 
         t2 = time()
 
@@ -1387,39 +1566,12 @@ def main():
 
         LOG.info('Skipping retrieval and granulation of ancillary data.')
 
-    # Unpack HDF5 VIIRS radiometric SDRs in the input directory to the work directory
-    radio_unpacking_problems = 0
-    unpacking_problems = 0
-    if not options.skipSdrUnpack :
-        for prefix in requiredSdrPrefix:
-            fileGlob = "%s%s" % (prefix,inputGlob)
-            LOG.info("Unpacking files matching %r" % (fileGlob))
-            radio_unpacking_problems = _unpack_sdr(work_dir,input_dir,fileGlob)
-
-        unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
-        LOG.debug("Total VIIRS SDR unpacking problems = %d" % (unpacking_problems))
-    else :
-        LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
-        unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
-
-    # Check radiometric SDR metadata for wrong N_Granule_Version, and fix...
-    sdr_blob_names = glob(path.join(work_dir,"*.*SDR"))
-    for sdr_blob_name in sdr_blob_names:
-        ascName = corresponding_asc_path(sdr_blob_name)
-        fileChanged = _strReplace(ascName,'("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
-        if fileChanged :
-            LOG.info("Fixed N_Granule_Version in %s metadata" % (path.basename(sdr_blob_name)))
-
-    # Create a dictionary of radiometric files.
-    #for chan in range(1,6):
-        #chanShortName = "VIIRS-I%d-SDR" %(chan)
-        #sdr_granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(chanShortName,crossGran=None,work_dir=work_dir)))
-        #_create_dummy_geo(work_dir,sdr_granules_to_process)  #-- FIXME
-
-    #for chan in range(1,17):
-        #chanShortName = "VIIRS-M%d-SDR" %(chan)
-        #sdr_granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(chanShortName,crossGran=None,work_dir=work_dir)))
-        #_create_dummy_geo(work_dir,sdr_granules_to_process)  #-- FIXME
+    # List the SDR and ancillary dummy granules
+    if not options.noDummyGranules:
+        for granID in dummy_granule_dict['N_Granule_ID']:
+            for shortName in dummy_granule_dict[granID].keys():
+                LOG.info("dummy_granule_dict[{:15}][{:16}] = {:35}".format(\
+                        granID,shortName,dummy_granule_dict[granID][shortName]))
 
     # Link in auxillary files
     if not options.skipAuxLinking :
@@ -1478,10 +1630,11 @@ def main():
             rc = get_return_code(unpacking_problems, len(xml_files_to_process), \
                     len(no_output_runs), noncritical_problem, environment_error)
 
-            # If this alg failed, return error code and exit
+            # If this alg failed, return error code and exit, preserving inputs and log files
             if rc != 0 :
                 LOG.warn("Non-zero error code %d for %s, aborting." % (rc, alg.AlgorithmName))
-                return rc
+                #return rc
+                rc = 0
 
         # if no errors or only non-critical errors: clean up
         LOG.info("Return code : %d" % (rc))
@@ -1493,13 +1646,20 @@ def main():
                 algorithmXmlGlob = '%s*.xml' % (alg.algorithmLWxml)
                 algorithmLogGlob = '%s_*' % (alg.controllerBinary)
 
-                alg.cleanup(work_dir, algorithmXmlGlob, algorithmLogGlob, log_dir)
-
-        return rc
+                alg.cleanup(work_dir, algorithmXmlGlob, algorithmLogGlob)
     
     else :
 
         LOG.info("Skipping execution of VIIRS %s ..." % (alg.AlgorithmName))
+
+    # Remove dummy asc/blob pairs and HDF5 files
+    __cleanup_dummy_files(work_dir, algList, options.noDummyGranules, dummy_granule_dict)
+
+    # Remove log directory
+    __cleanup(work_dir, [log_dir])
+
+    return rc
+
 
 
 if __name__=='__main__':

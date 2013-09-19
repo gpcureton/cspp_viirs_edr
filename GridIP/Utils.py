@@ -360,6 +360,8 @@ def shipOutToFile(GridIPobj):
     ascFile.close()
     ascTemplateFile.close()
 
+    return URID
+
 
 def plotArr(data,pngName):
     '''

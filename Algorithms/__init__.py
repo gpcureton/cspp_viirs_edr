@@ -78,3 +78,22 @@ sdr_hdf5_prefix['VIIRS-M13-SDR'] = 'SVM13'
 sdr_hdf5_prefix['VIIRS-M14-SDR'] = 'SVM14'
 sdr_hdf5_prefix['VIIRS-M15-SDR'] = 'SVM15'
 sdr_hdf5_prefix['VIIRS-M16-SDR'] = 'SVM16'
+
+edr_hdf5_prefix={}
+edr_hdf5_prefix['VCM'] = ['IICMO','AVAFO']
+edr_hdf5_prefix['AOT'] = ['IVAOT','GAERO','VAOOO','IVAMI','VSUMO']
+edr_hdf5_prefix['SST'] = ['VSSTO']
+edr_hdf5_prefix['SRFREF'] = ['IVISR']
+edr_hdf5_prefix['VI'] = ['VIVIO']
+
+edr_hdf5_Gran_0={}
+edr_hdf5_Gran_0['VCM']    = ['/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0',\
+                             '/Data_Products/VIIRS-AF-EDR/VIIRS-AF-EDR_Gran_0']
+edr_hdf5_Gran_0['AOT']    = ['/Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0',\
+                             '/Data_Products/VIIRS-Aeros-EDR-GEO/VIIRS-Aeros-EDR-GEO_Gran_0',\
+                             '/Data_Products/VIIRS-Aeros-EDR/VIIRS-Aeros-EDR_Gran_0',\
+                             '/Data_Products/VIIRS-Aeros-Modl-Info-IP/VIIRS-Aeros-Modl-Info-IP_Gran_0',\
+                             '/Data_Products/VIIRS-SusMat-EDR/VIIRS-SusMat-EDR_Gran_0']
+edr_hdf5_Gran_0['SST']    = ['/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0']
+edr_hdf5_Gran_0['SRFREF'] = ['/Data_Products/VIIRS-Surf-Refl-IP/VIIRS-Surf-Refl-IP_Gran_0']
+edr_hdf5_Gran_0['VI']     = ['/Data_Products/VIIRS-VI-EDR/VIIRS-VI-EDR_Gran_0']

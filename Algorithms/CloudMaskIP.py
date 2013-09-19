@@ -26,7 +26,7 @@ from os import path,uname,environ
 import string
 from subprocess import CalledProcessError, call
 from glob import glob
-from time import time
+from time import time, sleep
 from shutil import rmtree
 
 from Utils import check_log_files, _setupAuxillaryFiles
@@ -114,6 +114,11 @@ AUX_Paths = [
              'luts/viirs',
              'luts/viirs'
             ]
+
+EDR_collectionShortNames = [
+                           'VIIRS-CM-IP',
+                           'VIIRS-AF-EDR'
+                          ]
 
 controllerBinary = 'ProEdrViirsMasksController.exe'
 ADL_VIIRS_MASKS_EDR=path.abspath(path.join(ADL_HOME, 'bin', controllerBinary))
@@ -233,6 +238,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
         t1 = time()
         
         cmd = [ADL_VIIRS_MASKS_EDR, xml]
+        #cmd = ['/bin/sleep','0.2']
         #cmd = ['/usr/bin/gdb', ADL_VIIRS_MASKS_EDR] # for debugging with gdb...
         
         if setup_only:
@@ -310,11 +316,18 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
     LOG.info("Cleaning up work directory...")
 
     # Remove asc/blob file pairs...
-    ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
-    if ascBlobFiles != [] :
-        for files in ascBlobFiles:
-            LOG.debug('removing %s' % (files))
-            os.unlink(files)
+    LOG.info("Removing {} blob/asc file pairs...".format(AlgorithmName))
+    for shortName in EDR_collectionShortNames:
+        edr_glob = path.join(work_dir,"*.{}".format(shortName))
+        blobFiles = glob(edr_glob)
+        #ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
+        if blobFiles != [] :
+            for files in blobFiles:
+                ascFile = string.replace(files,".{}".format(shortName),".asc")
+                LOG.info('removing %s' % (files))
+                os.unlink(files)
+                LOG.info('removing %s' % (ascFile))
+                os.unlink(ascFile)
 
     LOG.info("Removing task xml files...")
     for fn in glob(path.join(work_dir, xml_glob)):

@@ -120,6 +120,14 @@ AUX_Paths = [
              'luts/viirs'
             ]
 
+EDR_collectionShortNames = [
+                           'VIIRS-Aeros-Opt-Thick-IP',
+                           'VIIRS-Aeros-EDR-GEO',
+                           'VIIRS-Aeros-EDR',
+                           'VIIRS-Aeros-Modl-Info-IP',
+                           'VIIRS-SusMat-EDR'
+                          ]
+
 controllerBinary = 'ProEdrViirsAerosolController.exe'
 ADL_VIIRS_AEROSOL_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsAerosolController.exe'))
 
