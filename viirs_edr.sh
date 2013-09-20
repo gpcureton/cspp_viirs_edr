@@ -81,7 +81,7 @@ Options:
 
     --alg=ALG           The VIIRS algorithm to run.
                         Possible values are...
-                        'VCM','AOT','SST','SRFREF','VI'
+                        'VCM','AOT','SST','SRFREF','VI','ATMOS','LAND','OCEAN','ALL'
     
   Extra Options:
     These options may be used to customize behaviour of this program.

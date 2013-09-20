@@ -30,7 +30,10 @@ modules['AOT'] = 'AerosolOpticalThicknessIP'
 modules['SST'] = 'SeaSurfaceTemperatureEDR'
 modules['SRFREF'] = 'SurfaceReflectanceIP'
 modules['VI'] = 'VegetationIndexEDR'
+modules['ALL'] = 'VegetationIndexEDR'
 modules['MPC'] = 'dummy_multiprocessing'
+
+meta_algorithms = ['ATMOS','LAND','OCEAN','ALL']
 
 # What are the cross granule requirements for each algorithm?
 crossGranules = {}
@@ -40,6 +43,10 @@ crossGranules['SST'] = 0
 crossGranules['SRFREF'] = 0
 crossGranules['VI'] = 0
 crossGranules['MPC'] = 1
+crossGranules['ALL'] = 0
+crossGranules['ATMOS'] = 0
+crossGranules['LAND'] = 0
+crossGranules['OCEAN'] = 0
 
 # What previous alg products are *explicitly* required for each algorithm.
 prerequisites = {}
@@ -48,6 +55,10 @@ prerequisites['AOT'] = ['VCM']
 prerequisites['SST'] = ['VCM','AOT']
 prerequisites['SRFREF'] = ['VCM','AOT']
 prerequisites['VI'] = ['VCM','AOT','SRFREF']
+prerequisites['ATMOS'] = ['VCM','AOT']
+prerequisites['LAND'] = ['VCM','AOT','SRFREF','VI']
+prerequisites['OCEAN'] = ['VCM','AOT','SST']
+prerequisites['ALL'] = ['VCM','AOT','SST','SRFREF','VI']
 prerequisites['MPC'] = []
 
 geo_hdf5_prefix={}
@@ -85,6 +96,7 @@ edr_hdf5_prefix['AOT'] = ['IVAOT','GAERO','VAOOO','IVAMI','VSUMO']
 edr_hdf5_prefix['SST'] = ['VSSTO']
 edr_hdf5_prefix['SRFREF'] = ['IVISR']
 edr_hdf5_prefix['VI'] = ['VIVIO']
+edr_hdf5_prefix['MPC'] = ['MPC']
 
 edr_hdf5_Gran_0={}
 edr_hdf5_Gran_0['VCM']    = ['/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0',\
@@ -97,3 +109,4 @@ edr_hdf5_Gran_0['AOT']    = ['/Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aero
 edr_hdf5_Gran_0['SST']    = ['/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0']
 edr_hdf5_Gran_0['SRFREF'] = ['/Data_Products/VIIRS-Surf-Refl-IP/VIIRS-Surf-Refl-IP_Gran_0']
 edr_hdf5_Gran_0['VI']     = ['/Data_Products/VIIRS-VI-EDR/VIIRS-VI-EDR_Gran_0']
+edr_hdf5_Gran_0['MPC']    = ['/Data_Products/VIIRS-DUMMY/VIIRS-DUMMY_Gran_0']

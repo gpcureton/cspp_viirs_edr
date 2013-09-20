@@ -1155,6 +1155,14 @@ def __cleanup(work_dir, dirs_to_remove):
             LOG.info('Removing {}'.format(ascFile))
             os.unlink(ascFile)
 
+    # Remove all asc/blob pairs
+    ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
+    if ascBlobFiles != [] :
+        for ascBlobFile in ascBlobFiles:
+            LOG.info('Removing {}'.format(ascBlobFile))
+            os.unlink(ascBlobFile)
+
+
     # Remove log directory
     LOG.info("Removing other directories ...")
     for dirname in dirs_to_remove:
@@ -1169,7 +1177,7 @@ def __cleanup(work_dir, dirs_to_remove):
 def main():
 
     endianChoices = ['little','big']
-    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','ATMOS','LAND','OCEAN','MPC']
+    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','ATMOS','LAND','OCEAN','ALL','MPC']
 
     description = '''Run one or more ADL VIIRS EDR Controllers.'''
     usage = "usage: %prog [mandatory args] [options]"
@@ -1330,17 +1338,19 @@ def main():
         os.makedirs(log_dir)
 
     # Ordered list of required algorithms (to be passed in)
-    if (options.algorithm == 'ATMOS'):
-        options.algorithm = 'AOT'
-        algList = ['AOT']
-    elif (options.algorithm == 'OCEAN'):
-        options.algorithm = 'SST'
-        algList = ['SST']
-    elif (options.algorithm == 'LAND'):
-        options.algorithm = 'VI'
-        algList = ['VI']
-    else:
-        algList = [options.algorithm]
+    #if (options.algorithm == 'ATMOS'):
+        #options.algorithm = 'AOT'
+        #algList = ['AOT']
+    #elif (options.algorithm == 'OCEAN'):
+        #options.algorithm = 'SST'
+        #algList = ['SST']
+    #elif (options.algorithm == 'LAND'):
+        #options.algorithm = 'VI'
+        #algList = ['VI']
+    #else:
+        #algList = [options.algorithm]
+
+    algList = [options.algorithm]
 
     # Determine the ordered list of algs to satisfy the required 
     # algorithm's dependencies.
@@ -1362,8 +1372,11 @@ def main():
     # Create a list of algorithm module "pointers"
     algorithms = []
     for alg in algList :
-        algName = Algorithms.modules[alg]
-        algorithms.append(getattr(Algorithms,algName))
+        if alg in Algorithms.meta_algorithms:
+            LOG.info("Skipping meta algorithm '{}' from list of algorithms pointers.".format(alg)) 
+        else :
+            algName = Algorithms.modules[alg]
+            algorithms.append(getattr(Algorithms,algName))
 
     LOG.debug("Algorithm Pointers: %r"%(algorithms))
 
@@ -1372,6 +1385,16 @@ def main():
     cumulativeCrossGranules = _get_alg_cross_granules(algList,options.noAlgChain)
     LOG.info("We require {} cross granules for {}".format(cumulativeCrossGranules[options.algorithm],\
                                                           options.algorithm))
+
+    # Removing meta-algs from algList
+    for metaAlg in Algorithms.meta_algorithms:
+        try:
+            algList.pop(algList.index(metaAlg))
+            LOG.info("Removed meta algorithm '{}' from list of algorithms.".format(metaAlg)) 
+        except:
+            pass
+
+    LOG.info("Required algorithms: %r" % (algList))
 
     # Determine what geolocation types are required for each algorithm
     requiredGeoShortname,requiredGeoPrefix = _get_geo_prefixes(algorithms)
@@ -1635,9 +1658,7 @@ def main():
 
             # If this alg failed, return error code and exit, preserving inputs and log files
             if rc != 0 :
-                LOG.warn("Non-zero error code %d for %s, aborting." % (rc, alg.AlgorithmName))
-                #return rc
-                rc = 0
+                LOG.warn("Non-zero error code %d for %s." % (rc, alg.AlgorithmName))
 
         # if no errors or only non-critical errors: clean up
         LOG.info("Return code : %d" % (rc))
@@ -1661,7 +1682,10 @@ def main():
     # Remove log directory
     __cleanup(work_dir, [log_dir])
 
-    return rc
+    try :
+        return rc
+    except :
+        return 0
 
 
 
