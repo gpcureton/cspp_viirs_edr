@@ -1331,10 +1331,13 @@ def main():
 
     # Ordered list of required algorithms (to be passed in)
     if (options.algorithm == 'ATMOS'):
+        options.algorithm = 'AOT'
         algList = ['AOT']
     elif (options.algorithm == 'OCEAN'):
+        options.algorithm = 'SST'
         algList = ['SST']
     elif (options.algorithm == 'LAND'):
+        options.algorithm = 'VI'
         algList = ['VI']
     else:
         algList = [options.algorithm]
@@ -1344,13 +1347,13 @@ def main():
     if not options.noAlgChain : 
         LOG.info("We ARE chaining algorithms...")
         thisAlg = algList[0]
-        LOG.info("thisAlg: %r" % (thisAlg))
+        LOG.debug("thisAlg: %r" % (thisAlg))
         thisAlgPreReqs = copy.copy(Algorithms.prerequisites[thisAlg])
-        LOG.info("thisAlgPreReqs: %r" % (thisAlgPreReqs))
+        LOG.debug("thisAlgPreReqs: %r" % (thisAlgPreReqs))
         thisAlgPreReqs.append(thisAlg)
-        LOG.info("thisAlgPreReqs: %r" % (thisAlgPreReqs))
+        LOG.debug("thisAlgPreReqs: %r" % (thisAlgPreReqs))
         algList = thisAlgPreReqs
-        LOG.info("algList: %r" % (algList))
+        LOG.debug("algList: %r" % (algList))
     else :
         LOG.info("We are NOT chaining algorithms...")
 
