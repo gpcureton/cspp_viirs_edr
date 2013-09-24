@@ -26,6 +26,7 @@ import h5py
 from netCDF4 import Dataset
 from collections import namedtuple
 import numpy as np
+from subprocess import PIPE, Popen
 
 LOG = logging.getLogger(__name__)
 
@@ -286,7 +287,7 @@ def _ncdatefmt(dt):
 RE_WHEN = re.compile(r'_(\w+)_d(\d{8})_t(\d{7})_e(\d{7})_b\d+_c(\d{20})')
 
 
-def _nc_filename_from_edr_path(gran, id='TIPB99', org='KNES'):
+def _nc_stem_from_edr_path(gran, unknown1, unknown2):
     "convert granule and source information into a netcdf filename"
     dn, fn =os.path.split(gran.edr_path)
     q, = RE_WHEN.findall(fn)
@@ -295,14 +296,42 @@ def _nc_filename_from_edr_path(gran, id='TIPB99', org='KNES'):
     collection = gran.collection
     ncs = _ncdatefmt(sdt)
     nce = _ncdatefmt(edt)
-    return '{collection:s}_{id:s}_{org:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}.nc'.format(**locals())
+    return '{collection:s}_{unknown1:s}_{unknown2:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}'.format(**locals())
 
 
-def transform(edr_path, geo_path=None, nc_path=None):
+WMO_SUFFIX = '.gz.wmo'
+
+
+def wmo_wrap(nc_path, wmo_header="TIPB99 KNES 000000", wmo_path=None):
+    """
+    create AWIPS2 wrapper, which involves a text header followe by a gzipped netcdf file.
+    Yeah, about that...
+    """
+    wmo_header = wmo_header + '\r\r\n'
+    wmo_path = nc_path + WMO_SUFFIX if wmo_path is None else wmo_path
+    LOG.debug('writing %s with header %r' % (wmo_path, wmo_header))
+    gzfp = open(wmo_path, 'wb')
+    gzfp.write(wmo_header)
+    gzfp.flush()
+    ncfp = open(nc_path, 'rb')
+    gz = Popen(['gzip'], stdin=ncfp, stdout=gzfp)
+    _,_ = gz.communicate()
+
+
+# FIXME: resolve unknown1, unknown2, unknown3
+# FIXME: 010448 magic number unknown3 may be specific to VI4BO
+
+def transform(edr_path, output_dir=None, geo_path=None, unknown1='TIPB99', unknown2='KNES', unknown3='010448', wmo_path=None, cleanup=True):
     LOG.info('opening files')
     gran = Granule(edr_path, geo_path)
-    ncfn = _nc_filename_from_edr_path(gran) # FIXME id/org
+    ncfn = _nc_stem_from_edr_path(gran, unknown1=unknown1, unknown2=unknown2) + '.nc'
+    if wmo_path is None:
+        wmo_path = ncfn + WMO_SUFFIX
+    if output_dir is not None:
+        wmo_path = os.path.join(output_dir, os.path.split(wmo_path)[-1])
     start, end = gran.start_end
+    if unknown3 is None:
+        unknown3 = start.strftime('%H%M%S')
     LOG.debug('start, end = %s, %s' % (start,end))
     LOG.info('creating output file %s' % ncfn)
     nc = AWIPS2_NetCDF4(ncfn)
@@ -319,10 +348,16 @@ def transform(edr_path, geo_path=None, nc_path=None):
     LOG.debug('transferring lat-lon envelope')
     env = gran.lat_lon_envelope
     nc.create_geo_vars(gran.collection, lat_envelope=env.lat, lon_envelope=env.lon)
-    LOG.debug('syncing file')
+    LOG.debug('writing NetCDF4 file')
     nc.close()
+    LOG.debug('wrapping NetCDF4 as WMO')
+    wmo_header = '{0:s} {1:s} {2:s}'.format(unknown1, unknown2, unknown3)
+    wmo_wrap(ncfn, wmo_header=wmo_header, wmo_path=wmo_path)
+    if cleanup:
+        LOG.debug('cleaning out intermediate file %s' % ncfn)
+        os.unlink(ncfn)
     LOG.info('done!')
-
+    return wmo_path
 
 
 def main():
@@ -335,8 +370,10 @@ def main():
     #                action="store_true", default=False, help="run self-tests")
     parser.add_option('-v', '--verbose', dest='verbosity', action="count", default=0,
                     help='each occurrence increases verbosity 1 level through ERROR-WARNING-INFO-DEBUG')
-    # parser.add_option('-o', '--output', dest='output',
-    #                 help='location to store output')
+    parser.add_option('-d', '--debug', dest='debug', action="count", default=0,
+                      help='enable debug mode where clean-up does not occur (results in .nc file creation)')
+    parser.add_option('-o', '--output', dest='output', default=None,
+                     help='destination directory to store output to')
     # parser.add_option('-I', '--include-path', dest="includes",
     #                 action="append", help="include path to append to GCCXML call")
     (options, args) = parser.parse_args()
@@ -358,7 +395,17 @@ def main():
         parser.error( 'incorrect arguments, try -h or --help.' )
         return 9
 
-    transform(*args)
+    for arg in args:
+        if os.path.isfile(arg):
+            transform(arg, output_dir=options.output, cleanup=not options.debug)
+        elif os.path.isdir(arg):
+            from glob import glob
+            pat = os.path.join(arg, 'VI4BO*h5')   # FIXME this should be VI?BO*h5
+            for edr_path in glob(pat):
+                LOG.info('processing %s' % edr_path)
+                transform(edr_path, output_dir=options.output, cleanup=not options.debug)
+        else:
+            LOG.warning('really not sure what to do with %r - ignoring' % arg)
 
     return 0
 
