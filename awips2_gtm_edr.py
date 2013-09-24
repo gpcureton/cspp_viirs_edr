@@ -54,7 +54,7 @@ def h5path(elf, path, groups=None):
 
 EDR_PATH = r'All_Data/(?P<collection>VIIRS-.*-EDR)_All/(?P<kind>BrightnessTemperature)'
 # where to find Latitude and Longitude
-GEO_PATH = r'All_Data/VIIRS-.*GTM-EDR-GEO_All'
+GEO_PATH = r'All_Data/(?P<geo_collection>VIIRS-.*GTM-EDR-GEO)_All'
 TIME_PATH = r'Data_Products/VIIRS-.*GTM-EDR-GEO/VIIRS-.*-EDR-GEO_Aggr'
 GRING_PATH = r'Data_Products/VIIRS-.*GTM-EDR-GEO/VIIRS-.*-EDR-GEO_Gran_0'
 
@@ -135,6 +135,7 @@ class Granule(object):
         self._info = {}
         h5v = h5path(self.edr, EDR_PATH, self._info)
         self._data = h5v[:]
+        self._geo_var = h5path(self.geo, GEO_PATH, self._info)
 
     @property
     def factors(self):
@@ -156,6 +157,10 @@ class Granule(object):
         return self._info['collection']
 
     @property
+    def geo_collection(self):
+        return self._info['geo_collection']
+
+    @property
     def kind(self):
         return self._info['kind']
 
@@ -173,7 +178,7 @@ class Granule(object):
 
     @property
     def lat_lon(self):
-        base = h5path(self.geo, GEO_PATH)
+        base = self._geo_var
         return latlon(base['Latitude'][:], base['Longitude'][:])
 
     @property
@@ -259,13 +264,17 @@ class AWIPS2_NetCDF4(object):
         bt_factors_var[:] = factors
 
     def create_geo_vars(self, collection, lat_envelope, lon_envelope):
-        # Navigation
-        lat_var = self._nc.createVariable("Latitude@{0:s}-GEO".format(collection), 'f4',
+        # remove -M##, -I# in geo collection
+        # alpha = [x for x in collection.split('-') if not x[-1].isdigit()]
+        # collection = '-'.join(alpha)
+
+        # create navigation variables
+        lat_var = self._nc.createVariable("Latitude@{0:s}".format(collection), 'f4',
                                           dimensions=(self.row_dim_name, self.env_dim_name))
         lat_var[:, :] = lat_envelope
         lat_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
 
-        lon_var = self._nc.createVariable("Longitude@{0:s}-GEO".format(collection), 'f4',
+        lon_var = self._nc.createVariable("Longitude@{0:s}".format(collection), 'f4',
                                           dimensions=(self.row_dim_name, self.env_dim_name))
         lon_var[:, :] = lon_envelope
         lon_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
@@ -293,7 +302,7 @@ def _nc_stem_from_edr_path(gran, unknown1, unknown2):
     q, = RE_WHEN.findall(fn)
     sat,d,t,e,c = q
     sdt, edt = nppdatetime(d,t,e)
-    collection = gran.collection
+    collection = gran.collection.replace('-', '_')
     ncs = _ncdatefmt(sdt)
     nce = _ncdatefmt(edt)
     return '{collection:s}_{unknown1:s}_{unknown2:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}'.format(**locals())
@@ -347,7 +356,7 @@ def transform(edr_path, output_dir=None, geo_path=None, unknown1='TIPB99', unkno
     nc.create_image_vars(gran.kind, gran.collection, gran.data, gran.factors)
     LOG.debug('transferring lat-lon envelope')
     env = gran.lat_lon_envelope
-    nc.create_geo_vars(gran.collection, lat_envelope=env.lat, lon_envelope=env.lon)
+    nc.create_geo_vars(gran.geo_collection, lat_envelope=env.lat, lon_envelope=env.lon)
     LOG.debug('writing NetCDF4 file')
     nc.close()
     LOG.debug('wrapping NetCDF4 as WMO')
@@ -400,7 +409,7 @@ def main():
             transform(arg, output_dir=options.output, cleanup=not options.debug)
         elif os.path.isdir(arg):
             from glob import glob
-            pat = os.path.join(arg, 'VI4BO*h5')   # FIXME this should be VI?BO*h5
+            pat = os.path.join(arg, 'VI5BO*h5')   # FIXME this should be VI?BO*h5
             for edr_path in glob(pat):
                 LOG.info('processing %s' % edr_path)
                 transform(edr_path, output_dir=options.output, cleanup=not options.debug)
