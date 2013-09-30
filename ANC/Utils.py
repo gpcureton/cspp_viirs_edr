@@ -527,6 +527,8 @@ def create_NCEP_grid_blobs(gribFile):
                 sys.exit(procRetVal)
             else :
                 LOG.debug('Finished creating NCEP GRIB blob %s' % (gribBlob))
+                if not os.path.exists(gribBlob) :
+                    LOG.error("Blob file error %s "%gribBlob)
 
         except Exception, err:
             LOG.warn( "%s" % (str(err)))
