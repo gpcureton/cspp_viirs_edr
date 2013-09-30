@@ -622,7 +622,15 @@ class NCEPclass(object):
 
 
         LOG.debug("Creating empty NCEP blob file %s..." % (newNCEPblob))
-        newBlobObj = adl.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
+
+        try :
+            newBlobObj = adl.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
+        except Exception, err:
+                    LOG.error("%s" % (str(err)))
+                    LOG.error("Blob creation error %s" % (newNCEPblob))
+                    return -1
+
+
         newBlobArrObj = newBlobObj.as_arrays()
 
         for msgKey in gribObj.gfsMsgKeys :
