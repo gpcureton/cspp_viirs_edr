@@ -28,6 +28,8 @@ export CSPP_EDR_ANC_HOME=${CSPP_EDR_HOME}/anc/static
 # default location of static ancillary tiles, which we use in-place rather than linking into workspace
 export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}
 
+export LD_LIBRARY_PATH=${CSPP_SDR_HOME}/common/local/lib64
+
 #
 # user path environment settings, making it easy to invoke wrapper scripts
 #

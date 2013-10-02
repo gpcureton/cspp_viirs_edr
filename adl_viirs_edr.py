@@ -44,8 +44,21 @@ where...
     INPUTFILES: The fully qualified path to the input files. May be a directory or a file glob.
 
 
-Created by Geoff Cureton on 2011-09-30.
-Copyright (c) 2011 University of Wisconsin SSEC. All rights reserved.
+Created by Geoff Cureton <geoff.cureton@ssec.wisc.edu> on 2011-09-30.
+Copyright (c) 2011-2013 University of Wisconsin Regents. All rights reserved.
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
 file_Date = '$Date$'
@@ -243,10 +256,11 @@ def _get_geo_prefixes(algorithms):
             LOG.info("Algorithm '%s' requires geolocation type %r (%s*.h5)" % \
                     (alg.AlgorithmName,shortName,Algorithms.geo_hdf5_prefix[shortName]))
             requiredGeoShortname.append(shortName)
-            requiredGeoPrefix.append(Algorithms.geo_hdf5_prefix[shortName])
 
     requiredGeoShortname = list(set(requiredGeoShortname))
-    requiredGeoPrefix = list(set(requiredGeoPrefix))
+
+    for shortName in requiredGeoShortname :
+        requiredGeoPrefix.append(Algorithms.geo_hdf5_prefix[shortName])
 
     LOG.info('Required geolocation shortnames: %r' % (requiredGeoShortname))
     LOG.info('Required geolocation prefixes: %r' % (requiredGeoPrefix))
@@ -266,12 +280,12 @@ def _get_radio_prefixes(algorithms):
             LOG.info("Algorithm '%s' requires radiometric type %r (%s*.h5)" % \
                     (alg.AlgorithmName,shortName,Algorithms.sdr_hdf5_prefix[shortName]))
             requiredSdrShortname.append(shortName)
-            requiredSdrPrefix.append(Algorithms.sdr_hdf5_prefix[shortName])
 
     requiredSdrShortname = list(set(requiredSdrShortname))
     requiredSdrShortname.sort()
-    requiredSdrPrefix = list(set(requiredSdrPrefix))
-    requiredSdrPrefix.sort()
+
+    for shortName in requiredSdrShortname :
+        requiredSdrPrefix.append(Algorithms.sdr_hdf5_prefix[shortName])
 
     LOG.info('Required radiometric shortnames: %r' % (requiredSdrShortname))
     LOG.info('Required radiometric prefixes: %r' % (requiredSdrPrefix))
@@ -370,7 +384,7 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
                 seq.clear()
         # leftovers! yum!
         if seq:
-            LOG.info('Leftover contiguous sequence has %d granules' % (len(seq)))
+            LOG.debug('Leftover contiguous sequence has %d granules' % (len(seq)))
             yield tuple(sorted(seq.values(), key=start_time_key))
 
 
@@ -396,7 +410,7 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
     for group in _contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)):
         ##- for VIIRS, we can process everything but the first and last granule
         ##- for CrIS, use [4:-4]
-        LOG.info('Contiguous granule group of length: {}'.format(len(group),))
+        LOG.debug('Contiguous granule group of length: {}'.format(len(group),))
 
         if not crossGran :
             startGran,endGran = None,None
@@ -431,7 +445,7 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
                 granIdx = granIdx + 1
                 LOG.info("Granule IDs are ({},{},{})".format(gran['N_Granule_ID_prev'],gran['N_Granule_ID'],gran['N_Granule_ID_next']))
 
-            LOG.info('Processing opportunity: {} at {} with uuid {}'.format(gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
+            LOG.debug('Processing opportunity: {} at {} with uuid {}'.format(gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
             yield gran
 
 
@@ -518,7 +532,6 @@ def _get_granule_ID(IET_StartTime,IET_EndTime):
     """
     # 
     NPP_GRANULE_ID_BASETIME = int(os.environ.get('NPP_GRANULE_ID_BASETIME', 1698019234000000))
-    #granuleSize = 85350000.0    # microseconds
     granuleSize = 85350000      # microseconds
 
     # Subtract the spacecraft base time from the arbitrary time to obtain
@@ -544,7 +557,6 @@ def _get_granule_ID(IET_StartTime,IET_EndTime):
     # multiply the granule number by the granule size
     # then divide by 10^5 to convert the microseconds to tenths of a second; 
     # the integer division will give the desired floor value.
-    #timeCode = int((granuleNumber * granuleSize) / 100000.)
     timeCode = int((granuleNumber * granuleSize) / 100000)
 
     N_Granule_ID = 'NPP{:0>12d}'.format(timeCode)
@@ -583,18 +595,11 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
 
     global sdrEndian 
 
-    PAT_URID = r'"(?P<URID>[-a-zA-Z0-9]+)" UR "(?P<UnpackTime>[- \d:.]+)"'
-    PAT_GRANULE_ID = r'\("N_Granule_ID" STRING EQ "(?P<N_Granule_ID>\w+)"\)'
-    PAT_GRANULE_VERSION = r'\("N_Granule_Version" STRING EQ "(?P<N_Granule_Version>\w+)"\)'
-    PAT_COLLECTION = r'\("N_Collection_Short_Name" STRING EQ "(?P<N_Collection_Short_Name>[^"]+)"\)'
-    PAT_RANGEDATETIME = r'\("RangeDateTime" DATETIMERANGE EQ "(?P<StartTime>[- \d:.]+)" "(?P<EndTime>[- \d:.]+)"\)'
-    PAT_SOURCE = r'\("N_Dataset_Source" STRING EQ "(?P<N_Dataset_Source>\w+)"\)'
-    PAT_BLOBPATH = r'\("(?P<BlobPath>.*?)" FILE'
-    PAT_EFFECTIVEDATETIME = r'\("Effectivity" DATETIMERANGE EQ "(?P<EffectiveStartTime>[- \d:.]+)" "(?P<EffectiveEndTime>[- \d:.]+)"\)'
-    PAT_OBSERVEDDATETIME = r'\("ObservedDateTime" DATETIMERANGE EQ "(?P<ObservedStartTime>[- \d:.]+)" "(?P<ObservedEndTime>[- \d:.]+)"\)'
-    PAT_CREATEDATETIME   = r'\("CreationDateTime" DATETIME EQ "(?P<CreationDateTime>[- \d:.]+)"'
+    from adl_asc import PAT_URID, PAT_GRANULE_ID, PAT_GRANULE_VERSION, PAT_COLLECTION, \
+                        PAT_RANGEDATETIME, PAT_SOURCE, PAT_BLOBPATH, \
+                        PAT_EFFECTIVEDATETIME, PAT_OBSERVEDDATETIME
 
-    RE_LINE = re.compile(_fuse(PAT_GRANULE_ID, PAT_GRANULE_VERSION, PAT_COLLECTION, PAT_RANGEDATETIME, PAT_SOURCE, PAT_URID, PAT_BLOBPATH, PAT_EFFECTIVEDATETIME, PAT_OBSERVEDDATETIME), re.M)
+    PAT_CREATEDATETIME   = r'\("CreationDateTime" DATETIME EQ "(?P<CreationDateTime>[- \d:.]+)"'
 
     patternDict = {}
     patternDict['GRANULE_ID']        = PAT_GRANULE_ID
@@ -623,20 +628,39 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
     LOG.info("Required types : {}".format(requiredShortnames))
 
     geo_sdr_Dicts = {}
+    missingShortNames = []
 
     for shortName in requiredShortnames :
         LOG.info("Searching for candidate {} granules...".format(shortName))
         granuleList = sorted(list(sift_metadata_for_viirs_sdr(shortName,crossGran=None,work_dir=inDir)))
+
+        #for key in dict.keys():
+        for dict in granuleList:
+            for key in ['_filename','BlobPath']:
+                try:
+                    LOG.debug("{} granuleList = {}:{}".format(shortName,key,dict[key]))
+                except KeyError:
+                    LOG.debug("{} granuleList = {}:NULL".format(shortName,key))
+
         if granuleList :
             granule_IDs = []
             sorted_Dicts = []
             for dicts in sorted(granuleList,key=granIdKey) :
                 granule_IDs.append(dicts['N_Granule_ID'])
                 sorted_Dicts.append(dicts)
-            LOG.info("granules {}".format(granule_IDs))
+            LOG.info("real granules = {}".format(granule_IDs))
             geo_sdr_Dicts[shortName] = {'granule_IDs':granule_IDs,'sorted_Dicts':sorted_Dicts}
         else :
-            LOG.info("\tNo {} granules for VIIRS".format(shortName))
+            LOG.warn("Missing blob/asc files for {}...".format(shortName))
+            missingShortNames.append(shortName)
+
+    if missingShortNames != []:
+        LOG.error("Missing blob/asc files for shortnames {}, aborting...".format(missingShortNames))
+        sys.exit(1)
+        
+    granuleSize_small = 83625544 # microseconds
+    granuleSize       = 85350000 # microseconds
+    granuleSize_large = 85404800 # microseconds
 
     # Make a list of dummy granule IDs
     dummy_granule_IDs = [] 
@@ -645,7 +669,11 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
     for shortName in requiredShortnames :
 
         # Generate the dummy granules for the first real granule
-        firstDict = geo_sdr_Dicts[shortName]['sorted_Dicts'][0]
+        try :
+            firstDict = geo_sdr_Dicts[shortName]['sorted_Dicts'][0]
+        except KeyError:
+            LOG.error("Missing blob/asc files for {}, aborting...".format(shortName))
+            sys.exit(1)
 
         first_N_Collection_Short_Name = firstDict['N_Collection_Short_Name']
         first_blobDir = path.dirname(firstDict['_filename'])
@@ -670,12 +698,15 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
 
         for crossGranIdx in range(1,crossGranules+1):
 
-            scanStartTime = first_scanStartTime - crossGranIdx * 85404800 # microseconds
-            N_Granule_ID = _get_granule_ID(scanStartTime,scanStartTime+83625544)[0]
-            ObservedStartTime = first_ObservedStartTime - timedelta(microseconds=crossGranIdx*85404800)
-            ObservedEndTime = first_ObservedEndTime - timedelta(microseconds=crossGranIdx*85404800)
-            StartTime = first_StartTime - timedelta(microseconds=crossGranIdx*85350000)
-            EndTime = first_EndTime - timedelta(microseconds=crossGranIdx*85350000)
+            scanStartTime = first_scanStartTime - crossGranIdx * granuleSize # microseconds
+
+            N_Granule_ID = _get_granule_ID(scanStartTime,scanStartTime+granuleSize_small)[0]
+
+            ObservedStartTime = first_ObservedStartTime - timedelta(microseconds=crossGranIdx*granuleSize_large)
+            ObservedEndTime = first_ObservedEndTime - timedelta(microseconds=crossGranIdx*granuleSize_large)
+
+            StartTime = first_StartTime - timedelta(microseconds=crossGranIdx*granuleSize)
+            EndTime = first_EndTime - timedelta(microseconds=crossGranIdx*granuleSize)
 
             URID_dict = _getURID()
             URID = URID_dict['URID']
@@ -726,7 +757,10 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
             # Copy the first blob file...
             newBlobFileName = "{}.{}".format(URID,first_N_Collection_Short_Name)
             LOG.debug("Copying {} to {}".format(first_BlobFile,path.join(first_blobDir,newBlobFileName)))
-            copyfile(first_BlobFile,path.join(first_blobDir,newBlobFileName))
+            try:
+                copyfile(first_BlobFile,path.join(first_blobDir,newBlobFileName))
+            except IOError:
+                LOG.warning("Blob file {} does not exist to be copied...".format(first_BlobFile))
 
             dummy_granule_IDs.append(N_Granule_ID)
 
@@ -736,13 +770,16 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
                 dummy_granule_dict[N_Granule_ID] = {shortName:None}
 
             dummy_granule_dict[N_Granule_ID][shortName] = URID
-            #LOG.info("dummy_granule_dict['{}'] = {}".format(N_Granule_ID,dummy_granule_dict[N_Granule_ID]))
 
 
     for shortName in requiredShortnames :
 
         # Generate the dummy granules for the last real granule
-        lastDict = geo_sdr_Dicts[shortName]['sorted_Dicts'][-1]
+        try:
+            lastDict = geo_sdr_Dicts[shortName]['sorted_Dicts'][-1]
+        except KeyError:
+            LOG.error("Missing blob/asc files for {}, aborting...".format(shortName))
+            sys.exit(1)
 
         last_N_Collection_Short_Name = lastDict['N_Collection_Short_Name']
         last_blobDir = path.dirname(lastDict['_filename'])
@@ -767,12 +804,15 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
 
         for crossGranIdx in range(1,crossGranules+1):
 
-            scanStartTime = last_scanStartTime + crossGranIdx * 85404800 # microseconds
-            N_Granule_ID = _get_granule_ID(scanStartTime,scanStartTime+83625544)[0]
-            ObservedStartTime = last_ObservedStartTime + timedelta(microseconds=crossGranIdx*85404800)
-            ObservedEndTime = last_ObservedEndTime + timedelta(microseconds=crossGranIdx*85404800)
-            StartTime = last_StartTime + timedelta(microseconds=crossGranIdx*85350000)
-            EndTime = last_EndTime + timedelta(microseconds=crossGranIdx*85350000)
+            scanStartTime = last_scanStartTime + crossGranIdx * granuleSize # microseconds
+
+            N_Granule_ID = _get_granule_ID(scanStartTime,scanStartTime+granuleSize_small)[0]
+
+            ObservedStartTime = last_ObservedStartTime + timedelta(microseconds=crossGranIdx*granuleSize_large)
+            ObservedEndTime = last_ObservedEndTime + timedelta(microseconds=crossGranIdx*granuleSize_large)
+
+            StartTime = last_StartTime + timedelta(microseconds=crossGranIdx*granuleSize)
+            EndTime = last_EndTime + timedelta(microseconds=crossGranIdx*granuleSize)
 
             URID_dict = _getURID()
             URID = URID_dict['URID']
@@ -823,7 +863,10 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
             # Copy the last blob file...
             newBlobFileName = "{}.{}".format(URID,last_N_Collection_Short_Name)
             LOG.debug("Copying {} to {}".format(last_BlobFile,path.join(last_blobDir,newBlobFileName)))
-            copyfile(last_BlobFile,path.join(last_blobDir,newBlobFileName))
+            try:
+                copyfile(last_BlobFile,path.join(last_blobDir,newBlobFileName))
+            except IOError:
+                LOG.warning("Blob file {} does not exist to be copied...".format(last_BlobFile))
 
             dummy_granule_IDs.append(N_Granule_ID)
 
@@ -833,12 +876,28 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
                 dummy_granule_dict[N_Granule_ID] = {shortName:None}
 
             dummy_granule_dict[N_Granule_ID][shortName] = URID
-            #LOG.info("dummy_granule_dict['{}'] = {}".format(N_Granule_ID,dummy_granule_dict[N_Granule_ID]))
 
 
     # Make a unique list of the collected dummy granule IDs
     dummy_granule_dict['N_Granule_ID'] = list(set(dummy_granule_IDs))
     
+    # Check whether granule IDs make sense
+    dummy_granule_IDs = dummy_granule_dict['N_Granule_ID']
+    dummy_granule_IDs.sort()
+    LOG.info("dummy granules = {}".format(dummy_granule_IDs))
+
+    all_granules = dummy_granule_IDs + granule_IDs
+    all_granules.sort()
+    
+    for granIdx in range(len(all_granules[:-1])): 
+        thisGranNum=all_granules[granIdx][6:]
+        nextGranNum=all_granules[granIdx+1][6:]
+        granNumDiff=int(nextGranNum)-int(thisGranNum)
+        try:
+            assert granNumDiff==853 or granNumDiff==854
+            LOG.info("{} and {} are {} deciseconds apart.".format(thisGranNum,nextGranNum,granNumDiff))
+        except AssertionError:
+            LOG.warn("{} and {} are {} deciseconds apart. Should be 853 or 854...".format(thisGranNum,nextGranNum,granNumDiff))
 
     return dummy_granule_dict
 
@@ -1099,6 +1158,8 @@ def __cleanup_dummy_files(work_dir, algList, noDummyGranules, dummy_granule_dict
     Remove radiometric, geolocation and ancillary blob/asc pairs, and product HDF5
     files that correspond to the dummy values of N_Granule_ID.
     '''
+    LOG.info("dummy_granule_dict: {}".format(dummy_granule_dict))
+
     # Remove dummy SDR and ancillary files
     if not noDummyGranules:
         LOG.info("Removing dummy SDR and ancillary blob/asc file pairs...")
@@ -1126,12 +1187,19 @@ def __cleanup_dummy_files(work_dir, algList, noDummyGranules, dummy_granule_dict
                         Gran_0 = hdf5Obj.getNode(nodeName)
                         thisGranID =  getattr(Gran_0.attrs,'N_Granule_ID')[0][0]
                         hdf5Obj.close()
-                        if thisGranID in dummy_granule_dict['N_Granule_ID']:
-                            LOG.info('Removing dummy {1:5} file with granule ID {0:15}: {2:}'.format(thisGranID,prefix,hdf5File))
-                            os.unlink(hdf5File)
+
+                        try:
+                            if thisGranID in dummy_granule_dict['N_Granule_ID']:
+                                LOG.info('Removing dummy {1:5} file with granule ID {0:15}: {2:}'.format(thisGranID,prefix,hdf5File))
+                                os.unlink(hdf5File)
+                        except Exception, err :
+                            LOG.warn("Problem removing HDF5 file: {}".format(hdf5File))
+                            LOG.warn("{}".format(err))
+                            LOG.debug(traceback.format_exc())
+
                     except Exception, err :
-                        LOG.warn("Problem deleting HDF5 file {}".format(hdf5File))
-                        LOG.warn("{}".format(err))
+                        hdf5Obj.close()
+                        LOG.warn("Problem retrieving granule ID for file {}: {}".format(hdf5File,err))
                         LOG.debug(traceback.format_exc())
 
 
@@ -1155,13 +1223,12 @@ def __cleanup(work_dir, dirs_to_remove):
             LOG.info('Removing {}'.format(ascFile))
             os.unlink(ascFile)
 
-    # Remove all asc/blob pairs
+    # Remove all other asc/blob pairs (usually products).
     ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
     if ascBlobFiles != [] :
         for ascBlobFile in ascBlobFiles:
             LOG.info('Removing {}'.format(ascBlobFile))
             os.unlink(ascBlobFile)
-
 
     # Remove log directory
     LOG.info("Removing other directories ...")
@@ -1455,7 +1522,7 @@ def main():
 
         requiredShortnames = requiredGeoShortname + requiredSdrShortname
 
-        LOG.info("Dummy granule IDs : {}".format(dummy_granule_dict['N_Granule_ID']))
+        LOG.info("Dummy granule IDs = {}".format(dummy_granule_dict['N_Granule_ID']))
 
         for granID in dummy_granule_dict['N_Granule_ID']:
             for shortName in requiredShortnames:
@@ -1603,28 +1670,14 @@ def main():
     if not options.skipAuxLinking :
         LOG.info('Linking in the VIIRS EDR auxillary files...')
 
-        # Create a list of algorithm module "pointers"
-        algs_for_Aux = []
-        for alg in algList :
-            algName = Algorithms.modules[alg]
-            algs_for_Aux.append(getattr(Algorithms,algName))
-
-        for alg in algs_for_Aux :
+        for alg in algorithms :
             alg.setupAuxillaryFiles(alg, work_dir)
-
-        del(algs_for_Aux)
 
     else :
         LOG.info('Skipping linking in the VIIRS EDR auxillary files.')
 
     # Specify the algorithm we want to run via the Lw XML file.
     if not options.skipAlgorithm :
-
-        # Create a list of algorithm module "pointers"
-        algorithms = []
-        for alg in algList :
-            algName = Algorithms.modules[alg]
-            algorithms.append(getattr(Algorithms,algName))
 
         for alg in algorithms :
 
@@ -1643,9 +1696,11 @@ def main():
 
             LOG.info("Running VIIRS %s ..." % (alg.AlgorithmName))
             crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = \
-                    alg.run_xml_files(work_dir, xml_files_to_process, \
-                    setup_only = False, WORK_DIR = work_dir, \
-                    LINKED_ANCILLARY = work_dir, ADL_HOME=ADL_HOME)
+                alg.run_xml_files(work_dir, \
+                                  xml_files_to_process, \
+                                  WORK_DIR = work_dir, \
+                                  ADL_HOME = ADL_HOME)
+
 
             ## considered a noncritical problem if there were any crashed runs, runs that produced no output,
             ## runs where Geo failed, or runs where ADL logs indicated a problem
@@ -1680,7 +1735,8 @@ def main():
     __cleanup_dummy_files(work_dir, algList, options.noDummyGranules, dummy_granule_dict)
 
     # Remove log directory
-    __cleanup(work_dir, [log_dir])
+    if not options.cspp_debug:
+        __cleanup(work_dir, [log_dir])
 
     try :
         return rc
