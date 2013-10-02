@@ -258,11 +258,18 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
     LOG.info("Cleaning up work directory...")
 
     # Remove asc/blob file pairs...
-    ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
-    if ascBlobFiles != [] :
-        for files in ascBlobFiles:
-            LOG.debug('removing %s' % (files))
-            os.unlink(files)
+    LOG.info("Removing {} blob/asc file pairs...".format(AlgorithmName))
+    for shortName in EDR_collectionShortNames:
+        edr_glob = path.join(work_dir,"*.{}".format(shortName))
+        blobFiles = glob(edr_glob)
+        #ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
+        if blobFiles != [] :
+            for files in blobFiles:
+                ascFile = string.replace(files,".{}".format(shortName),".asc")
+                LOG.info('removing %s' % (files))
+                os.unlink(files)
+                LOG.info('removing %s' % (ascFile))
+                os.unlink(ascFile)
 
     LOG.info("Removing task xml files...")
     for fn in glob(path.join(work_dir, xml_glob)):
