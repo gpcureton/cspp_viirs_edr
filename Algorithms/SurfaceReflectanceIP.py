@@ -277,7 +277,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     LOG.debug("aerosolIP_prior_granules = \n%r" % (surfref_prior_granules))
     surfref_granules_made = set(surfrefIp_ID.values()) - surfref_prior_granules
 
-    LOG.info('surfref granules created: %s' % ', '.join(list(surfref_granules_made)))
+    LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(surfref_granules_made))))
 
 
     if no_output_runs:

@@ -235,7 +235,7 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     LOG.debug("vegIdxEdr_prior_granules = \n%r" % (vegIdxEdr_prior_granules))
     vegIdxEdr_granules_made = set(vegIdxEdr_ID.values()) - vegIdxEdr_prior_granules
 
-    LOG.info('Vegetation Index EDR granules created: %s' % ', '.join(list(vegIdxEdr_granules_made)))
+    LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(vegIdxEdr_granules_made))))
 
 
     if no_output_runs:

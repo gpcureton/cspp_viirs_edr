@@ -112,6 +112,8 @@ Options:
                         Possible values are...
                         'little', 'big'. [default: 'little']
     
+    -p, --processors    Number of cpus to use for granule processing.
+
     -v, --verbose       each occurrence increases verbosity 1 level from
                         ERROR: -v=WARNING -vv=INFO -vvv=DEBUG"
 EOF
@@ -148,11 +150,12 @@ ANC_ENDIANNESS_OPT=
 SDR_ENDIANNESS_OPT=
 DEBUG_OPT=
 CHAIN_OPT=
+PROC_OPT=
 VERBOSITY_OPT=
 
 #echo $@
 
-OPTS=`getopt -o "i:w:dvh" -l "input_files:,alg:,work_directory:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,debug,no_chain,verbose,help" -- "$@"`
+OPTS=`getopt -o "i:w:p:dvh" -l "input_files:,alg:,work_directory:,processors:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,debug,no_chain,verbose,help" -- "$@"`
 
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
@@ -199,6 +202,12 @@ do
         --anc_endianness)
             ANC_ENDIANNESS_OPT="--anc_endianness=$2"
             #echo "Setting ANC_ENDIANNESS_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -p|--processors)
+            PROC_OPT="--processors=$2"
+            #echo "Setting PROC_OPT"
             haveFlag=1
             shift 2;;
 
@@ -321,6 +330,7 @@ $PY $CSPP_RT_HOME/viirs/adl_viirs_edr.py \
     $ANC_ENDIANNESS_OPT \
     $DEBUG_OPT \
     $CHAIN_OPT \
+    $PROC_OPT \
     $VERBOSITY_OPT
 
 ##############################

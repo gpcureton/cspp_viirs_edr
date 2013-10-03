@@ -29,14 +29,12 @@ from glob import glob
 from time import time, sleep
 from datetime import datetime, timedelta
 from random import randint, normalvariate
-from shutil import rmtree
+from shutil import rmtree, move
 import numpy as np
 import tables as pytables
 import multiprocessing
-#from multiprocessing import Pool, Lock, Value, cpu_count
 
-
-from Utils import check_log_files, _setupAuxillaryFiles
+from Utils import check_log_files, _setupAuxillaryFiles, getURID
 
 # skim and convert routines for reading .asc metadata fields of interest
 #import adl_asc
@@ -45,6 +43,9 @@ from adl_asc import skim_dir, granule_groups_contain, _eliminate_duplicates,_is_
 from adl_asc import PAT_URID, PAT_GRANULE_ID, PAT_GRANULE_VERSION, PAT_COLLECTION, PAT_RANGEDATETIME, PAT_SOURCE, PAT_BLOBPATH, PAT_EFFECTIVEDATETIME, PAT_OBSERVEDDATETIME
 from adl_common import sh, unpack, env, h5_xdr_inventory
 from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+
+# N_GEO_Ref fix for ADL
+from adl_geo_ref import write_geo_ref
 
 # log file scanning
 import adl_log
@@ -98,7 +99,7 @@ ADL_VIIRS_DUMMY_EDR=path.abspath(path.join(ADL_HOME, 'bin', controllerBinary))
 
 algorithmLWxml = 'edr_dummy_mpc'
 
-# Attribute paths for Cloud Mask IP and Active Fires ARP
+# Attribute paths for MultiProcessing Dummy Product
 attributePaths = {}
 attributePaths['MOD_GEO_TC'] = 'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
 attributePaths['DUMMY'] = 'Data_Products/VIIRS-DUMMY/VIIRS-DUMMY_Gran_0/N_Granule_ID'
@@ -132,7 +133,7 @@ xmlTemplate = """<InfTkConfig>
   <lockinMem>FALSE</lockinMem>
   <rootDir>${WORK_DIR}</rootDir>
   <inputPath>${WORK_DIR}</inputPath>
-  <outputPath>${WORK_DIR}</outputPath>
+  <outputPath>${GRANULE_OUTPUT_DIR}</outputPath>
   <dataStartIET>0000000000000000</dataStartIET>
   <dataEndIET>1111111111111111</dataEndIET>
   <actualScans>47</actualScans>
@@ -152,6 +153,7 @@ xmlTemplate = """<InfTkConfig>
 """
 
 
+'''
 def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_granules_preferred=False):
     """
     given a sequence of granule dictionaries, yield a sequence of contiguous granule groups as tuples
@@ -206,8 +208,9 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
         if seq:
             LOG.debug('Leftover contiguous sequence has %d granules' % (len(seq)))
             yield tuple(sorted(seq.values(), key=start_time_key))
+'''
 
-
+'''
 def sift_metadata_for_viirs_ancillary(collectionShortName, crossGran=None, work_dir='.'):
     """
     Search through the ASC metadata in a directory, grouping in StartTime order.
@@ -244,6 +247,7 @@ def sift_metadata_for_viirs_ancillary(collectionShortName, crossGran=None, work_
                 #pass
             LOG.debug('Processing opportunity: %r at %s with uuid %s' % (gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
             yield gran
+'''
 
 
 def setupAuxillaryFiles(Alg_objects,workDir):
@@ -268,170 +272,228 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
     return to_process
 
 
-def submit_granule():
-        t1 = time()
+def dummy_exe(additional_env):
+    '''
+    Dummy "executable"
+    '''
+
+    work_dir = additional_env['WORK_DIR']
+    xml = additional_env['XML_FILE']
+    granule_id = additional_env['N_Granule_ID']
+    granule_output_dir = additional_env['GRANULE_OUTPUT_DIR']
+
+    if granule_id in ['NPP000603201736', 'NPP000603197469']:
+        # Simulate a failed granule
+        pass
+    else:
+        # sleep() and dummy HDF5 file creation in lieu of an ADL algorithm...
+        #sleep(normalvariate(2.5,0.01))
+        sleep(2.)
         
-        cmd = [ADL_VIIRS_DUMMY_EDR, xml]
-        #cmd = ['/usr/bin/gdb', ADL_VIIRS_DUMMY_EDR] # for debugging with gdb...
+        # Make the blob/asc output
+        URID = getURID()['URID']
+        ascFileName = '{}.asc'.format(path.join(granule_output_dir,URID))
+        open(ascFileName, 'a').close()
+        blobFileName = '{}.VIIRS-DUMMY'.format(path.join(granule_output_dir,URID))
+        open(blobFileName, 'a').close()
 
-        if setup_only:
-            print ' '.join(cmd)
-        else:
-            LOG.debug('executing "%s"' % ' '.join(cmd))
-            LOG.debug('additional environment variables: %s' % repr(additional_env))
-            try:
-                # Create granule directory
-                LOG.info ("Pre-alg current directory is : %s" % (path.abspath(os.curdir)))
-                granuleDir = path.join(work_dir,"ProEdrViirsDummyController_%s" %(granule_id))
-                LOG.info("Granule directory: %s" % (granuleDir))
-                os.mkdir(granuleDir)
-                os.chdir(granuleDir)
-                dummyPattern = path.join(granuleDir, 'MPC*.h5')
+        # Make the HDF5 output
+        h5File = '%s/MPC_%s.h5'%(granule_output_dir,granule_id)
+        LOG.info("Creating file {}...".format(h5File))
+        fileObj = pytables.openFile(h5File, mode='w')
+        fileObj.createGroup('/Data_Products/VIIRS-DUMMY','VIIRS-DUMMY_Gran_0',createparents=True)
+        granID_array = np.array([[granule_id]])
+        fileObj.setNodeAttr('/Data_Products/VIIRS-DUMMY/VIIRS-DUMMY_Gran_0','N_Granule_ID',granID_array)
+        fileObj.close()
 
-                # sleep() and dummy HDF5 file creation in lieu of an ADL algorithm...
-                sleep(normalvariate(0.5,0.1))
-                h5File = '%s/MPC_%s.h5'%(granuleDir,granule_id)
-                fileObj = pytables.openFile(h5File, mode='w')
-                fileObj.createGroup('/Data_Products/VIIRS-DUMMY','VIIRS-DUMMY_Gran_0',createparents=True)
-                granID_array = np.array([[granule_id]])
-                fileObj.setNodeAttr('/Data_Products/VIIRS-DUMMY/VIIRS-DUMMY_Gran_0','N_Granule_ID',granID_array)
-                fileObj.close()
+    # Create a log file corresponding to this granule
+    logTime = datetime.utcnow()
+    pid = randint(500,30000)
+    logName = 'ProEdrViirsDummyController.exe_%s_%d' % (logTime.strftime("%Y%m%d_%H%M%S"),pid)
+    os.mkdir(path.join(granule_output_dir,logName))
+    open('%s.log'%(path.join(granule_output_dir,'log',logName)), 'a').close()
 
-                # Loop through the required ANC and GridIP datatypes and link in...
-                for anc_short_name in ANC_collectionShortNames + GridIP_collectionShortNames:
-                    anc_granules_to_process = sorted(list(sift_metadata_for_viirs_ancillary(anc_short_name,\
-                            crossGran=None,work_dir=work_dir)))
-
-                    # A key for sorting lists of granule dictionaries according to N_Granule_ID
-                    granIdKey = lambda x: (x['N_Granule_ID'])
-
-                    # Loop through the ancillary dictionaries and find the one for this granule ID
-                    if anc_granules_to_process :
-                        LOG.info("We have %d candidate granules for ancillary." % (len(anc_granules_to_process)))
-                        for dicts in sorted(anc_granules_to_process,key=granIdKey) :
-                            if dicts['N_Granule_ID'] == granule_id :
-                                LOG.info("dicts['N_Granule_ID'] = %s" % (dicts['N_Granule_ID']))
-                                thisAncDict = dicts
-                                #print anc_granules_to_process
-                                LOG.info("  %13s%28s%28s%28s%29s" % ('N_Granule_ID',\
-                                                                     'StartTime',\
-                                                                     'N_Collection_Short_Name',\
-                                                                     'Blob Path',\
-                                                                     'asc _filename'))
-
-                                LOG.info("  %15s%30s%30s%70s%70s"%(thisAncDict['N_Granule_ID'], \
-                                                           thisAncDict['StartTime'], \
-                                                           thisAncDict['N_Collection_Short_Name'], \
-                                                           thisAncDict['BlobPath'], \
-                                                           thisAncDict['_filename']))
-                                ascName = thisAncDict['_filename']
-                                blobName = path.join(path.dirname(ascName),thisAncDict['BlobPath'])
-                                ascLinkName = path.join(granuleDir,path.basename(ascName))
-                                blobLinkName = path.join(granuleDir,path.basename(blobName))
-                                LOG.info("%s --> %s" % (ascLinkName, ascName))
-                                LOG.info("%s --> %s\n" % (blobLinkName, blobName))
-                                os.symlink(ascName,ascLinkName)
-                                os.symlink(blobName,blobLinkName)
-                                break
-                            else :
-                                pass
-
-                # Loop through the auxillary files and link in...
-                for aux_short_name in AUX_collectionShortNames:
-                    blobName = glob(path.join(work_dir,"*.%s"%(aux_short_name)))[0]
-                    ascName = string.replace(blobName,aux_short_name,"asc")
-                    ascLinkName = path.join(granuleDir,path.basename(ascName))
-                    blobLinkName = path.join(granuleDir,path.basename(blobName))
-                    LOG.info("%s --> %s" % (ascLinkName, ascName))
-                    LOG.info("%s --> %s\n" % (blobLinkName, blobName))
-                    os.symlink(ascName,ascLinkName)
-                    os.symlink(blobName,blobLinkName)
+    return pid
 
 
-                # Create a log file corresponding to this granule
-                logTime = datetime.utcnow()
-                pid = randint(500,30000)
-                logName = 'ProEdrViirsDummyController.exe_%s_%d' % (logTime.strftime("%Y%m%d_%H%M%S"),pid)
-                os.mkdir(path.join(granuleDir,logName))
-                os.mkdir(path.join(granuleDir,'log'))
-                open('%s.log'%(path.join(granuleDir,'log',logName)), 'a').close()
-                
-                #pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
-
-                LOG.debug("%r ran as pid %d" % (cmd, pid))
-                if not check_log_files(granuleDir, pid, xml):
-                    bad_log_runs.add(granule_id)
-
-            except CalledProcessError as oops:
-                LOG.debug(traceback.format_exc())
-                LOG.error('%s failed on %r: %r. Continuing...' % (controllerBinary, xml, oops))
-                crashed_runs.add(granule_id)
-            first = False
-
-            # check new MPC output granules
-            LOG.info ("Post alg current directory is : %s" % (path.abspath(os.curdir)))
-            dummy_new_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH, state=dummy_ID)
-            LOG.debug('new MPC granules after this run: %s' % (repr(dummy_new_granules)))
-            if granule_id not in dummy_new_granules:
-                LOG.warning('no DUMMY HDF5 output for %s' % (granule_id))
-                no_output_runs.add(granule_id)
-            else:
-                filename = dummy_new_granules[granule_id]
-
-            # Change the working directory back to work_dir
-            os.chdir(work_dir)
-
-
-        t2 = time()
-        LOG.info ( "Controller ran in %f seconds.\n\n" % (t2-t1))
-
-
-def run_xml_files_2(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS dummy xml input in sequence.
-       Return the list of granule IDs which crashed, 
-       and list of granule IDs which did not create output.
+def move_products_to_work_directory(work_dir):
+    """ Checks that proper products were produced.
+    If product h5 file was produced blob and asc files are deleted
+    If product was not produced files are left alone
     """
-    crashed_runs = set()
-    no_output_runs = set()
-    geo_problem_runs = set()
-    bad_log_runs = set()
-    first = True
+    dest = path.dirname(work_dir)
 
-    # obtain pre-existing granule list
-    modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
-    dummyPattern = path.join(work_dir, 'MPC*.h5')
+    files = glob(path.join(work_dir, "*.h5"))
+    for file in files:
+        move(file, dest)
+
+    return
+
+
+def submit_granule(additional_env):
+    "run a VIIRS EDR XML input in sequence"
+
+    work_dir = additional_env['WORK_DIR']
+    xml = additional_env['XML_FILE']
+    granule_id = additional_env['N_Granule_ID']
+    granule_output_dir = additional_env['GRANULE_OUTPUT_DIR']
+
+    granule_diagnostic = {}
+    granule_diagnostic['crashed'] = False
+    granule_diagnostic['no_output'] = False
+    granule_diagnostic['geo_problem'] = False
+    granule_diagnostic['bad_log'] = False
+    granule_diagnostic['N_Granule_ID'] = granule_id
+
+    # Pattern for expected output
+    dummyPattern = path.join(granule_output_dir, 'MPC*.h5')
 
     # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
     # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
     
     # Get the (N_GranuleID,hdfFileName) pairs for the existing dummy files
     dummy_prior_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing MPC granules... %s' % (repr(dummy_prior_granules)))
-
     dummy_prior_granules = set(dummy_prior_granules.keys())
-    LOG.debug('Set of existing dummy granules... %s' % (repr(dummy_prior_granules)))
+    LOG.debug('Set of existing dummy granules... {}'.format(repr(dummy_prior_granules)))
 
-    PROCESSES = multiprocessing.cpu_count()
-    LOG.info('Creating pool with %d processes\n' % PROCESSES)
-    pool = multiprocessing.Pool(PROCESSES)
-    LOG.info('pool = %r' % pool)
+    # Specify the command line to execute.
+    cmd = [ADL_VIIRS_DUMMY_EDR, xml]
+    #cmd = ['/usr/bin/gdb', ADL_VIIRS_DUMMY_EDR] # for debugging with gdb...
 
-    LOG.info("We have %d %s granules to process..." % (len(xml_files_to_process),AlgorithmName))
+    LOG.debug('executing "{}"'.format(' '.join(cmd)))
+    LOG.debug('additional environment variables: {}'.format(additional_env))
 
-    LOG.info("xml_files_to_process: %r" % (xml_files_to_process))
+    t1 = time()
 
+    try:
+        
+        #pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
+        pid = dummy_exe(additional_env)
+
+        LOG.debug("{} ran as pid {}".format(cmd, pid))
+        if not check_log_files(granule_output_dir, pid, xml):
+            granule_diagnostic['bad_log'] = True
+
+    except CalledProcessError as oops:
+        pid = getattr(oops, 'pid', None)
+        LOG.debug(traceback.format_exc())
+        LOG.error('{} failed on {}: {}. Continuing...' % (cmd[0], xml, oops))
+        granule_diagnostic['crashed'] = True
+
+    # check new MPC output granules
+    dummy_new_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH, state=dummy_ID)
+    if granule_id not in dummy_new_granules:
+        LOG.warning('no DUMMY HDF5 output for {}'.format(granule_id))
+        granule_diagnostic['no_output'] = True
+        granule_diagnostic['output_file'] = None
+    else :
+        LOG.info('New MPC granule: {}'.format(repr(dummy_new_granules)))
+        dummy_granules_made = set(dummy_ID.values()) - dummy_prior_granules
+        LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(dummy_granules_made))))
+        granule_diagnostic['output_file'] = path.basename(dummy_new_granules[granule_id])
+
+    t2 = time()
+
+    LOG.info ("Controller ran in {} seconds.".format(t2-t1))
+
+    move_products_to_work_directory(granule_output_dir)
+
+    return granule_diagnostic
+
+
+def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True", nprocs="1", **additional_env):
+    """Run each VIIRS dummy xml input in sequence.
+       Return the list of granule IDs which crashed, 
+       and list of granule IDs which did not create output.
+    """
+
+    total_granules = len(xml_files_to_process)
+    LOG.info('{} granules to process'.format(total_granules))
+
+    argument_dictionaries = []
     for granule_id, xml in xml_files_to_process:
 
-        submit_granule()
+        granule_output_dir = path.join(work_dir,"ProEdrViirsDummyController_%s" %(granule_id))
 
+        try:
+            os.mkdir(granule_output_dir)
+            os.mkdir(os.path.join(granule_output_dir, "log"))
+
+            additional_envs = dict(
+                N_Granule_ID=granule_id,
+                XML_FILE=xml,
+                GRANULE_OUTPUT_DIR=granule_output_dir,
+                WORK_DIR=work_dir,
+                ADL_HOME=ADL_HOME,
+                CLEANUP=CLEANUP
+            )
+
+            argument_dictionaries.append(additional_envs)
+
+        except:
+            LOG.info("Granule %s Skipped,  Already processed" % (granule_id))
+
+    # Pattern for expected output in the root working directory
+    dummyPattern = path.join(work_dir,'MPC*.h5')
+
+    # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
+    # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
+    
+    # Get the (N_GranuleID,hdfFileName) pairs for the existing dummy files
+    dummy_prior_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH)
+    LOG.debug('Existing dummy granules... {}'.format(dummy_prior_granules))
+
+    dummy_prior_granules = set(dummy_prior_granules.keys())
+    LOG.debug('Set of existing dummy granules... {}'.format(dummy_prior_granules))
+
+    results = []
+
+    if len(argument_dictionaries) > 0:
+
+        # Create the multiprocessing infrastructure
+        number_available = multiprocessing.cpu_count()
+
+        nprocs = 4 # FIXME: temporary
+        if int(nprocs) > number_available:
+            LOG.warning("More processors requested {} than available {}".format(nprocs, number_available))
+            nprocs = number_available - 1
+
+        pool = multiprocessing.Pool(int(nprocs))
+        LOG.info('Creating pool supporting {} processes...\n'.format(nprocs))
+
+        try:
+            t1 = time()
+            results = pool.map_async(submit_granule, argument_dictionaries).get(9999999)
+            t2 = time()
+            LOG.info ("Processed {} granules using {}/{} processes in {} seconds.\n".format(total_granules, \
+                    nprocs, number_available, t2-t1))
+        except KeyboardInterrupt:
+            LOG.error("Got exception, stopping workers and exiting.")
+            pool.terminate()
+            pool.join()
+            sys.exit(1)
+
+    # check new MPC output granules
+    dummy_new_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH, state=dummy_ID)
 
     LOG.debug("dummy_ID.values() = %r" % (dummy_ID.values()))
     LOG.debug("set(dummy_ID.values()) = %r" % (set(dummy_ID.values())))
     LOG.debug("dummy_prior_granules = %r" % (dummy_prior_granules))
+
     dummy_granules_made = set(dummy_ID.values()) - dummy_prior_granules
+    LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(dummy_granules_made))))
 
-    LOG.info('Dummy granules created: %s' %( ', '.join(list(dummy_granules_made))))
+    crashed_runs = set()
+    no_output_runs = set()
+    geo_problem_runs = set()
+    bad_log_runs = set()
 
+    for dicts in results:
+        LOG.info("results[{}] : {}".format(dicts['N_Granule_ID'],dicts))
+        if dicts['crashed']: crashed_runs.add(dicts['N_Granule_ID'])
+        if dicts['no_output']: no_output_runs.add(dicts['N_Granule_ID']) 
+        if dicts['geo_problem']: geo_problem_runs.add(dicts['N_Granule_ID']) 
+        if dicts['bad_log']: bad_log_runs.add(dicts['N_Granule_ID']) 
 
     if no_output_runs:
         LOG.info('Granules that failed to generate output: %s' % (', '.join(no_output_runs)))
@@ -442,182 +504,7 @@ def run_xml_files_2(work_dir, xml_files_to_process, setup_only=False, **addition
     if bad_log_runs:
         LOG.warning('Granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
     if not dummy_granules_made:
-        LOG.warning('No Dummy HDF5 files were created')
-
-    return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
-
-
-def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS dummy xml input in sequence.
-       Return the list of granule IDs which crashed, 
-       and list of granule IDs which did not create output.
-    """
-    crashed_runs = set()
-    no_output_runs = set()
-    geo_problem_runs = set()
-    bad_log_runs = set()
-    first = True
-
-    # obtain pre-existing granule list
-    modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
-    dummyPattern = path.join(work_dir, 'MPC*.h5')
-
-    # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
-    # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
-    
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing dummy files
-    dummy_prior_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing MPC granules... %s' % (repr(dummy_prior_granules)))
-
-    dummy_prior_granules = set(dummy_prior_granules.keys())
-    LOG.debug('Set of existing dummy granules... %s' % (repr(dummy_prior_granules)))
-
-    PROCESSES = multiprocessing.cpu_count()
-    LOG.info('Creating pool with %d processes\n' % PROCESSES)
-    pool = multiprocessing.Pool(PROCESSES)
-    LOG.info('pool = %r' % pool)
-
-    LOG.info("We have %d %s granules to process..." % (len(xml_files_to_process),AlgorithmName))
-
-    LOG.info("xml_files_to_process: %r" % (xml_files_to_process))
-
-    for granule_id, xml in xml_files_to_process:
-
-        t1 = time()
-        
-        cmd = [ADL_VIIRS_DUMMY_EDR, xml]
-        #cmd = ['/usr/bin/gdb', ADL_VIIRS_DUMMY_EDR] # for debugging with gdb...
-
-        if setup_only:
-            print ' '.join(cmd)
-        else:
-            LOG.debug('executing "%s"' % ' '.join(cmd))
-            LOG.debug('additional environment variables: %s' % repr(additional_env))
-            try:
-                # Create granule directory
-                LOG.info ("Pre-alg current directory is : %s" % (path.abspath(os.curdir)))
-                granuleDir = path.join(work_dir,"ProEdrViirsDummyController_%s" %(granule_id))
-                LOG.info("Granule directory: %s" % (granuleDir))
-                os.mkdir(granuleDir)
-                os.chdir(granuleDir)
-                dummyPattern = path.join(granuleDir, 'MPC*.h5')
-
-                # sleep() and dummy HDF5 file creation in lieu of an ADL algorithm...
-                sleep(normalvariate(0.5,0.1))
-                h5File = '%s/MPC_%s.h5'%(granuleDir,granule_id)
-                fileObj = pytables.openFile(h5File, mode='w')
-                fileObj.createGroup('/Data_Products/VIIRS-DUMMY','VIIRS-DUMMY_Gran_0',createparents=True)
-                granID_array = np.array([[granule_id]])
-                fileObj.setNodeAttr('/Data_Products/VIIRS-DUMMY/VIIRS-DUMMY_Gran_0','N_Granule_ID',granID_array)
-                fileObj.close()
-
-                # Loop through the required ANC and GridIP datatypes and link in...
-                for anc_short_name in ANC_collectionShortNames + GridIP_collectionShortNames:
-                    anc_granules_to_process = sorted(list(sift_metadata_for_viirs_ancillary(anc_short_name,\
-                            crossGran=None,work_dir=work_dir)))
-
-                    # A key for sorting lists of granule dictionaries according to N_Granule_ID
-                    granIdKey = lambda x: (x['N_Granule_ID'])
-
-                    # Loop through the ancillary dictionaries and find the one for this granule ID
-                    if anc_granules_to_process :
-                        LOG.info("We have %d candidate granules for ancillary." % (len(anc_granules_to_process)))
-                        for dicts in sorted(anc_granules_to_process,key=granIdKey) :
-                            if dicts['N_Granule_ID'] == granule_id :
-                                LOG.info("dicts['N_Granule_ID'] = %s" % (dicts['N_Granule_ID']))
-                                thisAncDict = dicts
-                                #print anc_granules_to_process
-                                LOG.info("  %13s%28s%28s%28s%29s" % ('N_Granule_ID',\
-                                                                     'StartTime',\
-                                                                     'N_Collection_Short_Name',\
-                                                                     'Blob Path',\
-                                                                     'asc _filename'))
-
-                                LOG.info("  %15s%30s%30s%70s%70s"%(thisAncDict['N_Granule_ID'], \
-                                                           thisAncDict['StartTime'], \
-                                                           thisAncDict['N_Collection_Short_Name'], \
-                                                           thisAncDict['BlobPath'], \
-                                                           thisAncDict['_filename']))
-                                ascName = thisAncDict['_filename']
-                                blobName = path.join(path.dirname(ascName),thisAncDict['BlobPath'])
-                                ascLinkName = path.join(granuleDir,path.basename(ascName))
-                                blobLinkName = path.join(granuleDir,path.basename(blobName))
-                                LOG.info("%s --> %s" % (ascLinkName, ascName))
-                                LOG.info("%s --> %s\n" % (blobLinkName, blobName))
-                                os.symlink(ascName,ascLinkName)
-                                os.symlink(blobName,blobLinkName)
-                                break
-                            else :
-                                pass
-
-                # Loop through the auxillary files and link in...
-                for aux_short_name in AUX_collectionShortNames:
-                    blobName = glob(path.join(work_dir,"*.%s"%(aux_short_name)))[0]
-                    ascName = string.replace(blobName,aux_short_name,"asc")
-                    ascLinkName = path.join(granuleDir,path.basename(ascName))
-                    blobLinkName = path.join(granuleDir,path.basename(blobName))
-                    LOG.info("%s --> %s" % (ascLinkName, ascName))
-                    LOG.info("%s --> %s\n" % (blobLinkName, blobName))
-                    os.symlink(ascName,ascLinkName)
-                    os.symlink(blobName,blobLinkName)
-
-
-                # Create a log file corresponding to this granule
-                logTime = datetime.utcnow()
-                pid = randint(500,30000)
-                logName = 'ProEdrViirsDummyController.exe_%s_%d' % (logTime.strftime("%Y%m%d_%H%M%S"),pid)
-                os.mkdir(path.join(granuleDir,logName))
-                os.mkdir(path.join(granuleDir,'log'))
-                open('%s.log'%(path.join(granuleDir,'log',logName)), 'a').close()
-                
-                #pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
-
-                LOG.debug("%r ran as pid %d" % (cmd, pid))
-                if not check_log_files(granuleDir, pid, xml):
-                    bad_log_runs.add(granule_id)
-
-            except CalledProcessError as oops:
-                LOG.debug(traceback.format_exc())
-                LOG.error('%s failed on %r: %r. Continuing...' % (controllerBinary, xml, oops))
-                crashed_runs.add(granule_id)
-            first = False
-
-            # check new MPC output granules
-            LOG.info ("Post alg current directory is : %s" % (path.abspath(os.curdir)))
-            dummy_new_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH, state=dummy_ID)
-            LOG.debug('new MPC granules after this run: %s' % (repr(dummy_new_granules)))
-            if granule_id not in dummy_new_granules:
-                LOG.warning('no DUMMY HDF5 output for %s' % (granule_id))
-                no_output_runs.add(granule_id)
-            else:
-                filename = dummy_new_granules[granule_id]
-
-            # Change the working directory back to work_dir
-            os.chdir(work_dir)
-
-
-        t2 = time()
-        LOG.info ( "Controller ran in %f seconds.\n\n" % (t2-t1))
-
-
-    LOG.debug("dummy_ID.values() = %r" % (dummy_ID.values()))
-    LOG.debug("set(dummy_ID.values()) = %r" % (set(dummy_ID.values())))
-    LOG.debug("dummy_prior_granules = %r" % (dummy_prior_granules))
-    dummy_granules_made = set(dummy_ID.values()) - dummy_prior_granules
-
-    LOG.info('Dummy granules created: %s' %( ', '.join(list(dummy_granules_made))))
-
-
-    if no_output_runs:
-        LOG.info('Granules that failed to generate output: %s' % (', '.join(no_output_runs)))
-    if geo_problem_runs:
-        LOG.warning('Granules which had no N_Geo_Ref: %s' % ', '.join(geo_problem_runs))
-    if crashed_runs:
-        LOG.warning('Granules that crashed ADL: %s' % (', '.join(crashed_runs)))
-    if bad_log_runs:
-        LOG.warning('Granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
-    if not dummy_granules_made:
-        LOG.warning('No Dummy HDF5 files were created')
+        LOG.warning('No {} HDF5 files were created'.format(AlgorithmName))
 
     return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
 
@@ -627,25 +514,23 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
 
     LOG.info("Cleaning up work directory...")
 
-    # Remove asc/blob file pairs...
-    ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
-    if ascBlobFiles != [] :
-        for files in ascBlobFiles:
-            LOG.debug('removing %s' % (files))
-            os.unlink(files)
+    LOG.info("Removing {} job directories...".format(AlgorithmName))
+    job_dir_glob = path.join(work_dir,"ProEdrViirsDummyController_NPP*")
+    job_dirs = glob(job_dir_glob)
+    for dir in job_dirs:
+        LOG.info('removing job directory {}'.format(dir))
+        try :
+            rmtree(dir, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "{}".format(str(err)))
 
     LOG.info("Removing task xml files...")
     for fn in glob(path.join(work_dir, xml_glob)):
-        LOG.debug('removing task file %s' % (fn))
-        os.unlink(fn)
-
-    LOG.info("Removing log directories %s ..."%(log_dir_glob))
-    for dirname in glob(path.join(work_dir,log_dir_glob)):
-        LOG.debug('removing logs in %s' % (dirname))
+        LOG.debug('removing task file {}'.format(fn))
         try :
-            rmtree(dirname, ignore_errors=False)
+            os.unlink(fn)
         except Exception, err:
-            LOG.warn( "%s" % (str(err)))
+            LOG.warn( "{}".format(str(err)))
 
     LOG.info("Removing other directories ...")
     for dirname in more_dirs:

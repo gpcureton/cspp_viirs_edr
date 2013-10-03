@@ -1158,7 +1158,6 @@ def __cleanup_dummy_files(work_dir, algList, noDummyGranules, dummy_granule_dict
     Remove radiometric, geolocation and ancillary blob/asc pairs, and product HDF5
     files that correspond to the dummy values of N_Granule_ID.
     '''
-    LOG.info("dummy_granule_dict: {}".format(dummy_granule_dict))
 
     # Remove dummy SDR and ancillary files
     if not noDummyGranules:
@@ -1330,6 +1329,7 @@ def main():
                       action="store",
                       dest="processors",
                       default=1,
+                      type="int",
                       help="Number of cpus to use for granule processing.")
 
     optionalGroup.add_option('--sdr_endianness',
@@ -1516,6 +1516,8 @@ def main():
 
     # Create any required dummy geolocation and radiometric granules
     dummy_granule_dict = {}
+    options.noDummyGranules = True
+
     if not options.noDummyGranules:
         dummy_granule_dict = _create_dummy_sdr(work_dir,requiredGeoShortname,requiredSdrShortname,\
                 cumulativeCrossGranules[options.algorithm])
@@ -1676,6 +1678,8 @@ def main():
     else :
         LOG.info('Skipping linking in the VIIRS EDR auxillary files.')
 
+    LOG.info("Number of processors is {}".format(options.processors))
+
     # Specify the algorithm we want to run via the Lw XML file.
     if not options.skipAlgorithm :
 
@@ -1698,9 +1702,14 @@ def main():
             crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = \
                 alg.run_xml_files(work_dir, \
                                   xml_files_to_process, \
+                                  nprocs = options.processors, \
                                   WORK_DIR = work_dir, \
                                   ADL_HOME = ADL_HOME)
 
+            LOG.warning('crashed_runs : {}'.format(crashed_runs))
+            LOG.warning('no_output_runs : {}'.format(no_output_runs))
+            LOG.warning('geo_problem_runs : {}'.format(geo_problem_runs))
+            LOG.warning('bad_log_runs : {}'.format(bad_log_runs))
 
             ## considered a noncritical problem if there were any crashed runs, runs that produced no output,
             ## runs where Geo failed, or runs where ADL logs indicated a problem
@@ -1716,9 +1725,10 @@ def main():
                 LOG.warn("Non-zero error code %d for %s." % (rc, alg.AlgorithmName))
 
         # if no errors or only non-critical errors: clean up
-        LOG.info("Return code : %d" % (rc))
+        LOG.info("{} return code : {}".format(alg.AlgorithmName,rc))
+
         if rc == 0 and not options.cspp_debug:
-            LOG.info("Cleaning up workspace...")
+            LOG.info("Cleaning up workspace for {}...".format(alg.AlgorithmName))
 
             for alg in algorithms :
 
@@ -1731,11 +1741,14 @@ def main():
 
         LOG.info("Skipping execution of VIIRS %s ..." % (alg.AlgorithmName))
 
-    # Remove dummy asc/blob pairs and HDF5 files
-    __cleanup_dummy_files(work_dir, algList, options.noDummyGranules, dummy_granule_dict)
 
     # Remove log directory
     if not options.cspp_debug:
+
+        # Remove dummy asc/blob pairs and HDF5 files
+        #if not options.noDummyGranules:
+        __cleanup_dummy_files(work_dir, algList, options.noDummyGranules, dummy_granule_dict)
+        
         __cleanup(work_dir, [log_dir])
 
     try :
