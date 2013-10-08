@@ -30,6 +30,7 @@ export CSPP_EDR_ANC_HOME=${CSPP_EDR_HOME}/anc/static
 export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}
 
 export LD_LIBRARY_PATH=${CSPP_SDR_HOME}/common/local/lib64
+export DCONFIG=${CSPP_SDR_HOME}/common/ADL/cfg
 
 #
 # user path environment settings, making it easy to invoke wrapper scripts
