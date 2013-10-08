@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # $Id$
 # Wrapper script for VIIRS EDR quicklooks python script.
 #

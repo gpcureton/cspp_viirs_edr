@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # This script runs 'hdiff' on portions of self-test output for the ADL 3.1 based VIIRS EDR. 
 #
