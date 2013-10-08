@@ -1479,8 +1479,10 @@ def main():
     geo_unpacking_problems = 0
     if not options.skipSdrUnpack :
         for prefix in requiredGeoPrefix:
+            LOG.info("prefix = {}".format(prefix))
+            LOG.info("inputGlob = {}".format(inputGlob))
             fileGlob = "%s%s" % (prefix,inputGlob)
-            LOG.info("Unpacking files matching %r" % (fileGlob))
+            LOG.info("Unpacking files matching {}".format(fileGlob))
             geo_unpacking_problems += _unpack_sdr(work_dir,input_dir,fileGlob)
     else :
         LOG.info('Skipping SDR GEO unpacking, assuming all VIIRS SDR blob and asc files are present.')
@@ -1490,6 +1492,8 @@ def main():
     unpacking_problems = 0
     if not options.skipSdrUnpack :
         for prefix in requiredSdrPrefix:
+            LOG.info("prefix = {}".format(prefix))
+            LOG.info("inputGlob = {}".format(inputGlob))
             fileGlob = "%s%s" % (prefix,inputGlob)
             LOG.info("Unpacking files matching %r" % (fileGlob))
             radio_unpacking_problems = _unpack_sdr(work_dir,input_dir,fileGlob)
@@ -1725,6 +1729,7 @@ def main():
 
             except Exception:
                 LOG.error(traceback.format_exc())
+                rc = 1
 
         # if no errors or only non-critical errors: clean up
         LOG.info("{} return code : {}".format(alg.AlgorithmName,rc))
