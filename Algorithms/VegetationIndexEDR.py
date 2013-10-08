@@ -26,8 +26,10 @@ from os import path,uname,environ
 import string
 from subprocess import CalledProcessError, call
 from glob import glob
-from time import time
-from shutil import rmtree
+from time import time, sleep
+from datetime import datetime, timedelta
+from shutil import rmtree, move
+import multiprocessing
 
 from Utils import check_log_files, _setupAuxillaryFiles
 
@@ -88,8 +90,9 @@ EDR_collectionShortNames = [
                            'VIIRS-VI-EDR'
                           ]
 
-controllerBinary = 'ProEdrViirsVI.exe'
-ADL_VIIRS_VI_EDR=path.abspath(path.join(ADL_HOME, 'bin', 'ProEdrViirsVI.exe'))
+controllerName = 'ProEdrViirsVI'
+controllerBinary = '{}.exe'.format(controllerName)
+ADL_VIIRS_VI_EDR=path.abspath(path.join(ADL_HOME, 'bin', controllerBinary))
 
 algorithmLWxml = 'edr_viirs_vi'
 
@@ -113,7 +116,7 @@ xmlTemplate = """<InfTkConfig>
   <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
   <perfPath>${WORK_DIR}/perf</perfPath>
-  <dbgPath>${WORK_DIR}/log</dbgPath>
+  <dbgPath>${GRANULE_OUTPUT_DIR}/log</dbgPath>
   <initData>
      <domain>OPS</domain>
      <subDomain>SUBDOMAIN</subDomain>
@@ -122,9 +125,9 @@ xmlTemplate = """<InfTkConfig>
      <healthTimeoutPeriod>30</healthTimeoutPeriod>
   </initData>
   <lockinMem>FALSE</lockinMem>
-  <rootDir>${WORK_DIR}</rootDir>
+  <rootDir>${GRANULE_OUTPUT_DIR}/log</rootDir>
   <inputPath>${WORK_DIR}</inputPath>
-  <outputPath>${WORK_DIR}</outputPath>
+  <outputPath>${GRANULE_OUTPUT_DIR}</outputPath>
   <dataStartIET>0000000000000000</dataStartIET>
   <dataEndIET>1111111111111111</dataEndIET>
   <actualScans>0</actualScans>
@@ -167,79 +170,203 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
     return to_process
 
 
-def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS Vegetation Index EDR xml input in sequence.
+def move_products_to_work_directory(work_dir):
+    """ Checks that proper products were produced.
+    If product h5 file was produced blob and asc files are deleted
+    If product was not produced files are left alone
+    """
+    dest = path.dirname(work_dir)
+
+    h5Files        = glob(path.join(work_dir, "*.h5"))
+    viEdrBlobFiles = glob(path.join(work_dir, "*.VIIRS-VI-EDR"))
+    ascFiles       = glob(path.join(work_dir, "*.asc"))
+
+    files = h5Files + viEdrBlobFiles + ascFiles
+
+    for file in files:
+        try :
+            LOG.debug( "Moving {} to {}".format(file,dest))
+            move(file, dest)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
+
+    return
+
+
+def submit_granule(additional_env):
+    "run a VIIRS EDR XML input in sequence"
+
+    work_dir = additional_env['WORK_DIR']
+    xml = additional_env['XML_FILE']
+    granule_id = additional_env['N_Granule_ID']
+    granule_output_dir = additional_env['GRANULE_OUTPUT_DIR']
+
+    # Pattern for expected output
+    vegIdxEdrPattern = path.join(granule_output_dir, 'VIVIO*.h5')
+
+    # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
+    # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
+    
+    # Get the (N_GranuleID,hdfFileName) pairs for the existing Cloud Mask IP files
+    vegIdxEdr_prior_granules, vegIdxEdr_ID = h5_xdr_inventory(vegIdxEdrPattern, VEGIDX_EDR_GRANULE_ID_ATTR_PATH)
+    LOG.debug('Existing VIVIO granules in {}... {}'.format(granule_output_dir, vegIdxEdr_prior_granules))
+
+    vegIdxEdr_prior_granules = set(vegIdxEdr_prior_granules.keys())
+    LOG.debug('Set of existing VIVIO granules in {}... {}'.format(granule_output_dir, vegIdxEdr_prior_granules))
+
+    # Specify the command line to execute.
+    cmd = [ADL_VIIRS_VI_EDR, xml]
+    #cmd = ['/bin/sleep','0.2']
+    #cmd = ['/usr/bin/gdb', ADL_VIIRS_VI_EDR] # for debugging with gdb...
+
+    LOG.info('executing "{}"'.format(' '.join(cmd)))
+    LOG.debug('additional environment variables: {}'.format(additional_env))
+
+    granule_diagnostic = {}
+    granule_diagnostic['bad_log'] = False
+    granule_diagnostic['crashed'] = False
+    granule_diagnostic['geo_problem'] = False
+    granule_diagnostic['N_Granule_ID'] = granule_id
+    granule_diagnostic['no_output'] = []
+    granule_diagnostic['output_file'] = []
+
+    t1 = time()
+
+    try:
+        
+        pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
+
+        LOG.info("{} ran as pid {}".format(cmd, pid))
+        if not check_log_files(granule_output_dir, pid, xml):
+            granule_diagnostic['bad_log'] = True
+
+    except CalledProcessError as oops:
+        pid = getattr(oops, 'pid', None)
+        LOG.debug(traceback.format_exc())
+        LOG.error('{} failed on {}: {}. Continuing...' % (cmd[0], xml, oops))
+        granule_diagnostic['crashed'] = True
+
+    t2 = time()
+
+    LOG.info("{}({}) ran in {} seconds.".format(controllerName,granule_id,t2-t1))
+
+    try :
+
+        # check new VI output granules
+        vegIdxEdr_new_granules, vegIdxEdr_ID = h5_xdr_inventory(vegIdxEdrPattern, VEGIDX_EDR_GRANULE_ID_ATTR_PATH, state=vegIdxEdr_ID)
+
+        if granule_id not in vegIdxEdr_new_granules:
+            LOG.warning('no VIVIO HDF5 output for {}'.format(granule_id))
+            granule_diagnostic['no_output'].append(True)
+            granule_diagnostic['output_file'].append(None)
+        else :
+            LOG.info('New VIVIO granule: {}'.format(repr(vegIdxEdr_new_granules)))
+            vegIdxEdr_granules_made = set(vegIdxEdr_ID.values()) - vegIdxEdr_prior_granules
+            LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(vegIdxEdr_granules_made))))
+            granule_diagnostic['no_output'].append(False)
+            granule_diagnostic['output_file'].append(path.basename(vegIdxEdr_new_granules[granule_id]))
+
+    except Exception:
+        LOG.warn(traceback.format_exc())
+
+    move_products_to_work_directory(granule_output_dir)
+
+    return granule_diagnostic
+
+
+def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **additional_env):
+    """Run each VIIRS Sea Surface Temperature EDR xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
     """
-    crashed_runs = set()
-    no_output_runs = set()
-    geo_problem_runs = set()
-    bad_log_runs = set()
-    first = True
 
-    # obtain pre-existing granule list
-    modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
+    total_granules = len(xml_files_to_process)
+    LOG.info('{} granules to process'.format(total_granules))
+
+    argument_dictionaries = []
+    for granule_id, xml in xml_files_to_process:
+
+        granule_output_dir = path.join(work_dir,"{}_{}".format(controllerName,granule_id))
+
+        if not path.exists(granule_output_dir): os.mkdir(granule_output_dir)
+        if not path.exists(path.join(granule_output_dir, "log")): os.mkdir(path.join(granule_output_dir, "log"))
+
+        additional_envs = dict(
+            N_Granule_ID=granule_id,
+            XML_FILE=xml,
+            GRANULE_OUTPUT_DIR=granule_output_dir,
+            WORK_DIR=work_dir,
+            ADL_HOME=ADL_HOME,
+            CLEANUP=CLEANUP
+        )
+
+        argument_dictionaries.append(additional_envs)
+
+    # Pattern for expected output in the root working directory
     vegIdxEdrPattern = path.join(work_dir, 'VIVIO*.h5')
 
     # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
     # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
-
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Vegation Index EDR files
+    
+    # Get the (N_GranuleID,hdfFileName) pairs for the existing Cloud Mask IP files
     vegIdxEdr_prior_granules, vegIdxEdr_ID = h5_xdr_inventory(vegIdxEdrPattern, VEGIDX_EDR_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing Vegetation Index granules... %s' % (repr(vegIdxEdr_prior_granules)))
+    LOG.debug('Existing VIVIO granules in {}... {}'.format(granule_output_dir, vegIdxEdr_prior_granules))
 
     vegIdxEdr_prior_granules = set(vegIdxEdr_prior_granules.keys())
-    LOG.debug('Set of existing Vegetation Index granules... %s' % (repr(vegIdxEdr_prior_granules)))
+    LOG.debug('Set of existing VIVIO granules in {}... {}'.format(work_dir, vegIdxEdr_prior_granules))
 
+    results = []
 
-    for granule_id, xml in xml_files_to_process:
+    if len(argument_dictionaries) > 0:
 
-        t1 = time()
-        
-        cmd = [ADL_VIIRS_VI_EDR, xml]
-        #cmd = ['/usr/bin/gdb', ADL_VIIRS_VI_EDR] # for debugging with gdb...
-        
-        if setup_only:
-            print ' '.join(cmd)
-        else:
-            LOG.debug('executing "%s"' % ' '.join(cmd))
-            LOG.debug('additional environment variables: %s' % repr(additional_env))
-            try:
-                pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
-                LOG.debug("%r ran as pid %d" % (cmd, pid))
-                if not check_log_files(work_dir, pid, xml):
-                    bad_log_runs.add(granule_id)
+        # Create the multiprocessing infrastructure
+        number_available = multiprocessing.cpu_count()
 
-            except CalledProcessError as oops:
-                LOG.debug(traceback.format_exc())
-                LOG.error('%s failed on %r: %r. Continuing...' % (controllerBinary, xml, oops))
-                crashed_runs.add(granule_id)
-            first = False
+        #nprocs = 4 # FIXME: temporary
+        if int(nprocs) > number_available:
+            LOG.warning("More processors requested {} than available {}".format(nprocs, number_available))
+            nprocs = number_available - 1
 
-            # check new VIVIO output granules
-            vegIdxEdr_new_granules, vegIdxEdr_ID = h5_xdr_inventory(vegIdxEdrPattern, VEGIDX_EDR_GRANULE_ID_ATTR_PATH, state=vegIdxEdr_ID)
-            LOG.debug('new VIVIO granules after this run: %s' % repr(vegIdxEdr_new_granules))
-            if granule_id not in vegIdxEdr_new_granules:
-                LOG.warning('no VIVIO HDF5 output for %s' % granule_id)
-                no_output_runs.add(granule_id)
-            else:
-                filename = vegIdxEdr_new_granules[granule_id]
+        pool = multiprocessing.Pool(int(nprocs))
+        LOG.info('Creating pool supporting {} processes...\n'.format(nprocs))
 
-        t2 = time()
-        LOG.info ( "Controller ran in %f seconds." % (t2-t1))
+        try:
+            t1 = time()
+            results = pool.map_async(submit_granule, argument_dictionaries).get(9999999)
+            #results = pool.map(submit_granule, argument_dictionaries)
+            t2 = time()
+            LOG.info ("Processed {} granules using {}/{} processes in {} seconds.\n".format(total_granules, \
+                    nprocs, number_available, t2-t1))
+        except KeyboardInterrupt:
+            LOG.error("Got exception, stopping workers and exiting.")
+            pool.terminate()
+            pool.join()
+            sys.exit(1)
 
+    # check new IICMO output granules
+    vegIdxEdr_new_granules, vegIdxEdr_ID = h5_xdr_inventory(vegIdxEdrPattern, VEGIDX_EDR_GRANULE_ID_ATTR_PATH, state=vegIdxEdr_ID)
 
-    LOG.debug("vegIdxEdr_ID.values() = \n%r" % (vegIdxEdr_ID.values()))
-    LOG.debug("set(vegIdxEdr_ID.values()) = \n%r" % (set(vegIdxEdr_ID.values())))
-    LOG.debug("vegIdxEdr_prior_granules = \n%r" % (vegIdxEdr_prior_granules))
+    LOG.debug("vegIdxEdr_ID.values() = {}".format(vegIdxEdr_ID.values()))
+    LOG.debug("set(vegIdxEdr_ID.values()) = {}".format(set(vegIdxEdr_ID.values())))
+    LOG.debug("vegIdxEdr_prior_granules = {}".format(vegIdxEdr_prior_granules))
     vegIdxEdr_granules_made = set(vegIdxEdr_ID.values()) - vegIdxEdr_prior_granules
 
     LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(vegIdxEdr_granules_made))))
 
+    crashed_runs = set()
+    no_output_runs = set()
+    geo_problem_runs = set()
+    bad_log_runs = set()
+
+    for dicts in results:
+        LOG.debug("results[{}] : {}".format(dicts['N_Granule_ID'],dicts))
+        if dicts['crashed']: crashed_runs.add(dicts['N_Granule_ID'])
+        if dicts['no_output'][0]: no_output_runs.add(dicts['N_Granule_ID']) 
+        if dicts['geo_problem']: geo_problem_runs.add(dicts['N_Granule_ID']) 
+        if dicts['bad_log']: bad_log_runs.add(dicts['N_Granule_ID']) 
 
     if no_output_runs:
-        LOG.info('Granules that failed to generate output: %s' % (', '.join(no_output_runs)))
+        LOG.warning('Granules that failed to generate output: %s' % (', '.join(no_output_runs)))
     if geo_problem_runs:
         LOG.warning('Granules which had no N_Geo_Ref: %s' % ', '.join(geo_problem_runs))
     if crashed_runs:
@@ -247,7 +374,12 @@ def run_xml_files(work_dir, xml_files_to_process, setup_only=False, **additional
     if bad_log_runs:
         LOG.warning('Granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
     if not vegIdxEdr_granules_made:
-        LOG.warning('No Vegetation Index EDR HDF5 files were created')
+        LOG.warning('No {} HDF5 files were created'.format(AlgorithmName))
+
+    LOG.debug('no_output_runs : {}'.format(no_output_runs))
+    LOG.debug('geo_problem_runs : {}'.format(geo_problem_runs))
+    LOG.debug('crashed_runs : {}'.format(crashed_runs))
+    LOG.debug('bad_log_runs : {}'.format(bad_log_runs))
 
     return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
 

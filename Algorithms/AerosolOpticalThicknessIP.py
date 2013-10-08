@@ -312,51 +312,57 @@ def submit_granule(additional_env):
         LOG.error('{} failed on {}: {}. Continuing...' % (cmd[0], xml, oops))
         granule_diagnostic['crashed'] = True
 
-    # check new IVAOT output granules
-    aotIp_new_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH, state=aotIp_ID)
-
-    if granule_id not in aotIp_new_granules:
-        LOG.warning('no IVAOT HDF5 output for {}'.format(granule_id))
-        granule_diagnostic['no_output'].append(True)
-        granule_diagnostic['output_file'].append(None)
-    else :
-        LOG.info('New IVAOT granule: {}'.format(repr(cmask_new_granules)))
-        aerosolIP_granules_made = set(aotIp_ID.values()) - aerosolIP_prior_granules
-        LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(aerosolIP_granules_made))))
-        granule_diagnostic['no_output'].append(False)
-        granule_diagnostic['output_file'].append(path.basename(aerosolIP_granules_made[granule_id]))
-
-    # check new VAOOO output granules
-    aotEdr_new_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH, state=aotEdr_ID)
-
-    if granule_id not in aotEdr_new_granules:
-        LOG.warning('no VAOOO HDF5 output for {}'.format(granule_id))
-        granule_diagnostic['no_output'].append(True)
-        granule_diagnostic['output_file'].append(None)
-    else :
-        LOG.info('New AVAFO granule: {}'.format(repr(afires_new_granules)))
-        aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
-        LOG.info('Aerosol Optical Thickness EDR granules created: {}'.format(', '.join(list(aerosolEDR_granules_made))))
-        granule_diagnostic['no_output'].append(False)
-        granule_diagnostic['output_file'].append(path.basename(aerosolEDR_granules_made[granule_id]))
-
-    # check new VSUMO output granules
-    suspMatEdr_new_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH, state=suspMatEdr_ID)
-
-    if granule_id not in suspMatEdr_new_granules:
-        LOG.warning('no VAOOO HDF5 output for {}'.format(granule_id))
-        granule_diagnostic['no_output'].append(True)
-        granule_diagnostic['output_file'].append(None)
-    else :
-        LOG.info('New AVAFO granule: {}'.format(repr(suspMatEdr_new_granules)))
-        suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
-        LOG.info('Suspended Matter EDR granules created: {}'.format(', '.join(list(suspMatEDR_granules_made))))
-        granule_diagnostic['no_output'].append(False)
-        granule_diagnostic['output_file'].append(path.basename(suspMatEDR_granules_made[granule_id]))
-
     t2 = time()
 
-    LOG.info("Controller ran in {} seconds.".format(t2-t1))
+    LOG.info("{}({}) ran in {} seconds.".format(controllerName,granule_id,t2-t1))
+
+    try :
+
+        # check new IVAOT output granules
+        aotIp_new_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH, state=aotIp_ID)
+
+        if granule_id not in aotIp_new_granules:
+            LOG.warning('no IVAOT HDF5 output for {}'.format(granule_id))
+            granule_diagnostic['no_output'].append(True)
+            granule_diagnostic['output_file'].append(None)
+        else :
+            LOG.info('New IVAOT granule: {}'.format(aotIp_new_granules))
+            aerosolIP_granules_made = set(aotIp_ID.values()) - aerosolIP_prior_granules
+            LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(aerosolIP_granules_made))))
+            granule_diagnostic['no_output'].append(False)
+            granule_diagnostic['output_file'].append(path.basename(aotIp_new_granules[granule_id]))
+
+        # check new VAOOO output granules
+        aotEdr_new_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH, state=aotEdr_ID)
+
+        if granule_id not in aotEdr_new_granules:
+            LOG.warning('no VAOOO HDF5 output for {}'.format(granule_id))
+            granule_diagnostic['no_output'].append(True)
+            granule_diagnostic['output_file'].append(None)
+        else :
+            LOG.info('New AVAFO granule: {}'.format(aotEdr_new_granules))
+            aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
+            LOG.info('Aerosol Optical Thickness EDR granules created: {}'.format(', '.join(list(aerosolEDR_granules_made))))
+            granule_diagnostic['no_output'].append(False)
+            granule_diagnostic['output_file'].append(path.basename(aotEdr_new_granules[granule_id]))
+
+        # check new VSUMO output granules
+        suspMatEdr_new_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH, state=suspMatEdr_ID)
+
+        if granule_id not in suspMatEdr_new_granules:
+            LOG.warning('no VAOOO HDF5 output for {}'.format(granule_id))
+            granule_diagnostic['no_output'].append(True)
+            granule_diagnostic['output_file'].append(None)
+        else :
+            LOG.info('New AVAFO granule: {}'.format(suspMatEdr_new_granules))
+            suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
+            LOG.info('Suspended Matter EDR granules created: {}'.format(', '.join(list(suspMatEDR_granules_made))))
+            granule_diagnostic['no_output'].append(False)
+            granule_diagnostic['output_file'].append(path.basename(suspMatEdr_new_granules[granule_id]))
+
+    except Exception:
+        LOG.warn(traceback.format_exc())
+
 
     move_products_to_work_directory(granule_output_dir)
 
@@ -375,7 +381,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
     argument_dictionaries = []
     for granule_id, xml in xml_files_to_process:
 
-        granule_output_dir = path.join(work_dir,"{}_{}" %(controllerName,granule_id))
+        granule_output_dir = path.join(work_dir,"{}_{}".format(controllerName,granule_id))
 
         if not path.exists(granule_output_dir): os.mkdir(granule_output_dir)
         if not path.exists(path.join(granule_output_dir, "log")): os.mkdir(path.join(granule_output_dir, "log"))
@@ -440,6 +446,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
         try:
             t1 = time()
             results = pool.map_async(submit_granule, argument_dictionaries).get(9999999)
+            #results = pool.map(submit_granule, argument_dictionaries)
             t2 = time()
             LOG.info ("Processed {} granules using {}/{} processes in {} seconds.\n".format(total_granules, \
                     nprocs, number_available, t2-t1))
@@ -485,7 +492,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
     bad_log_runs = set()
 
     for dicts in results:
-        LOG.info("results[{}] : {}".format(dicts['N_Granule_ID'],dicts))
+        LOG.debug("results[{}] : {}".format(dicts['N_Granule_ID'],dicts))
         if dicts['crashed']: crashed_runs.add(dicts['N_Granule_ID'])
         if (dicts['no_output'][0] and dicts['no_output'][1] and dicts['no_output'][2]): no_output_runs.add(dicts['N_Granule_ID']) 
         if dicts['geo_problem']: geo_problem_runs.add(dicts['N_Granule_ID']) 
@@ -506,144 +513,10 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
     if not suspMatEDR_granules_made:
         LOG.warning('No Suspended Matter EDR HDF5 files were created')
 
-    LOG.warning('no_output_runs : {}'.format(no_output_runs))
-    LOG.warning('geo_problem_runs : {}'.format(geo_problem_runs))
-    LOG.warning('crashed_runs : {}'.format(crashed_runs))
-    LOG.warning('bad_log_runs : {}'.format(bad_log_runs))
-
-    return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
-
-
-def run_xml_files_old(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS Aerosol Optical Thickness IP xml input in sequence.
-       Return the list of granule IDs which crashed, 
-       and list of granule IDs which did not create output.
-    """
-    crashed_runs = set()
-    no_output_runs = set()
-    geo_problem_runs = set()
-    bad_log_runs = set()
-    first = True
-
-    # obtain pre-existing granule list
-    modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
-    aotIpPattern = path.join(work_dir, 'IVAOT*.h5')
-    aotEdrPattern = path.join(work_dir, 'VAOOO*.h5')
-    suspMatEdrPattern = path.join(work_dir, 'VSUMO*.h5')
-
-    # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
-    # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
-
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol IP files
-    aerosolIP_prior_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing IVAOT granules... %s' % (repr(aerosolIP_prior_granules)))
-
-    aerosolIP_prior_granules = set(aerosolIP_prior_granules.keys())
-    LOG.debug('Set of existing IVAOT granules... %s' % (repr(aerosolIP_prior_granules)))
-
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Aerosol EDR files
-    aerosolEDR_prior_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing VAOOO granules... %s' % (repr(aerosolEDR_prior_granules)))
-
-    aerosolEDR_prior_granules = set(aerosolEDR_prior_granules.keys())
-    LOG.debug('Set of existing VAOOO granules... %s' % (repr(aerosolEDR_prior_granules)))
-    
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Suspended Matter EDR files
-    suspMatEDR_prior_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing VSUMO granules... %s' % (repr(suspMatEDR_prior_granules)))
-
-    suspMatEDR_prior_granules = set(suspMatEDR_prior_granules.keys())
-    LOG.debug('Set of existing VSUMO granules... %s' % (repr(suspMatEDR_prior_granules)))
-
-
-    for granule_id, xml in xml_files_to_process:
-
-        t1 = time()
-        
-        cmd = [ADL_VIIRS_AEROSOL_EDR, xml]
-        #cmd = ['/usr/bin/gdb', ADL_VIIRS_AEROSOL_EDR] # for debugging with gdb...
-        
-        if setup_only:
-            print ' '.join(cmd)
-        else:
-            LOG.debug('executing "%s"' % ' '.join(cmd))
-            LOG.debug('additional environment variables: %s' % repr(additional_env))
-            try:
-                pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
-                LOG.debug("%r ran as pid %d" % (cmd, pid))
-                if not check_log_files(work_dir, pid, xml):
-                    bad_log_runs.add(granule_id)
-
-            except CalledProcessError as oops:
-                LOG.debug(traceback.format_exc())
-                LOG.error('%s failed on %r: %r. Continuing...' % (controllerBinary, xml, oops))
-                crashed_runs.add(granule_id)
-            first = False
-
-            # check new IVAOT output granules
-            aotIp_new_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH, state=aotIp_ID)
-            LOG.debug('new IVAOT granules after this run: %s' % repr(aotIp_new_granules))
-            if granule_id not in aotIp_new_granules:
-                LOG.warning('no IVAOT HDF5 output for %s' % granule_id)
-                no_output_runs.add(granule_id)
-            else:
-                filename = aotIp_new_granules[granule_id]
-
-            # check new VAOOO output granules
-            aotEdr_new_granules, aotEdr_ID = h5_xdr_inventory(aotEdrPattern, AOT_EDR_GRANULE_ID_ATTR_PATH, state=aotEdr_ID)
-            LOG.debug('new VAOOO granules after this run: %s' % repr(aotEdr_new_granules))
-            if granule_id not in aotEdr_new_granules:
-                LOG.warning('no VAOOO HDF5 output for %s' % granule_id)
-                no_output_runs.add(granule_id)
-            else:
-                filename = aotEdr_new_granules[granule_id]
-
-            # check new VSUMO output granules
-            suspMatEdr_new_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH, state=suspMatEdr_ID)
-            LOG.debug('new VSUMO granules after this run: %s' % repr(suspMatEdr_new_granules))
-            if granule_id not in suspMatEdr_new_granules:
-                LOG.warning('no VSUMO HDF5 output for %s' % granule_id)
-                no_output_runs.add(granule_id)
-            else:
-                filename = suspMatEdr_new_granules[granule_id]
-
-        t2 = time()
-        LOG.info ( "Controller ran in %f seconds." % (t2-t1))
-
-
-    LOG.debug("aotIp_ID.values() = \n%r" % (aotIp_ID.values()))
-    LOG.debug("set(aotIp_ID.values()) = \n%r" % (set(aotIp_ID.values())))
-    LOG.debug("aerosolIP_prior_granules = \n%r" % (aerosolIP_prior_granules))
-    aerosolIP_granules_made = set(aotIp_ID.values()) - aerosolIP_prior_granules
-
-    LOG.debug("aotEdr_ID.values() = \n%r" % (aotEdr_ID.values()))
-    LOG.debug("set(aotEdr_ID.values()) = \n%r" % (set(aotEdr_ID.values())))
-    LOG.debug("aerosolEDR_prior_granules = \n%r" % (aerosolEDR_prior_granules))
-    aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
-
-    LOG.debug("suspMatEdr_ID.values() = \n%r" % (suspMatEdr_ID.values()))
-    LOG.debug("set(suspMatEdr_ID.values()) = \n%r" % (set(suspMatEdr_ID.values())))
-    LOG.debug("suspMatEDR_prior_granules = \n%r" % (suspMatEDR_prior_granules))
-    suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
-
-    LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(aerosolIP_granules_made))))
-    LOG.info('Aerosol EDR granules created: {}'.format(', '.join(list(aerosolEDR_granules_made))))
-    LOG.info('Suspended Matter EDR granules created: {}'.format(', '.join(list(suspMatEDR_granules_made))))
-
-    if no_output_runs:
-        LOG.info('Granules that failed to generate output: %s' % (', '.join(no_output_runs)))
-    if geo_problem_runs:
-        LOG.warning('Granules which had no N_Geo_Ref: %s' % ', '.join(geo_problem_runs))
-    if crashed_runs:
-        LOG.warning('Granules that crashed ADL: %s' % (', '.join(crashed_runs)))
-    if bad_log_runs:
-        LOG.warning('Granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
-    if not aerosolIP_granules_made:
-        LOG.warning('No Aerosol Optical Thickness IP HDF5 files were created')
-    if not aerosolEDR_granules_made:
-        LOG.warning('No Aerosol Optical Thickness EDR HDF5 files were created')
-    if not suspMatEDR_granules_made:
-        LOG.warning('No Suspended Matter EDR HDF5 files were created')
+    LOG.debug('no_output_runs : {}'.format(no_output_runs))
+    LOG.debug('geo_problem_runs : {}'.format(geo_problem_runs))
+    LOG.debug('crashed_runs : {}'.format(crashed_runs))
+    LOG.debug('bad_log_runs : {}'.format(bad_log_runs))
 
     return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
 

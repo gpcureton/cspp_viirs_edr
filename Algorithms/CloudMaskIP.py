@@ -279,7 +279,7 @@ def submit_granule(additional_env):
 
         LOG.info("{} ran as pid {}".format(cmd, pid))
         if not check_log_files(granule_output_dir, pid, xml):
-            granule_diagnostic['bad_log'] = True
+           granule_diagnostic['bad_log'] = True
 
     except CalledProcessError as oops:
         pid = getattr(oops, 'pid', None)
@@ -287,37 +287,43 @@ def submit_granule(additional_env):
         LOG.error('{} failed on {}: {}. Continuing...' % (cmd[0], xml, oops))
         granule_diagnostic['crashed'] = True
 
-    # check new Cloud Mask output granules
-    cmask_new_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH, state=cmask_ID)
-
-    if granule_id not in cmask_new_granules:
-        LOG.warning('no IICMO HDF5 output for {}'.format(granule_id))
-        granule_diagnostic['no_output'].append(True)
-        granule_diagnostic['output_file'].append(None)
-    else :
-        LOG.info('New IICMO granule: {}'.format(repr(cmask_new_granules)))
-        cmask_granules_made = set(cmask_ID.values()) - cmask_prior_granules
-        LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(cmask_granules_made))))
-        granule_diagnostic['no_output'].append(False)
-        granule_diagnostic['output_file'].append(path.basename(cmask_new_granules[granule_id]))
-
-    # check new Active Fires output granules
-    afires_new_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH, state=afires_ID)
-
-    if granule_id not in afires_new_granules:
-        LOG.warning('no AVAFO HDF5 output for {}'.format(granule_id))
-        granule_diagnostic['no_output'].append(True)
-        granule_diagnostic['output_file'].append(None)
-    else :
-        LOG.info('New AVAFO granule: {}'.format(repr(afires_new_granules)))
-        activeFires_granules_made = set(afires_ID.values()) - activeFires_prior_granules
-        LOG.info('Active Fires granules created: {}'.format(', '.join(list(activeFires_granules_made))))
-        granule_diagnostic['no_output'].append(False)
-        granule_diagnostic['output_file'].append(path.basename(afires_new_granules[granule_id]))
-
     t2 = time()
 
-    LOG.info("Controller ran in {} seconds.".format(t2-t1))
+    LOG.info("{}({}) ran in {} seconds.".format(controllerName,granule_id,t2-t1))
+
+    try :
+
+        # check new Cloud Mask output granules
+        cmask_new_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH, state=cmask_ID)
+
+        if granule_id not in cmask_new_granules:
+            LOG.warning('no IICMO HDF5 output for {}'.format(granule_id))
+            granule_diagnostic['no_output'].append(True)
+            granule_diagnostic['output_file'].append(None)
+        else :
+            LOG.info('New IICMO granule: {}'.format(cmask_new_granules))
+            cmask_granules_made = set(cmask_ID.values()) - cmask_prior_granules
+            LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(cmask_granules_made))))
+            granule_diagnostic['no_output'].append(False)
+            granule_diagnostic['output_file'].append(path.basename(cmask_new_granules[granule_id]))
+
+        # check new Active Fires output granules
+        afires_new_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH, state=afires_ID)
+
+        if granule_id not in afires_new_granules:
+            LOG.warning('no AVAFO HDF5 output for {}'.format(granule_id))
+            granule_diagnostic['no_output'].append(True)
+            granule_diagnostic['output_file'].append(None)
+        else :
+            LOG.info('New AVAFO granule: {}'.format(afires_new_granules))
+            activeFires_granules_made = set(afires_ID.values()) - activeFires_prior_granules
+            LOG.info('Active Fires granules created: {}'.format(', '.join(list(activeFires_granules_made))))
+            granule_diagnostic['no_output'].append(False)
+            granule_diagnostic['output_file'].append(path.basename(afires_new_granules[granule_id]))
+
+    except Exception:
+        LOG.warn(traceback.format_exc())
+
 
     move_products_to_work_directory(granule_output_dir)
 
@@ -336,25 +342,21 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
     argument_dictionaries = []
     for granule_id, xml in xml_files_to_process:
 
-        granule_output_dir = path.join(work_dir,"{}_{}" %(controllerName,granule_id))
+        granule_output_dir = path.join(work_dir,"{}_{}".format(controllerName,granule_id))
 
-        try:
-            os.mkdir(granule_output_dir)
-            os.mkdir(os.path.join(granule_output_dir, "log"))
+        if not path.exists(granule_output_dir): os.mkdir(granule_output_dir)
+        if not path.exists(path.join(granule_output_dir, "log")): os.mkdir(path.join(granule_output_dir, "log"))
 
-            additional_envs = dict(
-                N_Granule_ID=granule_id,
-                XML_FILE=xml,
-                GRANULE_OUTPUT_DIR=granule_output_dir,
-                WORK_DIR=work_dir,
-                ADL_HOME=ADL_HOME,
-                CLEANUP=CLEANUP
-            )
+        additional_envs = dict(
+            N_Granule_ID=granule_id,
+            XML_FILE=xml,
+            GRANULE_OUTPUT_DIR=granule_output_dir,
+            WORK_DIR=work_dir,
+            ADL_HOME=ADL_HOME,
+            CLEANUP=CLEANUP
+        )
 
-            argument_dictionaries.append(additional_envs)
-
-        except:
-            LOG.info("Granule %s Skipped,  Already processed" % (granule_id))
+        argument_dictionaries.append(additional_envs)
 
     # Pattern for expected output in the root working directory
     cmaskPattern = path.join(work_dir, 'IICMO*.h5')
@@ -395,6 +397,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
         try:
             t1 = time()
             results = pool.map_async(submit_granule, argument_dictionaries).get(9999999)
+            #results = pool.map(submit_granule, argument_dictionaries)
             t2 = time()
             LOG.info ("Processed {} granules using {}/{} processes in {} seconds.\n".format(total_granules, \
                     nprocs, number_available, t2-t1))
@@ -430,7 +433,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
     bad_log_runs = set()
 
     for dicts in results:
-        LOG.info("results[{}] : {}".format(dicts['N_Granule_ID'],dicts))
+        LOG.debug("results[{}] : {}".format(dicts['N_Granule_ID'],dicts))
         if dicts['crashed']: crashed_runs.add(dicts['N_Granule_ID'])
         if (dicts['no_output'][0] and dicts['no_output'][1]): no_output_runs.add(dicts['N_Granule_ID']) 
         if dicts['geo_problem']: geo_problem_runs.add(dicts['N_Granule_ID']) 
@@ -449,121 +452,10 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
     if not activeFires_granules_made:
         LOG.warning('No Active Fires ARP HDF5 files were created')
 
-    LOG.warning('no_output_runs : {}'.format(no_output_runs))
-    LOG.warning('geo_problem_runs : {}'.format(geo_problem_runs))
-    LOG.warning('crashed_runs : {}'.format(crashed_runs))
-    LOG.warning('bad_log_runs : {}'.format(bad_log_runs))
-
-    return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
-
-
-def run_xml_files_old(work_dir, xml_files_to_process, setup_only=False, **additional_env):
-    """Run each VIIRS Cloud Mask IP xml input in sequence.
-       Return the list of granule IDs which crashed, 
-       and list of granule IDs which did not create output.
-    """
-    crashed_runs = set()
-    no_output_runs = set()
-    geo_problem_runs = set()
-    bad_log_runs = set()
-    first = True
-
-    # obtain pre-existing granule list
-    modGeoTCPattern = path.join(work_dir, 'GMTCO*.h5')
-    cmaskPattern = path.join(work_dir, 'IICMO*.h5')
-    activeFiresPattern = path.join(work_dir, 'AVAFO*.h5')
-
-    # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
-    # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
-    
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Cloud Mask IP files
-    cmask_prior_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing IICMO granules... %s' % (repr(cmask_prior_granules)))
-
-    cmask_prior_granules = set(cmask_prior_granules.keys())
-    LOG.debug('Set of existing IICMO granules... %s' % (repr(cmask_prior_granules)))
-
-    # Get the (N_GranuleID,hdfFileName) pairs for the existing Active fires files
-    activeFires_prior_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing AVAFO granules... %s' % (repr(activeFires_prior_granules)))
-
-    activeFires_prior_granules = set(activeFires_prior_granules.keys())
-    LOG.debug('Set of existing AVAFO granules... %s' % (repr(activeFires_prior_granules)))
-
-
-    for granule_id, xml in xml_files_to_process:
-
-        t1 = time()
-        
-        cmd = [ADL_VIIRS_MASKS_EDR, xml]
-        #cmd = ['/bin/sleep','0.2']
-        #cmd = ['/usr/bin/gdb', ADL_VIIRS_MASKS_EDR] # for debugging with gdb...
-        
-        if setup_only:
-            print ' '.join(cmd)
-        else:
-            LOG.debug('executing "%s"' % ' '.join(cmd))
-            LOG.debug('additional environment variables: %s' % repr(additional_env))
-            try:
-                pid = sh(cmd, env=env(**additional_env), cwd=work_dir)
-                LOG.debug("%r ran as pid %d" % (cmd, pid))
-                if not check_log_files(work_dir, pid, xml):
-                    bad_log_runs.add(granule_id)
-
-            except CalledProcessError as oops:
-                LOG.debug(traceback.format_exc())
-                LOG.error('%s failed on %r: %r. Continuing...' % (controllerBinary, xml, oops))
-                crashed_runs.add(granule_id)
-            first = False
-
-            # check new IICMO output granules
-            cmask_new_granules, cmask_ID = h5_xdr_inventory(cmaskPattern, CM_GRANULE_ID_ATTR_PATH, state=cmask_ID)
-            LOG.debug('new IICMO granules after this run: %s' % (repr(cmask_new_granules)))
-            if granule_id not in cmask_new_granules:
-                LOG.warning('no IICMO HDF5 output for %s' % (granule_id))
-                no_output_runs.add(granule_id)
-            else:
-                filename = cmask_new_granules[granule_id]
-
-            # check new AVAFO output granules
-            afires_new_granules, afires_ID = h5_xdr_inventory(activeFiresPattern, AF_GRANULE_ID_ATTR_PATH, state=afires_ID)
-            LOG.debug('new AVAFO granules after this run: %s' % (repr(afires_new_granules)))
-            if granule_id not in afires_new_granules:
-                LOG.warning('no AVAFO HDF5 output for %s' % (granule_id))
-                no_output_runs.add(granule_id)
-            else:
-                filename = afires_new_granules[granule_id]
-
-        t2 = time()
-        LOG.info ( "Controller ran in %f seconds." % (t2-t1))
-
-
-    LOG.debug("cmask_ID.values() = %r" % (cmask_ID.values()))
-    LOG.debug("set(cmask_ID.values()) = %r" % (set(cmask_ID.values())))
-    LOG.debug("cmask_prior_granules = %r" % (cmask_prior_granules))
-    cmask_granules_made = set(cmask_ID.values()) - cmask_prior_granules
-
-    LOG.debug("afires_ID.values() = %r" % (afires_ID.values()))
-    LOG.debug("set(afires_ID.values()) = %r" % (set(afires_ID.values())))
-    LOG.debug("activeFires_prior_granules = %r" % (activeFires_prior_granules))
-    activeFires_granules_made = set(afires_ID.values()) - activeFires_prior_granules
-
-    LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(cmask_granules_made))))
-    LOG.info('Active Fires granules created: {}'.format(', '.join(list(activeFires_granules_made))))
-
-
-    if no_output_runs:
-        LOG.info('Granules that failed to generate output: %s' % (', '.join(no_output_runs)))
-    if geo_problem_runs:
-        LOG.warning('Granules which had no N_Geo_Ref: %s' % ', '.join(geo_problem_runs))
-    if crashed_runs:
-        LOG.warning('Granules that crashed ADL: %s' % (', '.join(crashed_runs)))
-    if bad_log_runs:
-        LOG.warning('Granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
-    if not cmask_granules_made:
-        LOG.warning('No Cloud Mask IP HDF5 files were created')
-    if not activeFires_granules_made:
-        LOG.warning('No Active Fires ARP HDF5 files were created')
+    LOG.debug('no_output_runs : {}'.format(no_output_runs))
+    LOG.debug('geo_problem_runs : {}'.format(geo_problem_runs))
+    LOG.debug('crashed_runs : {}'.format(crashed_runs))
+    LOG.debug('bad_log_runs : {}'.format(bad_log_runs))
 
     return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
 

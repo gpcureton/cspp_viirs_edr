@@ -255,7 +255,7 @@ class QuarterlySurfaceType() :
 
         # Check for dateline/pole crossings
         num180Crossings = findDatelineCrossings(latCrnList,lonCrnList)
-        LOG.info("We have %d dateline crossings."%(num180Crossings))
+        LOG.debug("We have %d dateline crossings."%(num180Crossings))
         
         # Copy the geolocation information to the class object
         self.latMin    = latMin

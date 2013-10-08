@@ -108,7 +108,6 @@ from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain,
 # We need [ 'CSPP_RT_HOME', 'ADL_HOME', 'CSPP_RT_ANC_TILE_PATH', 'CSPP_RT_ANC_CACHE_DIR', 'CSPP_RT_ANC_PATH' ] environment 
 # variables to be set...
 from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
-from adl_common import check_and_convert_path
 from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE,check_and_convert_path
 
 # log file scanning
@@ -436,14 +435,10 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
                 granId_prev = group[granIdx_prev]['N_Granule_ID']
                 granId = gran['N_Granule_ID']
                 granId_next = group[granIdx_next]['N_Granule_ID']
-                #LOG.info("Granule indicies are (%r,%r,%r)" % (granIdx_prev,granIdx,granIdx_next))
-                #LOG.info("granId are (%r,%r,%r)" % (granId_prev,granId,granId_next))
-                #LOG.info("Prev diff = %d" % ( long(granId[3:]) - long(granId_prev[3:]) ))
-                #LOG.info("Next diff = %d" % ( long(granId_next[3:]) - long(granId[3:]) ))
                 gran['N_Granule_ID_prev'] = granId_prev
                 gran['N_Granule_ID_next'] = granId_next
                 granIdx = granIdx + 1
-                LOG.info("Granule IDs are ({},{},{})".format(gran['N_Granule_ID_prev'],gran['N_Granule_ID'],gran['N_Granule_ID_next']))
+                LOG.debug("Granule IDs are ({},{},{})".format(gran['N_Granule_ID_prev'],gran['N_Granule_ID'],gran['N_Granule_ID_next']))
 
             LOG.debug('Processing opportunity: {} at {} with uuid {}'.format(gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
             yield gran
@@ -1222,7 +1217,23 @@ def __cleanup(work_dir, dirs_to_remove):
             LOG.info('Removing {}'.format(ascFile))
             os.unlink(ascFile)
 
+    # Remove ANC and GridIP asc/blob file pairs
+    LOG.info("Removing ANC and GridIP blob/asc file pairs...")
+    anc_glob = path.join(work_dir,"*.VIIRS-ANC*")
+    gridIP_glob = path.join(work_dir,"*.VIIRS-GridIP*")
+    blobFiles = glob(anc_glob) + glob(gridIP_glob)
+    if blobFiles != [] :
+        for blobFile in blobFiles:
+            blobDir = path.dirname(blobFile)
+            URID = string.split(path.basename(blobFile),".")[0]
+            ascFile = path.join(blobDir,"{}.asc".format(URID))
+            LOG.info('Removing {}'.format(blobFile))
+            os.unlink(blobFile)
+            LOG.info('Removing {}'.format(ascFile))
+            os.unlink(ascFile)
+
     # Remove all other asc/blob pairs (usually products).
+    LOG.info("Remove all other asc/blob pairs (usually products)...")
     ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
     if ascBlobFiles != [] :
         for ascBlobFile in ascBlobFiles:
@@ -1323,7 +1334,7 @@ def main():
                       action="store_true",
                       dest="noDummyGranules",
                       default=False,
-                      help="Do not generate dummy SDR cross granules.")
+                      help="Do not generate dummy SDR or ancillary cross granules.")
 
     optionalGroup.add_option('-p','--processors',
                       action="store",
@@ -1404,23 +1415,10 @@ def main():
         LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
 
-    # Ordered list of required algorithms (to be passed in)
-    #if (options.algorithm == 'ATMOS'):
-        #options.algorithm = 'AOT'
-        #algList = ['AOT']
-    #elif (options.algorithm == 'OCEAN'):
-        #options.algorithm = 'SST'
-        #algList = ['SST']
-    #elif (options.algorithm == 'LAND'):
-        #options.algorithm = 'VI'
-        #algList = ['VI']
-    #else:
-        #algList = [options.algorithm]
-
-    algList = [options.algorithm]
-
     # Determine the ordered list of algs to satisfy the required 
     # algorithm's dependencies.
+    algList = [options.algorithm]
+
     if not options.noAlgChain : 
         LOG.info("We ARE chaining algorithms...")
         thisAlg = algList[0]
@@ -1516,7 +1514,7 @@ def main():
 
     # Create any required dummy geolocation and radiometric granules
     dummy_granule_dict = {}
-    options.noDummyGranules = True
+    #options.noDummyGranules = True ### FIXME
 
     if not options.noDummyGranules:
         dummy_granule_dict = _create_dummy_sdr(work_dir,requiredGeoShortname,requiredSdrShortname,\
@@ -1528,7 +1526,7 @@ def main():
 
         for granID in dummy_granule_dict['N_Granule_ID']:
             for shortName in requiredShortnames:
-                LOG.info("dummy_granule_dict[{}][{}] = {}".format(\
+                LOG.debug("dummy_granule_dict[{}][{}] = {}".format(\
                         granID,shortName,dummy_granule_dict[granID][shortName]))
 
 
@@ -1685,55 +1683,59 @@ def main():
 
         for alg in algorithms :
 
-            # build XML configuration files for jobs that can be run
-            LOG.info("Building %s XML files for %d granules" % \
-                    (alg.AlgorithmString,len(alg.granules_to_process)))
+            try :
+                # build XML configuration files for jobs that can be run
+                LOG.info("Building %s XML files for %d granules" % \
+                        (alg.AlgorithmName,len(alg.granules_to_process)))
 
-            #LOG.info("alg.granules_to_process: %r" %(alg.granules_to_process))
+                #LOG.info("alg.granules_to_process: %r" %(alg.granules_to_process))
 
-            # Generate the VIIRS LW xml files for each N_Granule_ID for this algorithm.
-            xml_files_to_process = alg.generate_viirs_edr_xml(work_dir, alg.granules_to_process)
-        
-            LOG.info('%d granules to process: %s' % \
-                    (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' \
-                    for (name,xmlfile) in xml_files_to_process)))
+                # Generate the VIIRS LW xml files for each N_Granule_ID for this algorithm.
+                xml_files_to_process = alg.generate_viirs_edr_xml(work_dir, alg.granules_to_process)
+            
+                LOG.info('%d granules to process: %s' % \
+                        (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' \
+                        for (name,xmlfile) in xml_files_to_process)))
 
-            LOG.info("Running VIIRS %s ..." % (alg.AlgorithmName))
-            crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = \
-                alg.run_xml_files(work_dir, \
-                                  xml_files_to_process, \
-                                  nprocs = options.processors, \
-                                  WORK_DIR = work_dir, \
-                                  ADL_HOME = ADL_HOME)
+                LOG.info("Running VIIRS %s ..." % (alg.AlgorithmName))
+                crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = \
+                    alg.run_xml_files(work_dir, \
+                                      xml_files_to_process, \
+                                      nprocs = options.processors, \
+                                      WORK_DIR = work_dir, \
+                                      ADL_HOME = ADL_HOME)
 
-            LOG.warning('crashed_runs : {}'.format(crashed_runs))
-            LOG.warning('no_output_runs : {}'.format(no_output_runs))
-            LOG.warning('geo_problem_runs : {}'.format(geo_problem_runs))
-            LOG.warning('bad_log_runs : {}'.format(bad_log_runs))
+                LOG.debug('crashed_runs : {}'.format(crashed_runs))
+                LOG.debug('no_output_runs : {}'.format(no_output_runs))
+                LOG.debug('geo_problem_runs : {}'.format(geo_problem_runs))
+                LOG.debug('bad_log_runs : {}'.format(bad_log_runs))
 
-            ## considered a noncritical problem if there were any crashed runs, runs that produced no output,
-            ## runs where Geo failed, or runs where ADL logs indicated a problem
-            noncritical_problem = crashed_runs or no_output_runs or geo_problem_runs or bad_log_runs
+                ## considered a noncritical problem if there were any crashed runs, runs that produced no output,
+                ## runs where Geo failed, or runs where ADL logs indicated a problem
+                noncritical_problem = crashed_runs or no_output_runs or geo_problem_runs or bad_log_runs
 
-            ## print final disposition message and get return code
-            environment_error=False
-            rc = get_return_code(unpacking_problems, len(xml_files_to_process), \
-                    len(no_output_runs), noncritical_problem, environment_error)
+                ## print final disposition message and get return code
+                environment_error=False
+                rc = get_return_code(unpacking_problems, len(xml_files_to_process), \
+                        len(no_output_runs), noncritical_problem, environment_error)
 
-            # If this alg failed, return error code and exit, preserving inputs and log files
-            if rc != 0 :
-                LOG.warn("Non-zero error code %d for %s." % (rc, alg.AlgorithmName))
+                # If this alg failed, return error code and exit, preserving inputs and log files
+                if rc != 0 :
+                    LOG.warn("Non-zero error code %d for %s." % (rc, alg.AlgorithmName))
+
+            except Exception:
+                LOG.error(traceback.format_exc())
 
         # if no errors or only non-critical errors: clean up
         LOG.info("{} return code : {}".format(alg.AlgorithmName,rc))
 
         if rc == 0 and not options.cspp_debug:
-            LOG.info("Cleaning up workspace for {}...".format(alg.AlgorithmName))
+            LOG.info("Cleaning up workspace for VIIRS {}...".format(alg.AlgorithmName))
 
             for alg in algorithms :
 
                 algorithmXmlGlob = '%s*.xml' % (alg.algorithmLWxml)
-                algorithmLogGlob = '%s_*' % (alg.controllerBinary)
+                algorithmLogGlob = '%s_*' % (alg.controllerName)
 
                 alg.cleanup(work_dir, algorithmXmlGlob, algorithmLogGlob)
     

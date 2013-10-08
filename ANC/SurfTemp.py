@@ -96,7 +96,7 @@ class SurfTemp() :
         for gridBlobStruct in ancBlob:
             timeObj = gridBlobStruct[0]
             ncepBlobFile = gridBlobStruct[1]
-            LOG.info("VIIRS-ANC-Temp-Surf2M-Mod-Gran %s --> %s" % \
+            LOG.debug("VIIRS-ANC-Temp-Surf2M-Mod-Gran %s --> %s" % \
                     (ncepBlobFile,timeObj.strftime("%Y-%m-%d %H:%M:%S:%f")))
             dates.append(timeObj)
             ncepBlobFiles.append(ncepBlobFile)
@@ -104,8 +104,8 @@ class SurfTemp() :
         self.date_0 = dates[0]
         self.date_1 = dates[1]
 
-        LOG.info("Minimum NCEP date is: %s" %(self.date_0.strftime("%Y-%m-%d %H:%M:%S:%f")))
-        LOG.info("Maximum NCEP date is: %s" %(self.date_1.strftime("%Y-%m-%d %H:%M:%S:%f")))
+        LOG.debug("Minimum NCEP date is: %s" %(self.date_0.strftime("%Y-%m-%d %H:%M:%S:%f")))
+        LOG.debug("Maximum NCEP date is: %s" %(self.date_1.strftime("%Y-%m-%d %H:%M:%S:%f")))
 
         ncepBlobFile_0 = ncepBlobFiles[0]
         ncepBlobFile_1 = ncepBlobFiles[1]
@@ -146,10 +146,10 @@ class SurfTemp() :
         LOG.debug("###########################")
 
         timeDelta = (self.date_1 - self.date_0).total_seconds()
-        LOG.info("timeDelta is %r seconds" %(timeDelta))
+        LOG.debug("timeDelta is %r seconds" %(timeDelta))
 
         timePrime = (ObservedStartTimeObj - self.date_0).total_seconds()
-        LOG.info("timePrime is %r seconds (%f percent along time interval)" % \
+        LOG.debug("timePrime is %r seconds (%f percent along time interval)" % \
                 (timePrime,(timePrime/timeDelta)*100.))
 
         delta_gridData = self.gridData_1 - self.gridData_0
@@ -264,7 +264,7 @@ class SurfTemp() :
 
         # Check for dateline/pole crossings
         num180Crossings = findDatelineCrossings(latCrnList,lonCrnList)
-        LOG.info("We have %d dateline crossings."%(num180Crossings))
+        LOG.debug("We have %d dateline crossings."%(num180Crossings))
 
         # Copy the geolocation information to the class object
         self.latMin    = latMin

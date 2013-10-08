@@ -16,6 +16,7 @@ test -d "$CSPP_EDR_HOME/common/ADL" && export CSPP_REV="20120215"
 #
 
 export CSPP_RT_HOME=$CSPP_EDR_HOME
+
 # read-write directory into which new ancillary data can be downloaded
 export CSPP_EDR_ANC_CACHE_DIR=${CSPP_EDR_HOME}/anc/cache
 
@@ -33,6 +34,10 @@ export LD_LIBRARY_PATH=${CSPP_SDR_HOME}/common/local/lib64
 #
 # user path environment settings, making it easy to invoke wrapper scripts
 #
+
+#export DCONFIG=${CSPP_EDR_HOME}/common/cspp_cfg/cfg
+#export DCONFIG=${CSPP_EDR_HOME}/common/ADL/cfg
+unset DCONFIG
 
 export PATH=${CSPP_EDR_HOME}/common:$PATH
 export PATH=${CSPP_EDR_HOME}/common/ShellB3/bin:$PATH

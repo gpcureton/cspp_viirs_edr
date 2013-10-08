@@ -98,6 +98,8 @@ Options:
 
     --skip_algorithm    Skip running the VIIRS Masks algorithm.
     
+    --no_dummy_granules Do not generate dummy SDR or ancillary cross granules.
+    
     --debug             Enable debug mode on ADL and avoid cleaning workspace
 
     --no_chain          Do not run prerequisite algorithms.
@@ -155,7 +157,7 @@ VERBOSITY_OPT=
 
 #echo $@
 
-OPTS=`getopt -o "i:w:p:dvh" -l "input_files:,alg:,work_directory:,processors:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,debug,no_chain,verbose,help" -- "$@"`
+OPTS=`getopt -o "i:w:p:dvh" -l "input_files:,alg:,work_directory:,processors:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,no_dummy_granules,debug,no_chain,verbose,help" -- "$@"`
 
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
@@ -235,6 +237,12 @@ do
             haveFlag=1
             shift ;;
 
+        --no_dummy_granules)
+            NO_DUMMY_OPT="--no_dummy_granules"
+            #echo "Setting NO_DUMMY_OPT"
+            haveFlag=1
+            shift ;;
+
         -d|--debug)
             DEBUG_OPT="--debug"
             #echo "Setting DEBUG_OPT"
@@ -290,6 +298,7 @@ fi
 #echo "SKIP_AUX_LINKING_OPT = "$SKIP_AUX_LINKING_OPT
 #echo "SKIP_ANCILLARY_OPT   = "$SKIP_ANCILLARY_OPT
 #echo "SKIP_ALGORITHM_OPT   = "$SKIP_ALGORITHM_OPT
+#echo "NO_DUMMY_OPT         = "$NO_DUMMY_OPT
 #echo "SDR_ENDIANNESS_OPT   = "$SDR_ENDIANNESS_OPT
 #echo "ANC_ENDIANNESS_OPT   = "$ANC_ENDIANNESS_OPT
 #echo "DEBUG_OPT            = "$DEBUG_OPT
@@ -310,6 +319,7 @@ GDB=''
     #$SKIP_AUX_LINKING_OPT \
     #$SKIP_ANCILLARY_OPT \
     #$SKIP_ALGORITHM_OPT \
+    #$NO_DUMMY_OPT \
     #$SDR_ENDIANNESS_OPT \
     #$ANC_ENDIANNESS_OPT \
     #$DEBUG_OPT \
@@ -326,6 +336,7 @@ $PY $CSPP_RT_HOME/viirs/adl_viirs_edr.py \
     $SKIP_AUX_LINKING_OPT \
     $SKIP_ANCILLARY_OPT \
     $SKIP_ALGORITHM_OPT \
+    $NO_DUMMY_OPT \
     $SDR_ENDIANNESS_OPT \
     $ANC_ENDIANNESS_OPT \
     $DEBUG_OPT \

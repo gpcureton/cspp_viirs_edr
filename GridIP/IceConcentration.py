@@ -237,7 +237,7 @@ class IceConcentration() :
 
         # Check for dateline/pole crossings
         num180Crossings = findDatelineCrossings(latCrnList,lonCrnList)
-        LOG.info("We have %d dateline crossings."%(num180Crossings))
+        LOG.debug("We have %d dateline crossings."%(num180Crossings))
         
         # Copy the geolocation information to the class object
         self.latMin    = latMin
@@ -417,7 +417,7 @@ class IceConcentration() :
         self.distinctLatitudes = message['distinctLatitudes']
         self.distinctLongitudes = message['distinctLongitudes']
         self.gridData = message['values']
-        LOG.info("Shape of gridded %s data is %s" % (self.collectionShortName,np.shape(self.gridData)))
+        LOG.debug("Shape of gridded %s data is %s" % (self.collectionShortName,np.shape(self.gridData)))
 
 
     def _grid2Gran_bilinearInterp(self,dataLat, dataLon, gridData, gridLat, gridLon):
@@ -578,17 +578,17 @@ class IceConcentration() :
             # Set the geolocation information in this ancillary object for the current granule...
             GridIP_objects[shortName].setGeolocationInfo(geoDict)
 
-            LOG.info("min,max,range of latitude: %f %f %f" % (\
+            LOG.debug("min,max,range of latitude: %f %f %f" % (\
                     GridIP_objects[shortName].latMin,\
                     GridIP_objects[shortName].latMax,\
                     GridIP_objects[shortName].latRange))
-            LOG.info("min,max,range of longitude: %f %f %f" % (\
+            LOG.debug("min,max,range of longitude: %f %f %f" % (\
                     GridIP_objects[shortName].lonMin,\
                     GridIP_objects[shortName].lonMax,\
                     GridIP_objects[shortName].lonRange))
 
-            LOG.info("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
-            LOG.info("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
+            LOG.debug("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
+            LOG.debug("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
 
             # Subset the gridded data for this ancillary object to cover the required lat/lon range.
             GridIP_objects[shortName].subset()
@@ -654,8 +654,8 @@ class IceConcentration() :
             gridData = np.roll(gridData,360)
             gridLon,gridLat = np.meshgrid(lons,lats)
 
-            LOG.info("start,end MMAB Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end MMAB Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end MMAB Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end MMAB Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
         else :
 
@@ -667,12 +667,12 @@ class IceConcentration() :
             longitudeNegIdx = np.where(longitude < 0.)
             longitude[longitudeNegIdx] += 360.
 
-            LOG.info("start,end MMAB Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end MMAB Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end MMAB Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end MMAB Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
 
-        LOG.info("min of gridData  = %r"%(np.min(gridData)))
-        LOG.info("max of gridData  = %r"%(np.max(gridData)))
+        LOG.debug("min of gridData  = %r"%(np.min(gridData)))
+        LOG.debug("max of gridData  = %r"%(np.max(gridData)))
 
         t1 = time()
         #data,dataIdx = self._grid2Gran(np.ravel(latitude),
