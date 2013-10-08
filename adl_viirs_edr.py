@@ -99,6 +99,7 @@ from multiprocessing import Pool, Lock, Value, cpu_count
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
+#from adl_blob import no_namespace
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 
@@ -1389,6 +1390,9 @@ def main():
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
+    # Toggle between old and new ADL setup...
+    adl_blob.no_namespace()
+
     # Set the work directory
     work_dir = check_and_convert_path("WORK_DIR",options.work_dir)
     LOG.debug('Setting the work directory to %r' % (work_dir))
@@ -1518,7 +1522,6 @@ def main():
 
     # Create any required dummy geolocation and radiometric granules
     dummy_granule_dict = {}
-    #options.noDummyGranules = True ### FIXME
 
     if not options.noDummyGranules:
         dummy_granule_dict = _create_dummy_sdr(work_dir,requiredGeoShortname,requiredSdrShortname,\
