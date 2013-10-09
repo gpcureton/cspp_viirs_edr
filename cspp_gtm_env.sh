@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # $Id$
 # Environment script for CSPP / ADL 3.1.
 

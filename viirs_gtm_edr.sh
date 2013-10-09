@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Wrapper script for VIIRS EDR components from ADL 3.1
 #
 # Copyright 2013, University of Wisconsin Regents.
