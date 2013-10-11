@@ -29,7 +29,7 @@ import numpy as np
 from bisect import bisect_left,bisect_right
 
 import adl_blob
-from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
 # every module should have a LOG object
 try :
@@ -270,9 +270,7 @@ def shipOutToFile(GridIPobj):
     '''
 
     # Set some environment variables and paths
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     # Create new GridIP ancillary blob, and copy granulated data to it

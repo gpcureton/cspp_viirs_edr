@@ -26,7 +26,8 @@ from glob import glob
 import uuid
 from datetime import datetime
 
-from adl_common import COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+
 
 # log file scanning
 import adl_log
@@ -105,8 +106,6 @@ def _setupAuxillaryFiles(Alg_objects,workDir):
     in the workDir, and create links to the binary auxillary files in workDir.
     '''
 
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')

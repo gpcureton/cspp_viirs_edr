@@ -49,7 +49,7 @@ from NCEPtoBlob import NCEPclass
 import adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
-from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
 # every module should have a LOG object
 try :
@@ -120,11 +120,7 @@ class SurfGeopotentialHeight() :
         Populate this class instance with the geolocation data for a single granule
         '''
         # Set some environment variables and paths
-        CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-        CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-        csppPython = os.getenv('PY')
-    
         ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
         # Collect some data from the geolocation dictionary
@@ -302,7 +298,6 @@ class SurfGeopotentialHeight() :
         data = np.ones(np.shape(dataLat),dtype=np.float64)* -999.9
         dataIdx  = np.ones(np.shape(dataLat),dtype=np.int64) * -99999
 
-        CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
 
         libFile = path.join(ANC_SCRIPTS_PATH,'libgriddingAndGranulation.so.1.0.1')

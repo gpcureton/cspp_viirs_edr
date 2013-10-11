@@ -31,7 +31,7 @@ from numpy import ma
 import pygrib
 
 import adl_blob
-from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
 # Plotting stuff
 import matplotlib
@@ -244,9 +244,7 @@ def shipOutToFile(ANCobj):
     '''
 
     # Set some environment variables and paths
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     # Create new ANC ancillary blob, and copy granulated data to it
@@ -341,9 +339,7 @@ def retrieve_NCEP_grib_files(geoDicts):
     import shlex, subprocess
     from subprocess import CalledProcessError, call
 
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
 
     gribFiles = []
 
@@ -416,10 +412,7 @@ def create_NCEP_grid_blobs(gribFile):
     rh_to_mr_vec = np.vectorize(rh_to_mr)
     from copy import deepcopy
 
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    csppPython = os.getenv('PY')
     
     # Get the valid time for the grib file...
     gribFileObj = pygrib.open(gribFile)
@@ -548,10 +541,7 @@ def create_NAAPS_grid_blobs(gribFile):
     from NAAPStoBlob import NAAPSclass
     from copy import deepcopy
 
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    csppPython = os.getenv('PY')
 
     # Get the valid time for the grib file...
     gribFileObj = pygrib.open(gribFile)

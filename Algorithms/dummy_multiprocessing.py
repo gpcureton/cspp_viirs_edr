@@ -42,7 +42,7 @@ from Utils import check_log_files, _setupAuxillaryFiles, getURID
 from adl_asc import skim_dir, granule_groups_contain, _eliminate_duplicates,_is_contiguous, skim, RE_LINE, convert, K_FILENAME
 from adl_asc import PAT_URID, PAT_GRANULE_ID, PAT_GRANULE_VERSION, PAT_COLLECTION, PAT_RANGEDATETIME, PAT_SOURCE, PAT_BLOBPATH, PAT_EFFECTIVEDATETIME, PAT_OBSERVEDDATETIME
 from adl_common import sh, unpack, env, h5_xdr_inventory
-from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
 # N_GEO_Ref fix for ADL
 from adl_geo_ref import write_geo_ref

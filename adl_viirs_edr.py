@@ -108,7 +108,8 @@ from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain,
 # We need [ 'CSPP_RT_HOME', 'ADL_HOME', 'CSPP_RT_ANC_TILE_PATH', 'CSPP_RT_ANC_CACHE_DIR', 'CSPP_RT_ANC_PATH' ] environment 
 # variables to be set...
 from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
-from adl_common import ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE,check_and_convert_path
+from adl_common import check_and_convert_path
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
 # log file scanning
 import adl_log
@@ -129,6 +130,7 @@ LOG = logging.getLogger(sourcename[1])
 from adl_common import configure_logging
 from adl_common import _test_logging as test_logging
 
+
 import Algorithms
 
 # we're not likely to succeed in processing using geolocation smaller than this many bytes
@@ -136,8 +138,6 @@ MINIMUM_SDR_BLOB_SIZE = 81000000
 
 # maximum delay between granule end time and next granule start time to consider them contiguous
 MAX_CONTIGUOUS_DELTA=timedelta(seconds = 2)
-
-CSPP_RT_ANC_HOME = path.abspath(os.getenv('CSPP_RT_ANC_HOME'))
 
 
 
@@ -905,10 +905,7 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
     global sdrEndian 
     global ancEndian 
 
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     # Download the required NCEP grib files
@@ -955,7 +952,6 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
             #LOG.error('Failed to find or retrieve any GRIB files, aborting.')
             #sys.exit(1)
 
-        CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
         gribFiles = glob(path.join(CSPP_RT_ANC_CACHE_DIR,'NAAPS-ANC-Int/NAAPS.*.grib2'))
         LOG.info("We are using for NAAPS grib2 :%r" %(gribFiles))
 
@@ -1071,10 +1067,7 @@ def _granulate_GridIP(inDir,geoDicts,algList,dummy_granule_dict):
     global sdrEndian 
     global ancEndian 
 
-    CSPP_RT_HOME = os.getenv('CSPP_RT_HOME')
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
     # Collection shortnames of the required GridIP static ancillary datasets
@@ -1632,17 +1625,11 @@ def main():
     set_anc_endian(options.anc_Endianness)
 
     # Expand any user specifiers in the various paths
-    CSPP_RT_ANC_PATH = os.getenv('CSPP_RT_ANC_PATH')
-    CSPP_RT_ANC_CACHE_DIR = os.getenv('CSPP_RT_ANC_CACHE_DIR')
-    CSPP_RT_ANC_TILE_PATH = os.getenv('CSPP_RT_ANC_TILE_PATH')
-    LD_LIBRARY_PATH = os.getenv('LD_LIBRARY_PATH')
-    DSTATICDATA = os.getenv('DSTATICDATA')
-
     LOG.debug("\nCSPP_RT_ANC_PATH:       %s" % (CSPP_RT_ANC_PATH))
     LOG.debug("CSPP_RT_ANC_CACHE_DIR:  %s" % (CSPP_RT_ANC_CACHE_DIR))
-    LOG.debug("CSPP_RT_ANC_TILE_PATH:  %s" % (CSPP_RT_ANC_TILE_PATH))
-    LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
-    LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
+    #LOG.debug("CSPP_RT_ANC_TILE_PATH:  %s" % (CSPP_RT_ANC_TILE_PATH))
+    #LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
+    #LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
 
     # Retrieve and granulate the required ancillary data...
     if not options.skipAncillary :
@@ -1751,13 +1738,13 @@ def main():
         LOG.info("Skipping execution of VIIRS %s ..." % (alg.AlgorithmName))
 
 
-    # Remove log directory
+    # General Cleanup...
     if not options.cspp_debug:
 
         # Remove dummy asc/blob pairs and HDF5 files
-        #if not options.noDummyGranules:
         __cleanup_dummy_files(work_dir, algList, options.noDummyGranules, dummy_granule_dict)
         
+        # Remove what's left...
         __cleanup(work_dir, [log_dir])
 
     try :
