@@ -2201,22 +2201,22 @@ def gran_SST(geoList,sstList,shrink=1):
             sstArr  = np.vstack((sstArr ,viirsSSTObj.ViirsSSTprodSDS[:,:]))
             qf1Arr = np.vstack((qf1Arr,viirsSSTObj.ViirsSST_QF1[:,:]))
             qf2Arr = np.vstack((qf2Arr,viirsSSTObj.ViirsSST_QF2[:,:]))
-            #qf3Arr = np.vstack((qf3Arr,viirsSSTObj.ViirsSST_QF3[:,:]))
-            #qf4Arr = np.vstack((qf4Arr,viirsSSTObj.ViirsSST_QF4[:,:]))
+            qf3Arr = np.vstack((qf3Arr,viirsSSTObj.ViirsSST_QF3[:,:]))
+            qf4Arr = np.vstack((qf4Arr,viirsSSTObj.ViirsSST_QF4[:,:]))
             print "subsequent sst arrays..."
         except NameError :
             sstArr  = viirsSSTObj.ViirsSSTprodSDS[:,:]
             qf1Arr = viirsSSTObj.ViirsSST_QF1[:,:]
             qf2Arr = viirsSSTObj.ViirsSST_QF2[:,:]
-            #qf3Arr = viirsSSTObj.ViirsSST_QF3[:,:]
-            #qf4Arr = viirsSSTObj.ViirsSST_QF4[:,:]
+            qf3Arr = viirsSSTObj.ViirsSST_QF3[:,:]
+            qf4Arr = viirsSSTObj.ViirsSST_QF4[:,:]
             print "first sst arrays..."
 
         print "Intermediate sstArr.shape = %s" % (str(sstArr.shape))
         print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
         print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
-        #print "Intermediate qf3Arr.shape = %s" % (str(qf3Arr.shape))
-        #print "Intermediate qf4Arr.shape = %s" % (str(qf4Arr.shape))
+        print "Intermediate qf3Arr.shape = %s" % (str(qf3Arr.shape))
+        print "Intermediate qf4Arr.shape = %s" % (str(qf4Arr.shape))
 
     lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
     lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
@@ -2251,13 +2251,20 @@ def gran_SST(geoList,sstList,shrink=1):
         # Unscale the SST dataset
         sstArr =  sstArr * viirsSSTObj.sstFactors[0] + viirsSSTObj.sstFactors[1]
 
-        # Define some masks...
-        #fillMask = ma.masked_less(sstArr,-800.).mask
+        # Skin SST quality mask
         SSTqualFlag = np.bitwise_and(qf1Arr,3) >> 0
         sstQualMask = ma.masked_equal(SSTqualFlag,0).mask
 
+        # Skin SST valid range mask
+        SSTvalidRangFlag = np.bitwise_and(qf3Arr,64) >> 6
+        SSTvalidRangMask = ma.masked_equal(SSTvalidRangFlag,1).mask
+
+        # Skin SST degraded mask
+        SSTdegradedFlag = np.bitwise_and(qf4Arr,1) >> 0
+        SSTdegradedMask = ma.masked_equal(SSTdegradedFlag,1).mask
+
         # Combine the fill mask and quality masks...
-        totalMask = fillMask.mask + sstQualMask
+        totalMask = fillMask.mask + sstQualMask + SSTvalidRangMask + SSTdegradedMask
 
         try :
             data = ma.array(sstArr,mask=totalMask)
@@ -2406,8 +2413,8 @@ def gran_NDVI(geoList,ndviList,shrink=1):
 #                 Plotting Functions              #
 ###################################################
 
-def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=1.3,mapRes='c',\
-    prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS Cloud Mask'):
+def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,\
+        scale=1.3,mapRes='c', prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS Cloud Mask'):
     '''
     Plots the VIIRS Cloud Mask on an orthographic projection
     '''
@@ -2492,8 +2499,10 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
     elif cmByte==5 and cmBit==0 :
         vmin,vmax = -0.5,7.5 # FIXME : This is temporary
 
-    #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
-    cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
+    if scatterPlot:
+        cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
+    else:
+        cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     # add a colorbar axis
     cax_rect = [0.05 , 0.05, 0.9 , 0.06 ] # [left,bottom,width,height]
@@ -2570,7 +2579,7 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scale=
 
 def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
         vmin=0.0,vmax=1.0,scale=1.3, \
-        lat_0=0.,lon_0=0.,pointSize=1.,mapRes='c',cmap=None, \
+        lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,mapRes='c',cmap=None, \
         prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS AOT'):
     '''
     Plots the VIIRS Aerosol Optical Thickness on an orthographic projection
@@ -2639,8 +2648,10 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     #m.bluemarble()
 
     # Plot the granule data
-    #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
-    cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
+    if scatterPlot:
+        cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
+    else:
+        cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     print "orthoPlot_AOT ModeGran = ",ModeGran
     if (ModeGran == 0) :
@@ -2699,7 +2710,7 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
 
 def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
         vmin=270.,vmax=320.,scale=1.3, \
-        lat_0=0.,lon_0=0.,pointSize=1.,mapRes='c',cmap=None, \
+        lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,mapRes='c',cmap=None, \
         prodFileName='',outFileName='VSSTO.png',dpi=300,titleStr='VIIRS SST EDR'):
     '''
     Plots the VIIRS Sea Surface Temperature on an orthographic projection
@@ -2768,9 +2779,11 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
     #m.bluemarble()
 
     # Plot the granule data
-    #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
-    #gridData = ma.masked_outside(gridData,vmin,vmax)
-    cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
+    if scatterPlot:
+        cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
+    else:
+        gridData = ma.masked_outside(gridData,vmin,vmax)
+        cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     print "orthoPlot_SST ModeGran = ",ModeGran
     #if (ModeGran == 0) :
@@ -2829,7 +2842,7 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
 
 def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
         vmin=-1.,vmax=1.,scale=1.3, \
-        lat_0=0.,lon_0=0.,pointSize=1.,mapRes='c',cmap=None, \
+        lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,mapRes='c',cmap=None, \
         prodFileName='',outFileName='VIVIO.png',dpi=300,titleStr='VIIRS NDVI EDR'):
     '''
     Plots the VIIRS Normalised Vegetation Index on an orthographic projection
@@ -2898,9 +2911,11 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     #m.bluemarble()
 
     # Plot the granule data
-    #cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
-    #gridData = ma.masked_outside(gridData,vmin,vmax)
-    cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
+    if scatterPlot:
+        cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
+    else:
+        gridData = ma.masked_outside(gridData,vmin,vmax)
+        cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     print "orthoPlot_NDVI ModeGran = ",ModeGran
     #if (ModeGran == 0) :
@@ -2959,7 +2974,7 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
 
 def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
         lat_0=0.,lon_0=0.,\
-        abScale='log',pointSize=1.,scale=1.3,mapRes='c',\
+        abScale='log',pointSize=1.,scatterPlot=False,scale=1.3,mapRes='c',\
         prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS COP'):
     '''
     Plots the VIIRS Cloud Optical Parameters (COP) on an orthographic projection
@@ -3068,13 +3083,17 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
 
     # Plot the granule water data
     x,y=m(np.array(gridLon_water),np.array(gridLat_water))
-    #cs_water = m.scatter(x,y,s=pointSize_water,c=gridData_water,axes=ax,edgecolors='none',vmin=vmin_water,vmax=vmax_water,cmap=cmap_water)
-    cs_water = m.pcolor(x,y,gridData_water,axes=ax,edgecolors='none',vmin=vmin_water,vmax=vmax_water,cmap=cmap_water,antialiased=False)
+    if scatterPlot:
+        cs_water = m.scatter(x,y,s=pointSize_water,c=gridData_water,axes=ax,edgecolors='none',vmin=vmin_water,vmax=vmax_water,cmap=cmap_water)
+    else:
+        cs_water = m.pcolor(x,y,gridData_water,axes=ax,edgecolors='none',vmin=vmin_water,vmax=vmax_water,cmap=cmap_water,antialiased=False)
 
     # Plot the granule ice data
     x,y=m(np.array(gridLon_ice),np.array(gridLat_ice))
-    #cs_ice = m.scatter(x,y,s=pointSize_ice,c=gridData_ice,axes=ax,edgecolors='none',vmin=vmin_ice,vmax=vmax_ice,cmap=cmap_ice)
-    cs_ice = m.pcolor(x,y,gridData_ice,axes=ax,edgecolors='none',vmin=vmin_ice,vmax=vmax_ice,cmap=cmap_ice,antialiased=False)
+    if scatterPlot:
+        cs_ice = m.scatter(x,y,s=pointSize_ice,c=gridData_ice,axes=ax,edgecolors='none',vmin=vmin_ice,vmax=vmax_ice,cmap=cmap_ice)
+    else:
+        cs_ice = m.pcolor(x,y,gridData_ice,axes=ax,edgecolors='none',vmin=vmin_ice,vmax=vmax_ice,cmap=cmap_ice,antialiased=False)
 
     ### Colourbars
     cbar_WidthTotal = 0.9
@@ -3160,7 +3179,7 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     canvas.print_figure(outFileName,dpi=dpi)
 
 def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
-        pointSize=1.,scale=1.3,mapRes='c',prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS CTp'):
+        pointSize=1.,scatterPlot=False,scale=1.3,mapRes='c',prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS CTp'):
     '''
     Plots the VIIRS Cloud Top Parameters (CTp) on an orthographic projection
     '''
@@ -3267,12 +3286,16 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
     # Plot the granule data
 
     x,y=m(np.array(gridLon_water),np.array(gridLat_water))
-    #cs_water = m.scatter(x,y,s=pointSize_water,c=gridData_water,axes=ax,edgecolors='none',vmin=vmin_water,vmax=vmax_water,cmap=cmap_water)
-    cs_water = m.pcolor(x,y,gridData_water,axes=ax,edgecolors='none',vmin=vmin_water,vmax=vmax_water,cmap=cmap_water,antialiased=False)
+    if scatterPlot:
+        cs_water = m.scatter(x,y,s=pointSize_water,c=gridData_water,axes=ax,edgecolors='none',vmin=vmin_water,vmax=vmax_water,cmap=cmap_water)
+    else:
+        cs_water = m.pcolor(x,y,gridData_water,axes=ax,edgecolors='none',vmin=vmin_water,vmax=vmax_water,cmap=cmap_water,antialiased=False)
 
     x,y=m(np.array(gridLon_ice),np.array(gridLat_ice))
-    #cs_ice = m.scatter(x,y,s=pointSize_ice,c=gridData_ice,axes=ax,edgecolors='none',vmin=vmin_ice,vmax=vmax_ice,cmap=cmap_ice)
-    cs_ice = m.pcolor(x,y,gridData_ice,axes=ax,edgecolors='none',vmin=vmin_ice,vmax=vmax_ice,cmap=cmap_ice,antialiased=False)
+    if scatterPlot:
+        cs_ice = m.scatter(x,y,s=pointSize_ice,c=gridData_ice,axes=ax,edgecolors='none',vmin=vmin_ice,vmax=vmax_ice,cmap=cmap_ice)
+    else:
+        cs_ice = m.pcolor(x,y,gridData_ice,axes=ax,edgecolors='none',vmin=vmin_ice,vmax=vmax_ice,cmap=cmap_ice,antialiased=False)
 
     ### Colourbars
 
@@ -3438,6 +3461,11 @@ def main():
                       #default='1',
                       type="int",
                       help="Sample every STRIDE pixels in the VIIRS IP/SDR product. [default: %default]")
+    optionalGroup.add_option('--scatter_plot',
+                      action="store_true",
+                      dest="doScatterPlot",
+                      default=False,
+                      help="Generate the plot using a scatterplot approach.")
     optionalGroup.add_option('-P','--pointSize',
                       action="store",
                       dest="pointSize",
@@ -3513,6 +3541,7 @@ def main():
 
     # Some defaults plot values if the are not specified on the command line...
 
+    doScatterPlot = options.doScatterPlot
     stride_IP = 1
     pointSize_IP = 0.1
 
@@ -3552,7 +3581,7 @@ def main():
         print "Calling VCM plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_VCM(lats,lons,vcmData,lat_0=lat_0,lon_0=lon_0,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     if 'AOT_EDR' in options.ipProd :
@@ -3569,7 +3598,7 @@ def main():
         print "Calling AOT plotter..."
         pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         orthoPlot_AOT(lats,lons,aotData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax,\
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
+            pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     elif 'AOT' in options.ipProd :
@@ -3586,7 +3615,7 @@ def main():
         print "Calling AOT plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_AOT(lats,lons,aotData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
+            pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     elif 'SST_EDR' in options.ipProd :
@@ -3603,7 +3632,7 @@ def main():
         print "Calling SST plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_SST(lats,lons,sstData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=None, \
+            pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     elif 'NDVI' in options.ipProd :
@@ -3620,7 +3649,7 @@ def main():
         print "Calling NDVI plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_NDVI(lats,lons,ndviData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
-            pointSize=pointSize,scale=options.scale,mapRes=mapRes,cmap=None, \
+            pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #if 'COT_EDR' in options.ipProd :
@@ -3631,7 +3660,7 @@ def main():
         #print "Calling COT plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_COP(lats,lons,cotData,cotPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'EPS_EDR' in options.ipProd :
@@ -3642,7 +3671,7 @@ def main():
         #print "Calling EPS plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_COP(lats,lons,epsData,epsPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'COT' in options.ipProd or 'EPS' in options.ipProd :
@@ -3653,7 +3682,7 @@ def main():
         #print "Calling COP plotter..."
         #pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         #orthoPlot_COP(lats,lons,copData,copPhase,dataSet,lat_0=lat_0,lon_0=lon_0,\
-            #abScale='log',pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #abScale='log',pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #if 'CTT_EDR' in options.ipProd :
@@ -3664,7 +3693,7 @@ def main():
         #print "Calling CTT plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_CTp(lats,lons,cttData,cttPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'CTP_EDR' in options.ipProd :
@@ -3675,7 +3704,7 @@ def main():
         #print "Calling CTP plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_CTp(lats,lons,ctpData,ctpPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'CTH_EDR' in options.ipProd :
@@ -3686,7 +3715,7 @@ def main():
         #print "Calling CTH plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_CTp(lats,lons,cthData,cthPhase,dset,lat_0=lat_0,lon_0=lon_0,\
-            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'CTT' in options.ipProd or 'CTP' in options.ipProd or 'CTH' in options.ipProd :
@@ -3697,7 +3726,7 @@ def main():
         #print "Calling CTp plotter..."
         #pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         #orthoPlot_CTp(lats,lons,ctpData,ctpPhase,dataSet,lat_0=lat_0,lon_0=lon_0,\
-            #pointSize=pointSize,scale=options.scale,mapRes=mapRes,\
+            #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     print "Exiting..."

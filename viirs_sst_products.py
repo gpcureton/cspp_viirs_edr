@@ -151,11 +151,11 @@ class viirsSST:
             ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/QF2_VIIRSSSTEDR'
             self.ViirsSST_QF2 =  ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
 
-            #ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/QF3_VIIRSSSTEDR'
-            #self.ViirsSST_QF3 =  ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+            ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/QF3_VIIRSSSTEDR'
+            self.ViirsSST_QF3 =  ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
 
-            #ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/QF4_VIIRSSSTEDR'
-            #self.ViirsSST_QF4 =  ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+            ViirsDataSetPath = '/All_Data/VIIRS-SST-EDR_All/QF4_VIIRSSSTEDR'
+            self.ViirsSST_QF4 =  ViirsSSTprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
 
 
             print "Closing SST Product file"
