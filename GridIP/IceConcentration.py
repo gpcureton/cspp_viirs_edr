@@ -346,7 +346,7 @@ class IceConcentration() :
             procOutput = procObj.stdout.readlines()
             
             for lines in procOutput:
-                if CSPP_RT_ANC_CACHE_DIR in lines :
+                if CSPP_RT_ANC_CACHE_DIR in lines.replace("//","/") :
                     lines = string.replace(lines,'\n','')
                     mmabFiles.append(lines)
 

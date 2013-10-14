@@ -344,7 +344,7 @@ def submit_granule(additional_env):
     granule_diagnostic['geo_problem'] = False
     granule_diagnostic['bad_log'] = False
     granule_diagnostic['N_Granule_ID'] = granule_id
-
+    compress = additional_env['COMPRESS']
     # Pattern for expected output
     dummyPattern = path.join(granule_output_dir, 'MPC*.h5')
 
@@ -396,12 +396,18 @@ def submit_granule(additional_env):
 
     LOG.info ("Controller ran in {} seconds.".format(t2-t1))
 
+    if compress == "True":
+        LOG.info('Compress products for %s' % granule_id)
+        repack_products(granule_output_dir, EDR_collectionShortNames)
+        LOG.info('Compress products for %s complete.' % granule_id)
+
+
     move_products_to_work_directory(granule_output_dir)
 
     return granule_diagnostic
 
 
-def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True", nprocs="1", **additional_env):
+def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True",COMPRESS=False,AGGREGATE=False, nprocs="1", **additional_env):
     """Run each VIIRS dummy xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
@@ -419,7 +425,9 @@ def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True", nprocs="1", **
             os.mkdir(granule_output_dir)
             os.mkdir(os.path.join(granule_output_dir, "log"))
 
+
             additional_envs = dict(
+            COMPRESS=str(COMPRESS),
                 N_Granule_ID=granule_id,
                 XML_FILE=xml,
                 GRANULE_OUTPUT_DIR=granule_output_dir,
@@ -472,6 +480,10 @@ def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True", nprocs="1", **
             pool.terminate()
             pool.join()
             sys.exit(1)
+
+#    if AGGREGATE is True:
+#        number_problems = aggregate_products(work_dir, EDR_collectionShortNames)
+
 
     # check new MPC output granules
     dummy_new_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH, state=dummy_ID)

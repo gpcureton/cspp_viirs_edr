@@ -161,10 +161,12 @@ DEBUG_OPT=
 CHAIN_OPT=
 PROC_OPT=
 VERBOSITY_OPT=
+ZIP_OPT=
+AGGREGATE_OPT=
 
 #echo $@
 
-OPTS=`getopt -o "i:w:p:dvh" -l "input_files:,alg:,work_directory:,processors:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,no_dummy_granules,debug,no_chain,verbose,help" -- "$@"`
+OPTS=`getopt -o "i:w:p:dvhaz" -l "input_files:,alg:,work_directory:,processors:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,zip,aggregate,no_dummy_granules,debug,no_chain,verbose,help" -- "$@"`
 
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
@@ -244,6 +246,18 @@ do
             haveFlag=1
             shift ;;
 
+        -a|--aggregate)
+            AGGREGATE_OPT="--aggregate"
+            #echo "Setting AGGREGATE_OPT"
+            haveFlag=1
+            shift ;;
+
+        -z|--zip)
+            ZIP_OPT="--zip"
+            #echo "Setting ZIP_OPT"
+            haveFlag=1
+            shift ;;
+
         --no_dummy_granules)
             NO_DUMMY_OPT="--no_dummy_granules"
             #echo "Setting NO_DUMMY_OPT"
@@ -318,7 +332,7 @@ GDB=''
 #$GDB $PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr.py \
 
 
-#echo "$PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr.py \
+#echo "$PY $CSPP_EDR_HOME/viirs/edr/adl_viirs_edr.py \
     #$INPUT_FILES_OPT \
     #$ALG_OPT \
     #$WORK_DIR_OPT \
@@ -335,13 +349,15 @@ GDB=''
 
 #exit 1
 
-$PY $CSPP_RT_HOME/viirs/adl_viirs_edr.py \
+$PY $CSPP_EDR_HOME/viirs/adl_viirs_edr.py \
     $INPUT_FILES_OPT \
     $ALG_OPT \
     $WORK_DIR_OPT \
     $SKIP_SDR_UNPACK_OPT \
     $SKIP_AUX_LINKING_OPT \
     $SKIP_ANCILLARY_OPT \
+    $AGGREGATE_OPT \
+    $ZIP_OPT \
     $SKIP_ALGORITHM_OPT \
     $NO_DUMMY_OPT \
     $SDR_ENDIANNESS_OPT \

@@ -110,7 +110,7 @@ from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain,
 from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
 from adl_common import check_and_convert_path
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
-
+from adl_post_process import repack_products, aggregate_products
 # log file scanning
 import adl_log
 
@@ -1364,6 +1364,21 @@ def main():
                       default=0,
                       help='each occurrence increases verbosity 1 level from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG')
 
+
+
+    optionalGroup.add_option('-z', '--zip',
+                      action="store_true",
+                      dest="compress",
+                      default=False,
+                      help="Enable product compression")
+
+    optionalGroup.add_option('-a', '--aggregate',
+                      action="store_true",
+                      dest="aggregate",
+                      default=False,
+                      help="Enable product nagg aggregation")
+
+
     parser.add_option_group(optionalGroup)
 
     # Parse the arguments from the command line
@@ -1690,13 +1705,16 @@ def main():
                         (len(xml_files_to_process), ''.join(name+' -> '+xmlfile+'\n' \
                         for (name,xmlfile) in xml_files_to_process)))
 
+
                 LOG.info("Running VIIRS %s ..." % (alg.AlgorithmName))
                 crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs = \
                     alg.run_xml_files(work_dir, \
                                       xml_files_to_process, \
                                       nprocs = options.processors, \
                                       WORK_DIR = work_dir, \
-                                      ADL_HOME = ADL_HOME)
+                                      ADL_HOME = ADL_HOME,
+                                      COMPRESS=options.compress,
+                                      AGGREGATE=options.aggregate)
 
                 LOG.debug('crashed_runs : {}'.format(crashed_runs))
                 LOG.debug('no_output_runs : {}'.format(no_output_runs))

@@ -32,7 +32,7 @@ from shutil import rmtree, move
 import multiprocessing
 
 from Utils import check_log_files, _setupAuxillaryFiles
-
+from adl_post_process import repack_products, aggregate_products
 # skim and convert routines for reading .asc metadata fields of interest
 #import adl_asc
 #from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
@@ -248,6 +248,7 @@ def submit_granule(additional_env):
     work_dir = additional_env['WORK_DIR']
     xml = additional_env['XML_FILE']
     granule_id = additional_env['N_Granule_ID']
+    compress = additional_env['COMPRESS']
     granule_output_dir = additional_env['GRANULE_OUTPUT_DIR']
 
     # Pattern for expected output in the granule working directory
@@ -363,13 +364,18 @@ def submit_granule(additional_env):
     except Exception:
         LOG.warn(traceback.format_exc())
 
+    if compress == "True":
+        LOG.info('Compress products for %s' % granule_id)
+        repack_products(granule_output_dir, EDR_collectionShortNames)
+        LOG.info('Compress products for %s complete.' % granule_id)
+
 
     move_products_to_work_directory(granule_output_dir)
 
     return granule_diagnostic
 
 
-def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **additional_env):
+def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPRESS=False,AGGREGATE=False, **additional_env):
     """Run each VIIRS Cloud Mask IP xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
@@ -386,7 +392,9 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
         if not path.exists(granule_output_dir): os.mkdir(granule_output_dir)
         if not path.exists(path.join(granule_output_dir, "log")): os.mkdir(path.join(granule_output_dir, "log"))
 
+
         additional_envs = dict(
+            COMPRESS=str(COMPRESS),
             N_Granule_ID=granule_id,
             XML_FILE=xml,
             GRANULE_OUTPUT_DIR=granule_output_dir,
@@ -455,6 +463,9 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True", **ad
             pool.terminate()
             pool.join()
             sys.exit(1)
+
+    if AGGREGATE is True:
+        number_problems = aggregate_products(work_dir, EDR_collectionShortNames)
 
     # check new IVAOT output granules
     aotIp_new_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH, state=aotIp_ID)
