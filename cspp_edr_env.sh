@@ -15,7 +15,7 @@ test -d "$CSPP_EDR_HOME/common/ADL" && export CSPP_REV="20120215"
 # derived CSPP default locations (site installs may move these under some circumstances)
 #
 
-export CSPP_RT_HOME=$CSPP_EDR_HOME
+
 
 # read-write directory into which new ancillary data can be downloaded
 export CSPP_EDR_ANC_CACHE_DIR=${CSPP_EDR_HOME}/anc/cache

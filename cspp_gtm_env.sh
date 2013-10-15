@@ -15,7 +15,7 @@ test -d "$CSPP_GTM_HOME/common/ADL" && export CSPP_REV="20120215"
 # derived CSPP default locations (site installs may move these under some circumstances)
 #
 
-export CSPP_RT_HOME=$CSPP_GTM_HOME
+
 # read-write directory into which new ancillary data can be downloaded
 #export CSPP_RT_ANC_CACHE_DIR=${CSPP_RT_HOME}/anc/cache
 

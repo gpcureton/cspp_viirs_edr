@@ -14,7 +14,7 @@ if [ -z "$CSPP_EDR_HOME" ]; then
     exit 9
 fi
 
-export CSPP_RT_HOME=${CSPP_EDR_HOME}
+
 #export CSPP_RT_ANC_CACHE_DIR=${CSPP_EDR_ANC_CACHE_DIR}
 # static ancillary data including default algorithm settings
 export CSPP_RT_ANC_HOME=${CSPP_EDR_ANC_HOME}

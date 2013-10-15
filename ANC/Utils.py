@@ -31,7 +31,7 @@ from numpy import ma
 import pygrib
 
 import adl_blob
-from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE, env
 
 # Plotting stuff
 import matplotlib
@@ -369,7 +369,7 @@ def retrieve_NCEP_grib_files(geoDicts):
             args = shlex.split(cmdStr)
 
             procRetVal = 0
-            procObj = subprocess.Popen(args,bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            procObj = subprocess.Popen(args,env=env(JPSS_LOCAL_ANC_DIR=CSPP_RT_ANC_CACHE_DIR,CSPP_RT_HOME=CSPP_RT_HOME),bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             procObj.wait()
             procRetVal = procObj.returncode
 
