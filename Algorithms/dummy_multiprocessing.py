@@ -36,18 +36,9 @@ import multiprocessing
 
 from Utils import check_log_files, _setupAuxillaryFiles, getURID
 
-# skim and convert routines for reading .asc metadata fields of interest
-#import adl_asc
-#from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
-from adl_asc import skim_dir, granule_groups_contain, _eliminate_duplicates,_is_contiguous, skim, RE_LINE, convert, K_FILENAME
-from adl_asc import PAT_URID, PAT_GRANULE_ID, PAT_GRANULE_VERSION, PAT_COLLECTION, PAT_RANGEDATETIME, PAT_SOURCE, PAT_BLOBPATH, PAT_EFFECTIVEDATETIME, PAT_OBSERVEDDATETIME
 from adl_common import sh, unpack, env, h5_xdr_inventory
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
-
-# N_GEO_Ref fix for ADL
-from adl_geo_ref import write_geo_ref
-
-# log file scanning
+from adl_post_process import repack_products, aggregate_products
 import adl_log
 
 # every module should have a LOG object
@@ -94,7 +85,12 @@ AUX_Paths = [
              'luts/viirs'
             ]
 
-controllerBinary = 'ProEdrViirsDummyController.exe'
+EDR_collectionShortNames = [
+                           'VIIRS-DUMMY'
+                          ]
+
+controllerName = 'ProEdrViirsDummyController'
+controllerBinary = '{}.exe'.format(controllerName)
 ADL_VIIRS_DUMMY_EDR=path.abspath(path.join(ADL_HOME, 'bin', controllerBinary))
 
 algorithmLWxml = 'edr_dummy_mpc'
@@ -106,9 +102,6 @@ attributePaths['DUMMY'] = 'Data_Products/VIIRS-DUMMY/VIIRS-DUMMY_Gran_0/N_Granul
 
 MOD_GEO_TC_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
 DUMMY_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-DUMMY/VIIRS-DUMMY_Gran_0/N_Granule_ID'
-
-# maximum delay between granule end time and next granule start time to consider them contiguous
-MAX_CONTIGUOUS_DELTA=timedelta(seconds = 2)
 
 # XML template for ProEdrViirsMasksController.exe
 # from ADL/cfg/dynamic/withMetadata/ProEdrViirsMasksControllerLwFile.xml
@@ -153,103 +146,6 @@ xmlTemplate = """<InfTkConfig>
 """
 
 
-'''
-def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_granules_preferred=False):
-    """
-    given a sequence of granule dictionaries, yield a sequence of contiguous granule groups as tuples
-    tolerance, if provided, is a datetime.timedelta object representing max differance between endtime and starttime
-
-    This is a custom version of adl_asc.contiguous_granule_groups(), which keys off of 'StartTime', rather than
-    'ObservedStartTime' as is done here.
-    """
-    
-    # sort granules into start time order and eliminate exact duplicates
-    # FUTURE: is lex-compare sufficient for A2/A1/etc
-    start_time_key = lambda x: (x['StartTime'], x.get('N_Granule_Version', None))
-    #start_time_key = lambda x: (x['RangeDateTime'], x.get('N_Granule_Version', None))
-    #sys.exit(0)
-    granlist = _eliminate_duplicates(sorted(granules, key = start_time_key),larger_granules_preferred=larger_granules_preferred)
-    granset = set(x['N_Granule_ID'] for x in granlist)
-
-    # it's ambiguous if we have a work directory with multiple different blobs for any given granule
-    if len(granlist) != len(granset):
-        LOG.error('Aborting. Multiple granule copies in work directory: %d files in directory representing only %d granules' % (len(granlist), len(granset)))
-        LOG.error('To solve this, only unpack granules once in given work directory')
-        return
-
-    # pair off in start-time order
-    # build a set containing contiguous granules
-    # when we find a break in sequence, yield the set as an ordered tuple and start over
-    #
-    # If there is only one granule in the list, yield it immediately
-    seq = {}
-    if len(granset)==1 :
-
-        a = granlist[0]
-        seq[a['URID']] = a
-        LOG.debug('contiguous sequence has %d granules' % (len(seq)))
-        yield tuple(sorted(seq.values(), key=start_time_key))
-        seq.clear()
-
-    else :
-
-        for a,b in zip(granlist[:-1], granlist[1:]):
-            if a['N_Granule_ID']==b['N_Granule_ID']:
-                LOG.error('Granule %r has been unpacked to this directory multiple times!' % (a['N_Granule_ID']))
-                return
-            if _is_contiguous(a, b, tolerance):
-                seq[a['URID']] = a
-                seq[b['URID']] = b
-            else:
-                LOG.debug('contiguous sequence has %d granules' % (len(seq)))
-                yield tuple(sorted(seq.values(), key=start_time_key))
-                seq.clear()
-        # leftovers! yum!
-        if seq:
-            LOG.debug('Leftover contiguous sequence has %d granules' % (len(seq)))
-            yield tuple(sorted(seq.values(), key=start_time_key))
-'''
-
-'''
-def sift_metadata_for_viirs_ancillary(collectionShortName, crossGran=None, work_dir='.'):
-    """
-    Search through the ASC metadata in a directory, grouping in StartTime order.
-    Look for back-to-back granules and break into contiguous sequences.
-    Yield sequence of granules we can process.
-    """
-    LOG.debug('Collecting information for VIIRS SDRs')
-
-    work_dir = path.abspath(work_dir)
-
-    ancGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)))
-
-    LOG.debug('ancGroupList : %r'%(ancGroupList))
-
-    if len(ancGroupList)==0:
-        LOG.debug('No ancGroupList found...')
-        return
-
-    # Loop through the contigous granule groups 
-    for group in _contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)):
-        ##- for VIIRS, we can process everything but the first and last granule
-        ##- for CrIS, use [4:-4]
-        LOG.debug('Contiguous granule group of length: %r' % (len(group),))
-
-        if not crossGran :
-            startGran,endGran = None,None
-        else :
-            startGran,endGran = crossGran,-1*crossGran
-
-        for gran in group[startGran:endGran]:
-            if not granule_groups_contain(ancGroupList, gran):
-                LOG.warning("Insufficient VIIRS SDR coverage to process %s @ %s (%s) - skipping" % (gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
-                continue
-                #pass
-            LOG.debug('Processing opportunity: %r at %s with uuid %s' % (gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
-            yield gran
-'''
-
-
 def setupAuxillaryFiles(Alg_objects,workDir):
     '''
     Call the generic Utils method to link in the auxillary files 
@@ -272,6 +168,29 @@ def generate_viirs_edr_xml(work_dir, granule_seq):
     return to_process
 
 
+def move_products_to_work_directory(work_dir):
+    """ Checks that proper products were produced.
+    If product h5 file was produced blob and asc files are deleted
+    If product was not produced files are left alone
+    """
+    dest = path.dirname(work_dir)
+
+    h5Files     = glob(path.join(work_dir, "*.h5"))
+    dummyBlobFiles = glob(path.join(work_dir, "*.VIIRS-DUMMY"))
+    ascFiles    = glob(path.join(work_dir, "*.asc"))
+
+    files = h5Files + dummyBlobFiles + ascFiles
+
+    for file in files:
+        try :
+            LOG.debug( "Moving {} to {}".format(file,dest))
+            move(file, dest)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
+
+    return
+
+
 def dummy_exe(additional_env):
     '''
     Dummy "executable"
@@ -291,11 +210,12 @@ def dummy_exe(additional_env):
         sleep(2.)
         
         # Make the blob/asc output
-        URID = getURID()['URID']
-        ascFileName = '{}.asc'.format(path.join(granule_output_dir,URID))
-        open(ascFileName, 'a').close()
-        blobFileName = '{}.VIIRS-DUMMY'.format(path.join(granule_output_dir,URID))
-        open(blobFileName, 'a').close()
+        for shortName in EDR_collectionShortNames:
+            URID = getURID()['URID']
+            ascFileName = '{}.asc'.format(path.join(granule_output_dir,URID))
+            open(ascFileName, 'a').close()
+            blobFileName = '{}.{}'.format(path.join(granule_output_dir,URID),shortName)
+            open(blobFileName, 'a').close()
 
         # Make the HDF5 output
         h5File = '%s/MPC_%s.h5'%(granule_output_dir,granule_id)
@@ -309,25 +229,11 @@ def dummy_exe(additional_env):
     # Create a log file corresponding to this granule
     logTime = datetime.utcnow()
     pid = randint(500,30000)
-    logName = 'ProEdrViirsDummyController.exe_%s_%d' % (logTime.strftime("%Y%m%d_%H%M%S"),pid)
+    logName = '{}_%s_%d' % (controllerBinary,logTime.strftime("%Y%m%d_%H%M%S"),pid)
     os.mkdir(path.join(granule_output_dir,logName))
     open('%s.log'%(path.join(granule_output_dir,'log',logName)), 'a').close()
 
     return pid
-
-
-def move_products_to_work_directory(work_dir):
-    """ Checks that proper products were produced.
-    If product h5 file was produced blob and asc files are deleted
-    If product was not produced files are left alone
-    """
-    dest = path.dirname(work_dir)
-
-    files = glob(path.join(work_dir, "*.h5"))
-    for file in files:
-        move(file, dest)
-
-    return
 
 
 def submit_granule(additional_env):
@@ -337,14 +243,8 @@ def submit_granule(additional_env):
     xml = additional_env['XML_FILE']
     granule_id = additional_env['N_Granule_ID']
     granule_output_dir = additional_env['GRANULE_OUTPUT_DIR']
-
-    granule_diagnostic = {}
-    granule_diagnostic['crashed'] = False
-    granule_diagnostic['no_output'] = False
-    granule_diagnostic['geo_problem'] = False
-    granule_diagnostic['bad_log'] = False
-    granule_diagnostic['N_Granule_ID'] = granule_id
     compress = additional_env['COMPRESS']
+
     # Pattern for expected output
     dummyPattern = path.join(granule_output_dir, 'MPC*.h5')
 
@@ -363,6 +263,14 @@ def submit_granule(additional_env):
     LOG.debug('executing "{}"'.format(' '.join(cmd)))
     LOG.debug('additional environment variables: {}'.format(additional_env))
 
+    granule_diagnostic = {}
+    granule_diagnostic['bad_log'] = False
+    granule_diagnostic['crashed'] = False
+    granule_diagnostic['geo_problem'] = False
+    granule_diagnostic['N_Granule_ID'] = granule_id
+    granule_diagnostic['no_output'] = []
+    granule_diagnostic['output_file'] = []
+
     t1 = time()
 
     try:
@@ -380,21 +288,26 @@ def submit_granule(additional_env):
         LOG.error('{} failed on {}: {}. Continuing...' % (cmd[0], xml, oops))
         granule_diagnostic['crashed'] = True
 
-    # check new MPC output granules
-    dummy_new_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH, state=dummy_ID)
-    if granule_id not in dummy_new_granules:
-        LOG.warning('no DUMMY HDF5 output for {}'.format(granule_id))
-        granule_diagnostic['no_output'] = True
-        granule_diagnostic['output_file'] = None
-    else :
-        LOG.info('New MPC granule: {}'.format(repr(dummy_new_granules)))
-        dummy_granules_made = set(dummy_ID.values()) - dummy_prior_granules
-        LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(dummy_granules_made))))
-        granule_diagnostic['output_file'] = path.basename(dummy_new_granules[granule_id])
-
     t2 = time()
 
-    LOG.info ("Controller ran in {} seconds.".format(t2-t1))
+    LOG.info("{}({}) ran in {} seconds.".format(controllerName,granule_id,t2-t1))
+
+    try :
+
+        # check new MPC output granules
+        dummy_new_granules, dummy_ID = h5_xdr_inventory(dummyPattern, DUMMY_GRANULE_ID_ATTR_PATH, state=dummy_ID)
+        if granule_id not in dummy_new_granules:
+            LOG.warning('no DUMMY HDF5 output for {}'.format(granule_id))
+            granule_diagnostic['no_output'] = True
+            granule_diagnostic['output_file'] = None
+        else :
+            LOG.info('New MPC granule: {}'.format(repr(dummy_new_granules)))
+            dummy_granules_made = set(dummy_ID.values()) - dummy_prior_granules
+            LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(dummy_granules_made))))
+            granule_diagnostic['output_file'] = path.basename(dummy_new_granules[granule_id])
+
+    except Exception:
+        LOG.warn(traceback.format_exc())
 
     if compress == "True":
         LOG.info('Compress products for %s' % granule_id)
@@ -407,7 +320,7 @@ def submit_granule(additional_env):
     return granule_diagnostic
 
 
-def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True",COMPRESS=False,AGGREGATE=False, nprocs="1", **additional_env):
+def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPRESS=False,AGGREGATE=False, **additional_env):
     """Run each VIIRS dummy xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
@@ -461,7 +374,6 @@ def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True",COMPRESS=False,
         # Create the multiprocessing infrastructure
         number_available = multiprocessing.cpu_count()
 
-        nprocs = 4 # FIXME: temporary
         if int(nprocs) > number_available:
             LOG.warning("More processors requested {} than available {}".format(nprocs, number_available))
             nprocs = number_available - 1
@@ -480,6 +392,7 @@ def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True",COMPRESS=False,
             pool.terminate()
             pool.join()
             sys.exit(1)
+
 
 #    if AGGREGATE is True:
 #        number_problems = aggregate_products(work_dir, EDR_collectionShortNames)
@@ -518,6 +431,11 @@ def run_xml_files(work_dir, xml_files_to_process, CLEANUP="True",COMPRESS=False,
     if not dummy_granules_made:
         LOG.warning('No {} HDF5 files were created'.format(AlgorithmName))
 
+    LOG.debug('no_output_runs : {}'.format(no_output_runs))
+    LOG.debug('geo_problem_runs : {}'.format(geo_problem_runs))
+    LOG.debug('crashed_runs : {}'.format(crashed_runs))
+    LOG.debug('bad_log_runs : {}'.format(bad_log_runs))
+
     return crashed_runs, no_output_runs, geo_problem_runs, bad_log_runs
 
 
@@ -526,16 +444,6 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
 
     LOG.info("Cleaning up work directory...")
 
-    LOG.info("Removing {} job directories...".format(AlgorithmName))
-    job_dir_glob = path.join(work_dir,"ProEdrViirsDummyController_NPP*")
-    job_dirs = glob(job_dir_glob)
-    for dir in job_dirs:
-        LOG.info('removing job directory {}'.format(dir))
-        try :
-            rmtree(dir, ignore_errors=False)
-        except Exception, err:
-            LOG.warn( "{}".format(str(err)))
-
     LOG.info("Removing task xml files...")
     for fn in glob(path.join(work_dir, xml_glob)):
         LOG.debug('removing task file {}'.format(fn))
@@ -543,6 +451,14 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
             os.unlink(fn)
         except Exception, err:
             LOG.warn( "{}".format(str(err)))
+
+    LOG.info("Removing log directories %s ..."%(log_dir_glob))
+    for dirname in glob(path.join(work_dir,log_dir_glob)):
+        LOG.debug('removing logs in %s' % (dirname))
+        try :
+            rmtree(dirname, ignore_errors=False)
+        except Exception, err:
+            LOG.warn( "%s" % (str(err)))
 
     LOG.info("Removing other directories ...")
     for dirname in more_dirs:

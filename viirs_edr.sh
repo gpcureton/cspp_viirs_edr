@@ -14,24 +14,22 @@ if [ -z "$CSPP_EDR_HOME" ]; then
     exit 9
 fi
 
-
 #export CSPP_RT_ANC_CACHE_DIR=${CSPP_EDR_ANC_CACHE_DIR}
+
 # static ancillary data including default algorithm settings
 export CSPP_RT_ANC_HOME=${CSPP_EDR_ANC_HOME}
+
 # default location of static ancillary tiles, which we use in-place rather than linking into workspace
 #export CSPP_RT_ANC_TILE_PATH=${CSPP_EDR_ANC_TILE_PATH}
+
 # load in commonly-used routines and derived environment
 # sources CSPP_RT_env.sh if needed
-#source $CSPP_RT_HOME/common/cspp_common.sh
 . ${CSPP_EDR_HOME}/common/cspp_common.sh
 
 export ADL_HOME=${CSPP_RT_HOME}/common/4_1/ADL
 export DCONFIG=${ADL_HOME}/cfg
 export LD_LIBRARY_PATH=${CSPP_RT_HOME}/common/4_1/ADL/lib:${CSPP_RT_HOME}/common/local/lib64:${CSPP_RT_HOME}/common/local/lib
 export LD_RUN_PATH=${CSPP_RT_HOME}/common/4_1/ADL/lib:${CSPP_RT_HOME}/common/local/lib64:${CSPP_RT_HOME}/common/local/lib
-
-
-
 
 # set up CSPP_RT_ANC_PATH to find VIIRS default configuration
 # ancillary tile directory is directly referenced in input XML files
@@ -62,88 +60,6 @@ export LD_RUN_PATH=${CSPP_RT_HOME}/common/4_1/ADL/lib:${CSPP_RT_HOME}/common/loc
 #test -w "$CSPP_RT_ANC_CACHE_DIR" \
 #    || warn "CSPP_RT_ANC_CACHE_DIR is not writable" 3${CSPP_RT_ANC_CACHE_DIR}3
 
-help_usage() {
-  cat <<EOF
-
-Run the ADL VIIRS EDR.
-
-Usage: 
-    export CSPP_EDR_HOME=/path/to/CSPP_EDR/dir
-    source \$CSPP_EDR_HOME/cspp_edr_env.sh
-    \$CSPP_EDR_HOME/viirs/viirs_edr.sh [mandatory args] [options]
-
-
-Options:
-
-  --version             Show program's version number and exit
-
-  -h, --help            Show this help message and exit
-
-  Mandatory Arguments:
-    At a minimum these arguments must be specified
-
-    -i INPUTFILES, --input_files=INPUTFILES
-                        The fully qualified path to the input files. 
-                        May be a directory or a file glob.
-
-    --alg=ALG           The VIIRS algorithm to run.
-                        Possible values are...
-                        'VCM','AOT','SST','SRFREF','VI','ATMOS','LAND','OCEAN','ALL'
-    
-  Extra Options:
-    These options may be used to customize behaviour of this program.
-
-    -w WORK_DIR, --work_directory=WORK_DIR
-                        The directory which all activity will occur in,
-                        defaults to the current directory.
-
-    --skip_sdr_unpack   Skip the unpacking of the VIIRS SDR HDF5 files.
-
-    --skip_aux_linking  Skip the the linking to the auxillary files.
-    
-    --skip_ancillary    Skip the retrieval and granulation of ancillary data.
-
-    --skip_algorithm    Skip running the VIIRS Masks algorithm.
-    
-    --no_dummy_granules Do not generate dummy SDR or ancillary cross granules.
-    
-    --debug             Enable debug mode on ADL and avoid cleaning workspace
-
-    --no_chain          Do not run prerequisite algorithms.
-    
-    --sdr_endianness=SDR_ENDIANNESS
-                        The input VIIRS SDR endianness.
-                        Possible values are...
-                        'little', 'big'. [default: 'little']
-
-    --anc_endianness=ANC_ENDIANNESS
-                        The input VIIRS ancillary endianness.
-                        Possible values are...
-                        'little', 'big'. [default: 'little']
-    
-    -p, --processors    Number of cpus to use for granule processing.
-
-    -v, --verbose       each occurrence increases verbosity 1 level from
-                        ERROR: -v=WARNING -vv=INFO -vvv=DEBUG"
-EOF
-
-}
-
-usage() {
-  cat <<EOF
-
-Run the ADL VIIRS EDR.
-
-Usage: 
-    export CSPP_EDR_HOME=/path/to/CSPP_EDR/dir
-    source \$CSPP_EDR_HOME/cspp_edr_env.sh
-    \$CSPP_EDR_HOME/viirs/viirs_edr.sh [mandatory args] [options]
-
-  -h, --help            Show the mandatory args and options and exit.
-
-EOF
-
-}
 
 #
 # Gather the various command line options...
@@ -303,7 +219,7 @@ done
 
 if [[ $helpFlag -eq 1 ]];
 then
-    help_usage
+    $PY $CSPP_EDR_HOME/viirs/adl_viirs_edr.py -h
     exit 0
 fi
 if [[ $usageFlag -eq 1 ]];

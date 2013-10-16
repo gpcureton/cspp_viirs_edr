@@ -15,8 +15,6 @@ test -d "$CSPP_EDR_HOME/common/ADL" && export CSPP_REV="20120215"
 # derived CSPP default locations (site installs may move these under some circumstances)
 #
 
-
-
 # read-write directory into which new ancillary data can be downloaded
 export CSPP_EDR_ANC_CACHE_DIR=${CSPP_EDR_HOME}/anc/cache
 
@@ -29,8 +27,8 @@ export CSPP_EDR_ANC_HOME=${CSPP_EDR_HOME}/anc/static
 # default location of static ancillary tiles, which we use in-place rather than linking into workspace
 export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}
 
-export LD_LIBRARY_PATH=${CSPP_SDR_HOME}/common/local/lib64
-export DCONFIG=${CSPP_SDR_HOME}/common/ADL/cfg
+export LD_LIBRARY_PATH=${CSPP_EDR_HOME}/common/local/lib64
+export DCONFIG=${CSPP_EDR_HOME}/common/ADL/cfg
 
 #
 # user path environment settings, making it easy to invoke wrapper scripts

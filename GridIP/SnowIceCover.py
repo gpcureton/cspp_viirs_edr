@@ -211,7 +211,6 @@ class SnowIceCover() :
         # Shift the longitudes to be between -180 and 180 degrees
         if lonMax > 180. :
             LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-            # Scale to restore -ve longitudess, not necessarily # FIXME
             dateLineIdx = np.where(longitude>180.)
             LOG.debug("dateLineIdx = %r" % (dateLineIdx))
             longitude[dateLineIdx] -= 360.
@@ -310,7 +309,7 @@ class SnowIceCover() :
             LOG.exception( "%s" % (str(err)))
 
         if (niseFiles == []) :
-            LOG.error('Failed to find or retrieve any NISE files for date %r, aborting...'%(timeObj))
+            LOG.error('Failed to find or retrieve any NISE files for date {}, aborting...'.format(timeObj.isoformat()))
             sys.exit(1)
 
         # Uniqify the list of NISE files

@@ -469,8 +469,6 @@ class OpticalDepth() :
         newANCblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
         newANCblobArrObj = newANCblobObj.as_arrays()
 
-        # FIXME : Possible datasets are 'faot550' or 'aotSlant550', the latter of which requires the sensor
-        #         zenith angle from the geolocation.
         blobData = getattr(newANCblobArrObj,'faot550')
         blobData[:,:] = self.data[:,:]
 

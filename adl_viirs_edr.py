@@ -364,7 +364,7 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
 
         a = granlist[0]
         seq[a['URID']] = a
-        LOG.info('contiguous sequence has %d granules' % (len(seq)))
+        LOG.debug('contiguous sequence has %d granules' % (len(seq)))
         yield tuple(sorted(seq.values(), key=start_time_key))
         seq.clear()
 
@@ -378,7 +378,7 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
                 seq[a['URID']] = a
                 seq[b['URID']] = b
             else:
-                LOG.info('contiguous sequence has %d granules' % (len(seq)))
+                LOG.debug('contiguous sequence has %d granules' % (len(seq)))
                 yield tuple(sorted(seq.values(), key=start_time_key))
                 seq.clear()
         # leftovers! yum!
@@ -418,7 +418,6 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
 
         if startGran is not None:
             granIdx = startGran
-            LOG.info("granIdx = {}".format(granIdx))
         else :
             granIdx = None
 
@@ -426,7 +425,6 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
             if not granule_groups_contain(geoGroupList, gran):
                 LOG.info("Insufficient VIIRS SDR coverage to process {} @ {} ({}) - skipping".format(gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
                 continue
-                #pass
 
             # If we have cross granules, add them to the dictionary
             if granIdx is not None:
@@ -1070,9 +1068,6 @@ def _granulate_GridIP(inDir,geoDicts,algList,dummy_granule_dict):
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-    # Collection shortnames of the required GridIP static ancillary datasets
-    # FIXME : Poll ADL/cfg/ProEdrViirsCM_CFG.xml for this information
-
     # Create a list of algorithm module "pointers"
     algorithms = []
     for alg in algList :
@@ -1357,14 +1352,6 @@ def main():
                               Possible values are...
                               %s. [default: 'little']
                            ''' % (endianChoices.__str__()[1:-1]))
-    
-    optionalGroup.add_option('-v', '--verbose',
-                      dest='verbosity',
-                      action="count",
-                      default=0,
-                      help='each occurrence increases verbosity 1 level from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG')
-
-
 
     optionalGroup.add_option('-z', '--zip',
                       action="store_true",
@@ -1377,6 +1364,16 @@ def main():
                       dest="aggregate",
                       default=False,
                       help="Enable product nagg aggregation")
+
+    optionalGroup.add_option('-v', '--verbose',
+                      dest='verbosity',
+                      action="count",
+                      default=0,
+                      help='each occurrence increases verbosity 1 level from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG')
+
+
+
+
 
 
     parser.add_option_group(optionalGroup)
@@ -1669,10 +1666,12 @@ def main():
 
     # List the SDR and ancillary dummy granules
     if not options.noDummyGranules:
+
         for granID in dummy_granule_dict['N_Granule_ID']:
-            for shortName in dummy_granule_dict[granID].keys():
-                LOG.info("dummy_granule_dict[{:15}][{:16}] = {:35}".format(\
-                        granID,shortName,dummy_granule_dict[granID][shortName]))
+            maxStrLen = len(max(dummy_granule_dict[granID].keys(), key=len))
+            formatStr = "dummy_granule_dict[{{:15}}][{{:{0}}}] = {{:35}}".format(maxStrLen)
+            for shortName in sorted(dummy_granule_dict[granID].keys()):
+                LOG.info(formatStr.format(granID,shortName,dummy_granule_dict[granID][shortName]))
 
     # Link in auxillary files
     if not options.skipAuxLinking :

@@ -65,7 +65,7 @@ class SurfGeopotentialHeight() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
         self.collectionShortName = 'VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran'
-        self.xmlName = 'VIIRS_ANC_GEOPOT_HT_LEV_MOD_GRAN.xml' # FIXME
+        self.xmlName = 'VIIRS_ANC_GEOPOT_HT_LEV_MOD_GRAN.xml'
         self.blobDatasetName = 'surfaceGeopotentialHeight'
         self.dataType = 'float32'
         self.sourceType = 'NCEP_ANC_Int'

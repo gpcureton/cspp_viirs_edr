@@ -235,12 +235,8 @@ class WindDirection() :
         lonMask = longitude.mask
 
         # Check if the geolocation is in radians, convert to degrees
-        # FIXME : This information is likely conveyed by whether the 
-        # FIXME :     geolocation short-name is *-GEO-TC (degrees) or
-        # FIXME :     *-RGEO_TC (radians).
-        #if (lonRange < 2.*np.pi) :
         if 'RGEO' in geo_Collection_ShortName :
-            LOG.debug("Geolocation is in radians, convert to degrees...")
+            LOG.warning("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         

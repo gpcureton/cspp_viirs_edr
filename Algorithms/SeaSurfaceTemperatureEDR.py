@@ -32,14 +32,10 @@ from shutil import rmtree, move
 import multiprocessing
 
 from Utils import check_log_files, _setupAuxillaryFiles
-from adl_post_process import repack_products, aggregate_products
-# skim and convert routines for reading .asc metadata fields of interest
-#import adl_asc
-#from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
+
 from adl_common import sh, unpack, env, h5_xdr_inventory
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
-
-# log file scanning
+from adl_post_process import repack_products, aggregate_products
 import adl_log
 
 # every module should have a LOG object
@@ -225,6 +221,7 @@ def submit_granule(additional_env):
     granule_id = additional_env['N_Granule_ID']
     granule_output_dir = additional_env['GRANULE_OUTPUT_DIR']
     compress = additional_env['COMPRESS']
+
     # Pattern for expected output
     sstPattern = path.join(granule_output_dir, 'VSSTO*.h5')
 
@@ -294,9 +291,9 @@ def submit_granule(additional_env):
         LOG.warn(traceback.format_exc())
 
     if compress == "True":
-        LOG.info('Compress products for %s' % granule_id)
+        LOG.info('Compress products for {}'.format(granule_id))
         repack_products(granule_output_dir, EDR_collectionShortNames)
-        LOG.info('Compress products for %s complete.' % granule_id)
+        LOG.info('Compress products for {} complete.'.format(granule_id))
 
     move_products_to_work_directory(granule_output_dir)
 
@@ -353,7 +350,6 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
         # Create the multiprocessing infrastructure
         number_available = multiprocessing.cpu_count()
 
-        #nprocs = 4 # FIXME: temporary
         if int(nprocs) > number_available:
             LOG.warning("More processors requested {} than available {}".format(nprocs, number_available))
             nprocs = number_available - 1
@@ -423,24 +419,13 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
 
     LOG.info("Cleaning up work directory...")
 
-    # Remove asc/blob file pairs...
-    #LOG.info("Removing {} blob/asc file pairs...".format(AlgorithmName))
-    #for shortName in EDR_collectionShortNames:
-        #edr_glob = path.join(work_dir,"*.{}".format(shortName))
-        #blobFiles = glob(edr_glob)
-        ##ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
-        #if blobFiles != [] :
-            #for files in blobFiles:
-                #ascFile = string.replace(files,".{}".format(shortName),".asc")
-                #LOG.info('removing %s' % (files))
-                #os.unlink(files)
-                #LOG.info('removing %s' % (ascFile))
-                #os.unlink(ascFile)
-
     LOG.info("Removing task xml files...")
     for fn in glob(path.join(work_dir, xml_glob)):
-        LOG.debug('removing task file %s' % (fn))
-        os.unlink(fn)
+        LOG.debug('removing task file {}'.format(fn))
+        try :
+            os.unlink(fn)
+        except Exception, err:
+            LOG.warn( "{}".format(str(err)))
 
     LOG.info("Removing log directories %s ..."%(log_dir_glob))
     for dirname in glob(path.join(work_dir,log_dir_glob)):

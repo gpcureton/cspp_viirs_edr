@@ -290,7 +290,7 @@ def shipOutToFile(ANCobj):
     LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
     
     ANC_fileList = ANCobj.sourceList
-    LOG.info("ANC_fileList = %r" % (ANC_fileList))
+    LOG.info("Source files for {}: {}".format(ANCobj.collectionShortName,ANC_fileList))
 
     for idx in range(len(ANC_fileList)) :
         ANC_fileList[idx] = path.basename(ANC_fileList[idx])
@@ -374,11 +374,7 @@ def retrieve_NCEP_grib_files(geoDicts):
             procRetVal = procObj.returncode
 
             procOutput = procObj.stdout.readlines()
-            #procOutput = procObj.stdout.read()
 
-            # FIXME : How to get this output to have linebreaks when using readlines()
-            #LOG.debug(procOutput)
-            
             for lines in procOutput:
                 if "GDAS/GFS file" in lines :
                     lines = string.replace(lines,'GDAS/GFS file 1: ','')

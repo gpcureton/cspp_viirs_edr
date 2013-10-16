@@ -32,14 +32,10 @@ from shutil import rmtree, move
 import multiprocessing
 
 from Utils import check_log_files, _setupAuxillaryFiles
-from adl_post_process import repack_products, aggregate_products
-# skim and convert routines for reading .asc metadata fields of interest
-#import adl_asc
-#from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
+
 from adl_common import sh, unpack, env, h5_xdr_inventory
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
-
-# log file scanning
+from adl_post_process import repack_products, aggregate_products
 import adl_log
 
 # every module should have a LOG object
@@ -330,7 +326,6 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
         # Create the multiprocessing infrastructure
         number_available = multiprocessing.cpu_count()
 
-        #nprocs = 4 # FIXME: temporary
         if int(nprocs) > number_available:
             LOG.warning("More processors requested {} than available {}".format(nprocs, number_available))
             nprocs = number_available - 1

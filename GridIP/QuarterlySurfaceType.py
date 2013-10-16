@@ -231,7 +231,6 @@ class QuarterlySurfaceType() :
         # Shift the longitudes to be between -180 and 180 degrees
         if lonMax > 180. :
             LOG.debug("\nFinal min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
-            # Scale to restore -ve longitudess, not necessarily # FIXME
             dateLineIdx = np.where(longitude>180.)
             LOG.debug("dateLineIdx = %r" % (dateLineIdx))
             longitude[dateLineIdx] -= 360.
