@@ -49,7 +49,7 @@ import ViirsData
 import adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
-from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE, env
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE, env,JPSS_REMOTE_ANC_DIR
 
 # every module should have a LOG object
 try :
@@ -338,7 +338,7 @@ class IceConcentration() :
             args = shlex.split(cmdStr)
 
             procRetVal = 0
-            procObj = subprocess.Popen(args,env=env(JPSS_LOCAL_ANC_DIR=CSPP_RT_ANC_CACHE_DIR,CSPP_RT_HOME=CSPP_RT_HOME),bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            procObj = subprocess.Popen(args,env=env(JPSS_LOCAL_ANC_DIR=CSPP_RT_ANC_CACHE_DIR,CSPP_RT_HOME=CSPP_RT_HOME,JPSS_REMOTE_ANC_DIR=JPSS_REMOTE_ANC_DIR),bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             procObj.wait()
             procRetVal = procObj.returncode
 
