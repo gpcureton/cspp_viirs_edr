@@ -11,32 +11,23 @@ test -d "$CSPP_EDR_HOME/common/ADL" || echo "CSPP_EDR_HOME does not appear to be
 test -d "$CSPP_EDR_HOME/common/ADL" && export CSPP_REV="20120215"
 
 
-#
-# derived CSPP default locations (site installs may move these under some circumstances)
-#
-
-# read-write directory into which new ancillary data can be downloaded
-export CSPP_EDR_ANC_CACHE_DIR=${CSPP_EDR_HOME}/anc/cache
-
-# read-write directory for initial EDR luts and download EDR luts
-export CSPP_EDR_LUTS=${CSPP_EDR_ANC_CACHE_DIR}/luts
-
-# static ancillary data including default algorithm settings
-export CSPP_EDR_ANC_HOME=${CSPP_EDR_HOME}/anc/static
-
-# default location of static ancillary tiles, which we use in-place rather than linking into workspace
-export CSPP_EDR_ANC_TILE_PATH=${CSPP_EDR_ANC_HOME}
+# the adl-common.py module will assign defaults
+# these variables should only be set for custom installations
+unset CSPP_RT_ANC_CACHE_DIR
+unset CSPP_RT_ANC_PATH
+unset CSPP_RT_ANC_HOME
+unset CSPP_RT_ANC_TILE_PATH
+unset CSPP_RT_ANC_HOME
+unset DCONFIG
+export JPSS_REMOTE_ANC_DIR=http://jpssdb.ssec.wisc.edu/ancillary
 
 export LD_LIBRARY_PATH=${CSPP_EDR_HOME}/common/local/lib64
-export DCONFIG=${CSPP_EDR_HOME}/common/ADL/cfg
 
 #
 # user path environment settings, making it easy to invoke wrapper scripts
 #
 
-#export DCONFIG=${CSPP_EDR_HOME}/common/cspp_cfg/cfg
-#export DCONFIG=${CSPP_EDR_HOME}/common/ADL/cfg
-unset DCONFIG
+export DCONFIG=${CSPP_EDR_HOME}/common/ADL/cfg
 
 export PATH=${CSPP_EDR_HOME}/common:$PATH
 export PATH=${CSPP_EDR_HOME}/common/ShellB3/bin:$PATH
