@@ -5,12 +5,12 @@
 # Licensed under the GNU GPLv3.
 
 if [ -z "$CSPP_GTM_HOME" ]; then
-  echo "CSPP_GTM_HOME must be set to the path where the CSPP software was installed."
-  echo "export CSPP_GTM_HOME=/home/me/GTM_x_x"
-  exit 1
+    echo "CSPP_GTM_HOME is not set, but is required for this script to operate."
+    exit 9
 fi
 
-. ${CSPP_GTM_HOME}/common/cspp_common.sh
+
+. ${CSPP_GTM_HOME}/cspp_gtm_runtime.sh
 
 if [ -z "$1" ]; then
   $PY $CSPP_GTM_HOME/viirs/adl_viirs_gtm_edr.py -h

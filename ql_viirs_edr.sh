@@ -12,14 +12,8 @@ if [ -z "$CSPP_EDR_HOME" ]; then
     exit 9
 fi
 
-if [ ! -e $CSPP_EDR_HOME/common/cspp_common.sh ] ;
-then
-    echo "Missing $CSPP_SDR_HOME/common/cspp_common.sh.  Please install CORE package"
-    exit 1
-fi
 
-export PYTHONPATH=$CSPP_EDR_HOME/common
-export PY=$CSPP_EDR_HOME/common/ShellB3/bin/python
+. ${CSPP_EDR_HOME}/cspp_edr_runtime.sh
 
 # Check number of arguments
 if [ "$#" -ne 3 ]; then

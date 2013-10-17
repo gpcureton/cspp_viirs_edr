@@ -8,58 +8,12 @@
 # Copyright 2011-2012, University of Wisconsin Regents.
 # Licensed under the GNU GPLv3.
 
-# This script is dependent on CSPP_RT_env.sh having been sourced
 if [ -z "$CSPP_EDR_HOME" ]; then
-    echo "CSPP_EDR_HOME is not set, but is required for CSPP_EDR to operate."
+    echo "CSPP_EDR_HOME is not set, but is required for this script to operate."
     exit 9
 fi
 
-#export CSPP_RT_ANC_CACHE_DIR=${CSPP_EDR_ANC_CACHE_DIR}
-
-# static ancillary data including default algorithm settings
-export CSPP_RT_ANC_HOME=${CSPP_EDR_ANC_HOME}
-
-# default location of static ancillary tiles, which we use in-place rather than linking into workspace
-#export CSPP_RT_ANC_TILE_PATH=${CSPP_EDR_ANC_TILE_PATH}
-
-# load in commonly-used routines and derived environment
-# sources CSPP_RT_env.sh if needed
-. ${CSPP_EDR_HOME}/common/cspp_common.sh
-
-export ADL_HOME=${CSPP_RT_HOME}/common/4_1/ADL
-export DCONFIG=${ADL_HOME}/cfg
-export LD_LIBRARY_PATH=${CSPP_RT_HOME}/common/4_1/ADL/lib:${CSPP_RT_HOME}/common/local/lib64:${CSPP_RT_HOME}/common/local/lib
-export LD_RUN_PATH=${CSPP_RT_HOME}/common/4_1/ADL/lib:${CSPP_RT_HOME}/common/local/lib64:${CSPP_RT_HOME}/common/local/lib
-
-# set up CSPP_RT_ANC_PATH to find VIIRS default configuration
-# ancillary tile directory is directly referenced in input XML files
-# dynamic ancillary cache is handled by adl_anc_retrieval.py (this last script)
-# is currently used for SDR controllers for the moment. VIIRS EDR controllers
-# are supplied ancillary data by running bash ancillary scripts directly.
-#if [ -z "$CSPP_RT_ANC_PATH" ]; then
-#    export CSPP_RT_ANC_PATH=$CSPP_RT_HOME/anc/static #:$CSPP_RT_ANC_HOME/ADL/data/repositories/cache
-#else
-#    echo "INFO: CSPP_RT_ANC_PATH changed by user to $CSPP_RT_ANC_PATH"
-#fi
-
-# test that we are reasonably sure we have what we need installed
-#test -f "$CSPP_RT_HOME/viirs/adl_viirs_edr.py" \
-#    || oops "$CSPP_RT_HOME/viirs/adl_viirs_edr.py not found"
-#test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe" \
-#    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsMasksController.exe not found"
-#test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsAerosolController.exe" \
-#    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsAerosolController.exe not found"
-#test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSstController.exe" \
-#    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSstController.exe not found"
-#test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSurfReflectController.exe" \
-#    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsSurfReflectController.exe not found"
-#test -x "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsVI.exe" \
-#    || oops "$CSPP_RT_HOME/common/ADL/bin/ProEdrViirsVI.exe not found"
-#test -x "$PY" \
-#    || oops "Common CSPP_RT python interpreter $PY not found"
-#test -w "$CSPP_RT_ANC_CACHE_DIR" \
-#    || warn "CSPP_RT_ANC_CACHE_DIR is not writable" 3${CSPP_RT_ANC_CACHE_DIR}3
-
+. ${CSPP_EDR_HOME}/cspp_edr_runtime.sh
 
 #
 # Gather the various command line options...

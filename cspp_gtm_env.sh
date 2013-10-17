@@ -10,15 +10,6 @@ test -d "$CSPP_GTM_HOME/common/ADL" || echo "CSPP_GTM_HOME does not appear to be
 # revision string for this CSPP release, which we set if we have reasonable expectation that environment is correct
 test -d "$CSPP_GTM_HOME/common/ADL" && export CSPP_REV="20120215"
 
-# the adl-common.py module will assign defaults
-# these variables should only be set for custom installations
-unset CSPP_RT_ANC_CACHE_DIR
-unset CSPP_RT_ANC_PATH
-unset CSPP_RT_ANC_HOME
-unset CSPP_RT_ANC_TILE_PATH
-unset CSPP_RT_ANC_HOME
-unset DCONFIG
-export JPSS_REMOTE_ANC_DIR=http://jpssdb.ssec.wisc.edu/ancillary
 #
 # user path environment settings, making it easy to invoke wrapper scripts
 #

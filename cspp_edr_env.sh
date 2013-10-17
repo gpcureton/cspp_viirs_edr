@@ -11,18 +11,6 @@ test -d "$CSPP_EDR_HOME/common/ADL" || echo "CSPP_EDR_HOME does not appear to be
 test -d "$CSPP_EDR_HOME/common/ADL" && export CSPP_REV="20120215"
 
 
-# the adl-common.py module will assign defaults
-# these variables should only be set for custom installations
-unset CSPP_RT_ANC_CACHE_DIR
-unset CSPP_RT_ANC_PATH
-unset CSPP_RT_ANC_HOME
-unset CSPP_RT_ANC_TILE_PATH
-unset CSPP_RT_ANC_HOME
-unset DCONFIG
-export JPSS_REMOTE_ANC_DIR=http://jpssdb.ssec.wisc.edu/ancillary
-
-export LD_LIBRARY_PATH=${CSPP_EDR_HOME}/common/local/lib64
-
 #
 # user path environment settings, making it easy to invoke wrapper scripts
 #
