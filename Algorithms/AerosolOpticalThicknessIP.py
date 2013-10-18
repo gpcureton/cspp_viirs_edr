@@ -479,7 +479,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
     LOG.debug("aerosolEDR_prior_granules = {}".format(aerosolEDR_prior_granules))
     aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
 
-    LOG.info('Active Fires granules created: {}'.format(', '.join(list(aerosolEDR_granules_made))))
+    LOG.info('Aerosol Optical Thickness EDR granules created: {}'.format(', '.join(list(aerosolEDR_granules_made))))
 
     # check new VSUMO output granules
     suspMatEdr_new_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH, state=suspMatEdr_ID)
@@ -489,7 +489,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
     LOG.debug("suspMatEDR_prior_granules = {}".format(suspMatEDR_prior_granules))
     suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
 
-    LOG.info('Active Fires granules created: {}'.format(', '.join(list(suspMatEdr_new_granules))))
+    LOG.info('Suspended Matter EDR granules created: {}'.format(', '.join(list(suspMatEdr_new_granules))))
 
     crashed_runs = set()
     no_output_runs = set()
