@@ -2283,7 +2283,7 @@ def gran_SST(geoList,sstList,shrink=1):
     return lats,lons,data,lat_0,lon_0,ModeGran
 
 
-def gran_NDVI(geoList,ndviList,shrink=1):
+def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
     '''
     Returns the granulated AOT
     '''
@@ -2311,7 +2311,7 @@ def gran_NDVI(geoList,ndviList,shrink=1):
     for grans in np.arange(len(geoList)):
 
         print "\nIngesting granule %d ..." % (grans)
-        retList = viirsNDVIObj.ingest(geoList[grans],ndviList[grans],'ndvi',shrink)
+        retList = viirsNDVIObj.ingest(geoList[grans],ndviList[grans],prodName,shrink)
 
         try :
             latArr  = np.vstack((latArr,viirsNDVIObj.Lat[:,:]))
@@ -2843,7 +2843,7 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
 def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
         vmin=-1.,vmax=1.,scale=1.3, \
         lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,mapRes='c',cmap=None, \
-        prodFileName='',outFileName='VIVIO.png',dpi=300,titleStr='VIIRS NDVI EDR'):
+        prodFileName='',outFileName='VIVIO.png',dpi=300,titleStr='VIIRS VI EDR'):
     '''
     Plots the VIIRS Normalised Vegetation Index on an orthographic projection
     '''
@@ -2931,7 +2931,7 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     ppl.setp(cax.get_xticklabels(),fontsize=9)
 
     # Colourbar title
-    cax_title = ppl.setp(cax,title="TOA Normalised Vegetation Index (NDVI)")
+    cax_title = ppl.setp(cax,title="Vegetation Index")
     ppl.setp(cax_title,fontsize=9)
 
     #
@@ -3368,7 +3368,7 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
 def main():
 
     #prodChoices=['VCM','VCP','COT','COT_EDR','EPS','EPS_EDR','CTT','CTT_EDR','CTH','CTH_EDR','CTP','CTP_EDR','AOT','AOT_EDR','SST_EDR','SDR']
-    prodChoices=['VCM','VCP','AOT','AOT_EDR','SST_EDR','NDVI']
+    prodChoices=['VCM','VCP','AOT','AOT_EDR','SST_EDR','NDVI','EVI']
     mapRes = ['c','l','i']
 
     description = \
@@ -3635,22 +3635,29 @@ def main():
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    elif 'NDVI' in options.ipProd :
+    elif 'NDVI' in options.ipProd  or 'EVI' in options.ipProd:
         print "Calling NDVI ingester..."
         stride = stride_IP if options.stride==None else options.stride
+        ipProd = options.ipProd
+
         #vmin = 290. if (vmin==None) else vmin
         #vmax = 305. if (vmax==None) else vmax
 
-        lats,lons,ndviData,gran_lat_0,gran_lon_0,ModeGran = gran_NDVI(geoList,prodList,shrink=stride)
+        lats,lons,ndviData,gran_lat_0,gran_lon_0,ModeGran = gran_NDVI(geoList,prodList,prodName=ipProd,shrink=stride)
         
         lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
         lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
+
+        if ipProd == 'NDVI':
+            mapAnn = 'TOA NDVI'
+        if ipProd == 'EVI':
+            mapAnn = 'TOC EVI'
 
         print "Calling NDVI plotter..."
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_NDVI(lats,lons,ndviData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
-            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=mapAnn)
 
     #if 'COT_EDR' in options.ipProd :
         #print "Calling COT EDR ingester..."

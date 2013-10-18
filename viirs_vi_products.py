@@ -138,11 +138,19 @@ class viirsVI:
 
         # Get the VIIRS EDR dataset
         try :
-            #ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/BulkVI'
-            ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/TOA_NDVI'
-            self.ViirsVIprodSDS = ViirsVIprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
-            ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/TOA_NDVI_Factors'
-            self.viFactors = ViirsVIprodFileObj.getNode(ViirsDataSetPath)[:]
+            if self.ViirsVIprodSDStype == "NDVI" :
+                ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/TOA_NDVI'
+                self.ViirsVIprodSDS = ViirsVIprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+                ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/TOA_NDVI_Factors'
+                self.viFactors = ViirsVIprodFileObj.getNode(ViirsDataSetPath)[:]
+            elif self.ViirsVIprodSDStype == "EVI" :
+                ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/TOC_EVI'
+                self.ViirsVIprodSDS = ViirsVIprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+                ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/TOC_EVI_Factors'
+                self.viFactors = ViirsVIprodFileObj.getNode(ViirsDataSetPath)[:]
+            else :
+                print 'Error: unknown product name "{}", aborting...'.format(self.ViirsVIprodSDStype)
+                sys.exit(0)
 
             #ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/QF1_VIIRSVIEDR'
             #self.ViirsVI_QF1 =  ViirsVIprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
