@@ -1,74 +1,248 @@
 #!/bin/bash
 # $Id$
-# Wrapper script for VIIRS EDR quicklooks python script.
+# Create quicklook PNGs for VIIRS EDR products.
 #
 # Environment settings:
-# CSPP_EDR_HOME : the location of the CSPP EDR main directory
+# CSPP_EDR_HOME : the location of the CSPP_RT directory
 #
-# This script is dependent on cspp_edr_env.sh having been sourced
+# Copyright 2011-2012, University of Wisconsin Regents.
+# Licensed under the GNU GPLv3.
 
 if [ -z "$CSPP_EDR_HOME" ]; then
     echo "CSPP_EDR_HOME is not set, but is required for this script to operate."
     exit 9
 fi
 
-
 . ${CSPP_EDR_HOME}/cspp_edr_runtime.sh
 
-# Check number of arguments
-if [ "$#" -ne 3 ]; then
-  echo "Usage: ql_viirs_edr.sh <PROD> <GMTCO file path> <PROD file path>"
-  echo "where"
-  echo " PROD is either VCM (cloud mask), AOT (Aerosol Optical Thickness)"
-  echo "  or SST (Sea Surface Temperature)"
-  echo " GMTCO file path is the full path to the Geolocation file directory"
-  echo " PROD file path is the path to the EDR file directory"
-  exit 1
+#
+# Gather the various command line options...
+#
+
+GEO_FILES_OPT=
+IP_FILES_OPT=
+PROD_OPT=
+PLOT_MIN_OPT=
+PLOT_MAX_OPT=
+DPI_OPT=
+SCALE_OPT=
+LAT_0_OPT=
+LON_0_OPT=
+STRIDE_OPT=
+SCATTER_PLOT_OPT=
+POINTSIZE_OPT=
+MAP_RES_OPT=
+MAP_ANNOTATION_OPT=
+OUTPUT_FILE_OPT=
+
+#echo $@
+
+OPTS=`getopt -o "g:i:p:d:s:S:P:m:a:o:h" -l "geo_files:,ip_files:,product:,plotMin:,plotMax:,dpi:,scale:,lat_0:,lon_0:,stride:,scatter_plot,pointSize:,map_res:,map_annotation:,output_file:,help" -- "$@"`
+
+# If returncode from getopt != 0, exit with error.
+if [ $? != 0 ]
+then
+    echo "There was an error with the command line parameters to viirs_edr.sh, aborting..."
+    exit 1
 fi
 
-PROD=$1
-if [[ "$PROD" != VCM && "$PROD" != AOT && "$PROD" != SST ]] ; then
-   echo "Input product is not valid :" $PROD
-   exit 1
+# A little magic
+eval set -- "$OPTS"
+
+# Now go through all the options
+haveFlag=0
+helpFlag=0
+usageFlag=0
+
+while true ;
+do
+    case "$1" in
+
+        ### Mandatory
+
+        -g|--geo_files)
+            GEO_FILES_OPT="--geo_file=$2"
+            #echo "Setting INPUT_FILES_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -i|--ip_files)
+            IP_FILES_OPT="--ip_file=$2"
+            #echo "Setting INPUT_FILES_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -p|--product)
+            PROD_OPT="--product=$2"
+            #echo "Setting ALG_OPT"
+            haveFlag=1
+            shift 2;;
+
+        ### Optional
+
+        --plotMin)
+            PLOT_MIN_OPT="--plotMin=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        --plotMax)
+            PLOT_MAX_OPT="--plotMax=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -d|--dpi)
+            DPI_OPT="--dpi=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -s|--scale)
+            SCALE_OPT="--scale=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        --lat_0)
+            LAT_0_OPT="--lat_0=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        --lon_0)
+            LON_0_OPT="--lon_0=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -S|--stride)
+            STRIDE_OPT="--stride=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        --scatter_plot)
+            SCATTER_PLOT_OPT="--scatter_plot"
+            #echo "Setting SKIP_SDR_UNPACK_OPT"
+            haveFlag=1
+            shift ;;
+
+        -P|--pointSize)
+            POINTSIZE_OPT="--pointSize=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -m|--map_res)
+            MAP_RES_OPT="--map_res=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -a|--map_annotation)
+            MAP_ANNOTATION_OPT="--map_annotation=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -o|--output_file)
+            OUTPUT_FILE_OPT="--output_file=$2"
+            #echo "Setting WORK_DIR_OPT"
+            haveFlag=1
+            shift 2;;
+
+        -h|--help)
+            if [[ $haveFlag -eq 0 ]];
+            then
+                helpFlag=1
+            fi
+            shift;
+            break ;;
+
+        --)
+            if [[ $haveFlag -eq 0 ]];
+            then
+                usageFlag=1
+            fi
+            shift;
+            break;;
+
+    esac
+done
+
+if [[ $helpFlag -eq 1 ]];
+then
+    $PY $CSPP_EDR_HOME/viirs/ql_viirs_edr.py -h
+    exit 0
+fi
+if [[ $usageFlag -eq 1 ]];
+then
+    $PY $CSPP_EDR_HOME/viirs/ql_viirs_edr.py -h
+    exit 0
 fi
 
-GEO_PATH=$2
-if [ ! -d $GEO_PATH ] ; then
-  echo "Path to geolocation GMTCO files does not exist :" $GEO_PATH
-  exit 1
-fi
-
-EDR_PATH=$3
-if [ ! -d $EDR_PATH ] ; then
-  echo "Path to VIIRS EDR files does not exist :" $EDR_PATH
-  exit 1
-fi
-
-#Run python command
-if [[ "$PROD" == "VCM" ]] ; then
-  IPFILE=IICMO
-  OUTFILENAME=VIIRS_Cloud_Mask.png
-fi
-
-if [[ "$PROD" == "AOT" ]] ; then
-  IPFILE=IVAOT
-  OUTFILENAME=VIIRS_Aerosol_Optical_Thickness.png
-fi
-
-if [[ "$PROD" == "SST" ]] ; then
-  PROD=SST_EDR
-  IPFILE=VSSTO
-  OUTFILENAME=VIIRS_Sea_Surface_Temperature.png
-fi
+#echo "GEO_FILES_OPT      = "$GEO_FILES_OPT
+#echo "IP_FILES_OPT       = "$IP_FILES_OPT
+#echo "PROD_OPT           = "$PROD_OPT
+#echo "PLOT_MIN_OPT       = "$PLOT_MIN_OPT
+#echo "PLOT_MAX_OPT       = "$PLOT_MAX_OPT
+#echo "DPI_OPT            = "$DPI_OPT
+#echo "SCALE_OPT          = "$SCALE_OPT
+#echo "LAT_0_OPT          = "$LAT_0_OPT
+#echo "LON_0_OPT          = "$LON_0_OPT
+#echo "STRIDE_OPT         = "$STRIDE_OPT
+#echo "SCATTER_PLOT_OPT   = "$SCATTER_PLOT_OPT
+#echo "POINTSIZE_OPT      = "$POINTSIZE_OPT
+#echo "MAP_RES_OPT        = "$MAP_RES_OPT
+#echo "MAP_ANNOTATION_OPT = "$MAP_ANNOTATION_OPT
+#echo "OUTPUT_FILE_OPT    = "$OUTPUT_FILE_OPT
 
 
-$PY $CSPP_EDR_HOME/viirs/ql_viirs_edr.py --geo_file=${GEO_PATH}/GMTCO* --ip_file=${EDR_PATH}/${IPFILE}*.h5 -p ${PROD} -d 300 --stride=5 -m 'l' -o ${OUTFILENAME}
+GDB=''
+#GDB='gdb --args'
+#$GDB $PY $CSPP_RT_HOME/viirs/edr/adl_viirs_edr.py \
 
-if [ $? -eq  0 ] ;  then
-   echo "VIIRS EDR quick look script successfully finished"
-   exit 0
-else 
-   echo "VIIRS EDR quick look script failed"
-   exit 1
-fi
 
+#echo "$PY $CSPP_EDR_HOME/viirs/edr/ql_viirs_edr.py \
+    #$GEO_FILES_OPT \
+    #$IP_FILES_OPT \
+    #$PROD_OPT \
+    #$PLOT_MIN_OPT \
+    #$PLOT_MAX_OPT \
+    #$DPI_OPT \
+    #$SCALE_OPT \
+    #$LAT_0_OPT \
+    #$LON_0_OPT \
+    #$STRIDE_OPT \
+    #$SCATTER_PLOT_OPT \
+    #$POINTSIZE_OPT \
+    #$MAP_RES_OPT \
+    #$MAP_ANNOTATION_OPT \
+    #$OUTPUT_FILE_OPT
+#"
+
+#exit 1
+
+$PY $CSPP_EDR_HOME/viirs/ql_viirs_edr.py \
+    $GEO_FILES_OPT \
+    $IP_FILES_OPT \
+    $PROD_OPT \
+    $PLOT_MIN_OPT \
+    $PLOT_MAX_OPT \
+    $DPI_OPT \
+    $SCALE_OPT \
+    $LAT_0_OPT \
+    $LON_0_OPT \
+    $STRIDE_OPT \
+    $SCATTER_PLOT_OPT \
+    $POINTSIZE_OPT \
+    $MAP_RES_OPT \
+    $MAP_ANNOTATION_OPT \
+    $OUTPUT_FILE_OPT
+
+##############################
+#         Packaging          #
+##############################
+
+#bash $CSPP_RT_HOME/../CSPP_RT_repo/trunk/scripts/edr/CSPP_RT_ViirsEdrMasks_Package.sh  $CSPP_RT_HOME/viirs/edr/viirs_edr.sh ../../sample_data/viirs/edr/input/VIIRS_OPS_unpackTest/HDF5/

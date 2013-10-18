@@ -3409,18 +3409,18 @@ def main():
     optionalGroup = optparse.OptionGroup(parser, "Extra Options",
                         "These options may be used to customize plot characteristics.")
 
-    optionalGroup.add_option('-r','--svn_revision',
-                      action="store",
-                      dest="svnRevision",
-                      default=string.split(__version__," ")[2],
-                      type="string",
-                      help="The Subversion revision number/tag of this script")
-    optionalGroup.add_option('-R','--svn_repo_path',
-                      action="store",
-                      dest="svnRepoPath",
-                      default="https://svn.ssec.wisc.edu/repos/geoffc/Python/VIIRS/"+path.basename(sys.argv[0]),
-                      type="string",
-                      help="The full Subversion repository path of this script [default is %default].")
+    #optionalGroup.add_option('-r','--svn_revision',
+                      #action="store",
+                      #dest="svnRevision",
+                      #default=string.split(__version__," ")[2],
+                      #type="string",
+                      #help="The Subversion revision number/tag of this script")
+    #optionalGroup.add_option('-R','--svn_repo_path',
+                      #action="store",
+                      #dest="svnRepoPath",
+                      #default="https://svn.ssec.wisc.edu/repos/geoffc/Python/VIIRS/"+path.basename(sys.argv[0]),
+                      #type="string",
+                      #help="The full Subversion repository path of this script [default is %default].")
     optionalGroup.add_option('--plotMin',
                       action="store",
                       type="float",
