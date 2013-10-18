@@ -1372,10 +1372,6 @@ def main():
                       help='each occurrence increases verbosity 1 level from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG')
 
 
-
-
-
-
     parser.add_option_group(optionalGroup)
 
     # Parse the arguments from the command line
@@ -1393,9 +1389,6 @@ def main():
             parser.error(m_err)
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
-
-    # Toggle between old and new ADL setup...
-    adl_blob.no_namespace()
 
     # Set the work directory
     work_dir = check_and_convert_path("WORK_DIR",options.work_dir)

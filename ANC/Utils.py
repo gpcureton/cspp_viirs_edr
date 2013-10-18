@@ -368,8 +368,10 @@ def retrieve_NCEP_grib_files(geoDicts):
             LOG.debug('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
 
+            LOG.info("CSPP_RT_ANC_CACHE_DIR = {}".format(CSPP_RT_ANC_CACHE_DIR))
+
             procRetVal = 0
-            procObj = subprocess.Popen(args,env=env(JPSS_LOCAL_ANC_DIR=CSPP_RT_ANC_CACHE_DIR,CSPP_RT_HOME=CSPP_RT_HOME,JPSS_REMOTE_ANC_DIR=JPSS_REMOTE_ANC_DIR),bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            procObj = subprocess.Popen(args,env=env(CSPP_EDR_ANC_CACHE_DIR=CSPP_RT_ANC_CACHE_DIR,CSPP_RT_HOME=CSPP_RT_HOME,JPSS_REMOTE_ANC_DIR=JPSS_REMOTE_ANC_DIR),bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             procObj.wait()
             procRetVal = procObj.returncode
 
