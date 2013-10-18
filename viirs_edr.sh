@@ -178,7 +178,7 @@ then
 fi
 if [[ $usageFlag -eq 1 ]];
 then
-    usage
+    $PY $CSPP_EDR_HOME/viirs/adl_viirs_edr.py -h
     exit 0
 fi
 
