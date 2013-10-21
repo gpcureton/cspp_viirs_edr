@@ -56,11 +56,11 @@ def h5path(elf, path, groups=None):
     LOG.warning('no match for %s' % path[0])
     return None
 
-EDR_PATH = r'All_Data/(?P<collection>VIIRS-.*-EDR)_All/(?P<kind>(?:BrightnessTemperature)|(?:Reflectance))'
+EDR_PATH = r'All_Data/(?P<collection>VIIRS-.*-EDR)_All/(?P<kind>(?:BrightnessTemperature)|(?:Reflectance)|(?:Albedo))'
 # where to find Latitude and Longitude
-GEO_PATH = r'All_Data/(?P<geo_collection>VIIRS-.*GTM-EDR-GEO)_All'
-TIME_PATH = r'Data_Products/VIIRS-.*GTM-EDR-GEO/VIIRS-.*-EDR-GEO_Aggr'
-GRING_PATH = r'Data_Products/VIIRS-.*GTM-EDR-GEO/VIIRS-.*-EDR-GEO_Gran_0'
+GEO_PATH = r'All_Data/(?P<geo_collection>VIIRS-.*-EDR-GEO)_All'
+TIME_PATH = r'Data_Products/VIIRS-.*-EDR-GEO/VIIRS-.*-EDR-GEO_Aggr'
+GRING_PATH = r'Data_Products/VIIRS-.*-EDR-GEO/VIIRS-.*-EDR-GEO_Gran_0'
 
 
 latlon = namedtuple('g_ring', 'lat lon')
