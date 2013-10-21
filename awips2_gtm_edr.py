@@ -4,13 +4,30 @@
 awips2_gtm_edr
 ~~~~~~~~~~~~~~
 
-Convert HDF5 format Ground-Track Mercator (GTM) Imagery EDR files to NetCDF4,
-compatible with AWIPS2.
+Transcode HDF5 format Ground-Track Mercator (GTM) Imagery EDR files to NetCDF4 compatible with AWIPS2.
+
+Note on .nc.wmo files:
+These are NetCDF4 files which have been gzipped, then prepended with a 21-character header e.g. "TIBP99 KNES 000000\r\r\n"
+To unpack them back to NetCDF files at the command line,
+
+dd ibs=1 iseek=21 if=VIIRS_I4_IMG_EDR_TIPB04_KNES_npp_s201307141706188_e201307141707531_c201307311502170.nc.gz.wmo |gunzip >awips2.nc
+ncdump -h awips2.nc
+
+To do a quick visualization using ipython, try this:
+
+ipython --pylab
+ from netCDF4 import Dataset
+ nc = Dataset('awips2.nc', 'r+')
+ bt = nc.variables['BrightnessTemperature@VIIRS-I4-IMG-EDR']   # variable name will vary by band; see ncdump output
+ bt.missing_value = 65535   # this is a hack to work around multiple-missing-value issue, note it modifies the actual file
+ imshow(bt[:,:])
 
 From code written by DJHoese, Apr2013
 
 :copyright: 2013 by University of Wisconsin Regents, see AUTHORS for more details
 :license: GPLv3, see LICENSE for more details
+:author: RKGarcia
+
 """
 __author__ = 'rayg'
 __docformat__ = 'reStructuredText'
@@ -19,7 +36,6 @@ import os
 import sys
 import re
 import logging
-import unittest
 import datetime
 
 import h5py
@@ -253,8 +269,7 @@ class AWIPS2_NetCDF4(object):
         bt_var = self._nc.createVariable("{0:s}@{1:s}".format(kind, collection), 'u2',
                                     dimensions=(self.row_dim_name, self.col_dim_name))
         bt_var[:, :] = data
-        bt_var.setncattr("missing_value", "65535 65534 65533 65532 65531 65530 65529 65528")  # FUTURE: fix this
-        # FIXME: Need missing_valuename?
+        bt_var.setncattr("missing_value", "65535 65534 65533 65532 65531 65530 65529 65528")  # FUTURE: fix this, it can break NetCDF readers. Do we really need it?
         # Scaling Factors
         prefix = re.match(r'^([A-Z][a-z]+).*', kind).group(1)   # BrightnessTemperature -> Brightness
         LOG.debug('{0:s} is prefix'.format(prefix))
@@ -432,8 +447,7 @@ def main():
     global OPTS
     OPTS = options
 
-    #if options.self_test:
-    #    # FIXME - run any self-tests
+    #if options.self_test:a
     #    # import doctest
     #    # doctest.testmod()
     #    sys.exit(2)
@@ -465,72 +479,74 @@ if __name__=='__main__':
 
 
 
+DJHoese = """
 # Read the input files
-#img_file = h5py.File("./VI4BO_npp_d20130116_t0944041_e0945402_b06328_c20130305060723097136_noaa_ops.h5")
-#geo_file = h5py.File("./GIGTO_npp_d20130116_t0944041_e0945402_b06328_c20130305060441825409_noaa_ops.h5")
-#
-#img_data = img_file["All_Data"]["VIIRS-I4-IMG-EDR_All"]["BrightnessTemperature"][:,:]
-#img_factors = img_file["All_Data"]["VIIRS-I4-IMG-EDR_All"]["BrightnessFactors"][:]
-#lat_data = geo_file["All_Data"]["VIIRS-IMG-GTM-EDR-GEO_All"]["Latitude"][:,:]
-#lon_data = geo_file["All_Data"]["VIIRS-IMG-GTM-EDR-GEO_All"]["Longitude"][:,:]
-#start_date = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Aggr"].attrs["AggregateBeginningDate"][0,0]
-#start_time = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Aggr"].attrs["AggregateBeginningTime"][0,0]
-#end_date = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Aggr"].attrs["AggregateEndingDate"][0,0]
-#end_time = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Aggr"].attrs["AggregateEndingTime"][0,0]
-#g_ring_lat = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Gran_0"].attrs["G-Ring_Latitude"][:].astype(numpy.float64)
-#g_ring_lon = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Gran_0"].attrs["G-Ring_Longitude"][:].astype(numpy.float64)
+img_file = h5py.File("./VI4BO_npp_d20130116_t0944041_e0945402_b06328_c20130305060723097136_noaa_ops.h5")
+geo_file = h5py.File("./GIGTO_npp_d20130116_t0944041_e0945402_b06328_c20130305060441825409_noaa_ops.h5")
+
+img_data = img_file["All_Data"]["VIIRS-I4-IMG-EDR_All"]["BrightnessTemperature"][:,:]
+img_factors = img_file["All_Data"]["VIIRS-I4-IMG-EDR_All"]["BrightnessFactors"][:]
+lat_data = geo_file["All_Data"]["VIIRS-IMG-GTM-EDR-GEO_All"]["Latitude"][:,:]
+lon_data = geo_file["All_Data"]["VIIRS-IMG-GTM-EDR-GEO_All"]["Longitude"][:,:]
+start_date = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Aggr"].attrs["AggregateBeginningDate"][0,0]
+start_time = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Aggr"].attrs["AggregateBeginningTime"][0,0]
+end_date = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Aggr"].attrs["AggregateEndingDate"][0,0]
+end_time = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Aggr"].attrs["AggregateEndingTime"][0,0]
+g_ring_lat = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Gran_0"].attrs["G-Ring_Latitude"][:].astype(numpy.float64)
+g_ring_lon = geo_file["Data_Products"]["VIIRS-IMG-GTM-EDR-GEO"]["VIIRS-IMG-GTM-EDR-GEO_Gran_0"].attrs["G-Ring_Longitude"][:].astype(numpy.float64)
 
 # Make data manipulations
-#mid_idx = lat_data.shape[-1]/2
-#lat_envelope = lat_data[:,(0,mid_idx,-1)]
-#lon_envelope = lon_data[:,(0,mid_idx,-1)]
+mid_idx = lat_data.shape[-1]/2
+lat_envelope = lat_data[:,(0,mid_idx,-1)]
+lon_envelope = lon_data[:,(0,mid_idx,-1)]
 
 # Write the output file
-#_nc = Dataset("VIIRS_I4_IMG_EDR_TIPB99_KNES_npp_s201301160944041_e201301160945402_c20130305060441825409.nc", mode="w")
-#nc_file = Dataset("viirs_img_edr_20121001.nc", mode="w")
+_nc = Dataset("VIIRS_I4_IMG_EDR_TIPB99_KNES_npp_s201301160944041_e201301160945402_c20130305060441825409.nc", mode="w")
+nc_file = Dataset("viirs_img_edr_20121001.nc", mode="w")
 
 # Create Dimensions
-#row_dim_name = "AlongTrack-%d" % img_data.shape[0]
-#fac_dim_name = "Granule-%d" % img_factors.shape[0]
-#col_dim_name = "CrossTrack-%d" % img_data.shape[1]
-#env_dim_name = "CrossTrack-%d" % 3
-#_nc.createDimension(row_dim_name, img_data.shape[0])
-#_nc.createDimension(fac_dim_name, img_factors.shape[0])
-#_nc.createDimension(col_dim_name, img_data.shape[1])
-#_nc.createDimension(env_dim_name, 3)
+row_dim_name = "AlongTrack-%d" % img_data.shape[0]
+fac_dim_name = "Granule-%d" % img_factors.shape[0]
+col_dim_name = "CrossTrack-%d" % img_data.shape[1]
+env_dim_name = "CrossTrack-%d" % 3
+_nc.createDimension(row_dim_name, img_data.shape[0])
+_nc.createDimension(fac_dim_name, img_factors.shape[0])
+_nc.createDimension(col_dim_name, img_data.shape[1])
+_nc.createDimension(env_dim_name, 3)
 
 # Create Global Attributes
-#_nc.time_coverage_start = datetime.datetime.strptime(start_date + start_time.split(".")[0], "%Y%m%d%H%M%S").strftime("%Y-%m-%dT%H:%M:%SZ")
-#_nc.time_coverage_end   = datetime.datetime.strptime(end_date + end_time.split(".")[0], "%Y%m%d%H%M%S").strftime("%Y-%m-%dT%H:%M:%SZ")
-#_nc.date_created = utc_now().strftime("%Y-%m-%dT%H:%M:%SZ")
-#print g_ring_lat.dtype
-#print g_ring_lat
-#print g_ring_lon
-#g_ring_lat = np.append(g_ring_lat, g_ring_lat[0])
-#g_ring_lon = np.append(g_ring_lon, g_ring_lon[0])
-#_nc.setncattr("g_ring_latitude", g_ring_lat)
-#_nc.setncattr("g_ring_longitude", g_ring_lon)
+_nc.time_coverage_start = datetime.datetime.strptime(start_date + start_time.split(".")[0], "%Y%m%d%H%M%S").strftime("%Y-%m-%dT%H:%M:%SZ")
+_nc.time_coverage_end   = datetime.datetime.strptime(end_date + end_time.split(".")[0], "%Y%m%d%H%M%S").strftime("%Y-%m-%dT%H:%M:%SZ")
+_nc.date_created = utc_now().strftime("%Y-%m-%dT%H:%M:%SZ")
+print g_ring_lat.dtype
+print g_ring_lat
+print g_ring_lon
+g_ring_lat = np.append(g_ring_lat, g_ring_lat[0])
+g_ring_lon = np.append(g_ring_lon, g_ring_lon[0])
+_nc.setncattr("g_ring_latitude", g_ring_lat)
+_nc.setncattr("g_ring_longitude", g_ring_lon)
 
 # Create and write Variables
 # Image data
-#bt_var = _nc.createVariable("BrightnessTemperature@VIIRS-I4-IMG-EDR", 'u2', dimensions=(row_dim_name,col_dim_name))
-#bt_var[:,:] = img_data
-#bt_var.setncattr("missing_value", "65535 65534 65533 65532 65531 65530 65529 65528")
+bt_var = _nc.createVariable("BrightnessTemperature@VIIRS-I4-IMG-EDR", 'u2', dimensions=(row_dim_name,col_dim_name))
+bt_var[:,:] = img_data
+bt_var.setncattr("missing_value", "65535 65534 65533 65532 65531 65530 65529 65528")
 # XXX: Need missing_valuename?
 
 # Scaling Factors
-#bt_factors_var = _nc.createVariable("BrightnessFactors@VIIRS-I4-IMG-EDR", 'f4', dimensions=(fac_dim_name,))
-## Factors should be 2 but this aggregate has more
-#bt_factors_var[:] = img_factors
+bt_factors_var = _nc.createVariable("BrightnessFactors@VIIRS-I4-IMG-EDR", 'f4', dimensions=(fac_dim_name,))
+# Factors should be 2 but this aggregate has more
+bt_factors_var[:] = img_factors
 
 # Navigation
-#lat_var = _nc.createVariable("Latitude@VIIRS-IMG-GTM-EDR-GEO", 'f4', dimensions=(row_dim_name,env_dim_name))
-#lat_var[:,:] = lat_envelope
-#lat_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
-#lon_var = _nc.createVariable("Longitude@VIIRS-IMG-GTM-EDR-GEO", 'f4', dimensions=(row_dim_name,env_dim_name))
-#lon_var[:,:] = lon_envelope
-#lon_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
+lat_var = _nc.createVariable("Latitude@VIIRS-IMG-GTM-EDR-GEO", 'f4', dimensions=(row_dim_name,env_dim_name))
+lat_var[:,:] = lat_envelope
+lat_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
+lon_var = _nc.createVariable("Longitude@VIIRS-IMG-GTM-EDR-GEO", 'f4', dimensions=(row_dim_name,env_dim_name))
+lon_var[:,:] = lon_envelope
+lon_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
 
-#_nc.sync()
-#_nc.close()
+_nc.sync()
+_nc.close()
 
+"""
