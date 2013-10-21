@@ -360,7 +360,6 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
         try:
             t1 = time()
             results = pool.map_async(submit_granule, argument_dictionaries).get(9999999)
-            #results = pool.map(submit_granule, argument_dictionaries)
             t2 = time()
             LOG.info ("Processed {} granules using {}/{} processes in {} seconds.\n".format(total_granules, \
                     nprocs, number_available, t2-t1))
@@ -371,6 +370,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
             sys.exit(1)
 
     if AGGREGATE is True:
+        LOG.info("Aggregating VIIRS {}...".format(AlgorithmName)
         number_problems = aggregate_products(work_dir, EDR_collectionShortNames)
 
     # check new IICMO output granules
