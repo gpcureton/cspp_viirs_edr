@@ -223,7 +223,7 @@ class AWIPS2_NetCDF4(object):
         # Create Dimensions
         _nc = self._nc
         self.row_dim_name = "AlongTrack-%d" % along
-        self.fac_dim_name = "Granule-%d" % factors # FIXME???
+        self.fac_dim_name = "Granule-%d" % factors  # FIXME???
         self.col_dim_name = "CrossTrack-%d" % cross
         self.env_dim_name = "CrossTrack-3"   # FIXME??
         LOG.debug('along-track %d' % along)
@@ -312,7 +312,7 @@ def _ncdatefmt(dt):
     return dt.strftime('%Y%m%d%H%M%S') + ('%1d' % (dt.microsecond / 100000))
 
 
-def _nc_stem_from_edr_path(gran, tipb_id=None, organization=None):
+def _nc_stem_from_edr_path(gran, tipb_id=None, station=None):
     "convert granule and source information into a netcdf filename"
     dn, fn =os.path.split(gran.edr_path)
     m = RE_NPP_EDR.match(fn)
@@ -328,9 +328,9 @@ def _nc_stem_from_edr_path(gran, tipb_id=None, organization=None):
     ncs = _ncdatefmt(sdt)
     nce = _ncdatefmt(edt)
     ddhhmm = sdt.strftime('%d%H%M')
-    return ('{collection:s}_{tipb_id:s}_{organization:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}'.format(**locals()),
+    return ('{collection:s}_{tipb_id:s}_{station:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}'.format(**locals()),
             tipb_id,
-            organization or site.upper(),
+            station or site.upper(),
             ddhhmm)
 
 
@@ -353,10 +353,10 @@ def wmo_wrap(nc_path, wmo_header="TIPB99 KNES 000000", wmo_path=None):
     _,_ = gz.communicate()
 
 
-def transform(edr_path, output_dir=None, geo_path=None, tipb_id=None, organization=None, wmo_path=None, cleanup=True):
+def transform(edr_path, output_dir=None, geo_path=None, tipb_id=None, station=None, wmo_path=None, cleanup=True):
     LOG.info('opening files')
     gran = Granule(edr_path, geo_path)
-    ncstem, tipb_id, organization, ddhhmm = _nc_stem_from_edr_path(gran, tipb_id=tipb_id, organization=organization)
+    ncstem, tipb_id, station, ddhhmm = _nc_stem_from_edr_path(gran, tipb_id=tipb_id, station=station)
     ncfn = ncstem + '.nc'
     if wmo_path is None:
         wmo_path = ncfn + WMO_SUFFIX
@@ -384,7 +384,7 @@ def transform(edr_path, output_dir=None, geo_path=None, tipb_id=None, organizati
     nc.close()
 
     LOG.debug('wrapping NetCDF4 as WMO')
-    wmo_header = '{0:s} {1:s} {2:s}'.format(tipb_id, organization, ddhhmm)
+    wmo_header = '{0:s} {1:s} {2:s}'.format(tipb_id, station, ddhhmm)
     wmo_wrap(ncfn, wmo_header=wmo_header, wmo_path=wmo_path)
     if cleanup:
         LOG.debug('cleaning out intermediate file %s' % ncfn)
@@ -405,6 +405,8 @@ def main():
                     help='each occurrence increases verbosity 1 level through ERROR-WARNING-INFO-DEBUG')
     parser.add_option('-d', '--debug', dest='debug', action="count", default=0,
                       help='enable debug mode where clean-up does not occur (results in .nc file creation)')
+    parser.add_option('-s', '--station', dest='station', default='KNES', type='str',
+                      help='Station of origin, which is placed in headers')
     parser.add_option('-o', '--output', dest='output', default=None,
                      help='destination directory to store output to')
     # parser.add_option('-I', '--include-path', dest="includes",
@@ -430,7 +432,7 @@ def main():
 
     for arg in args:
         if os.path.isfile(arg):
-            transform(arg, output_dir=options.output, cleanup=not options.debug)
+            transform(arg, station=options.station, output_dir=options.output, cleanup=not options.debug)
         elif os.path.isdir(arg):
             from glob import glob
             pat = os.path.join(arg, 'V???O*h5')   # VI?BO, VM??O, VNCCO
