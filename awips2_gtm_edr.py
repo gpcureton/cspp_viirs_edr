@@ -56,7 +56,7 @@ def h5path(elf, path, groups=None):
     LOG.warning('no match for %s' % path[0])
     return None
 
-EDR_PATH = r'All_Data/(?P<collection>VIIRS-.*-EDR)_All/(?P<kind>BrightnessTemperature)'
+EDR_PATH = r'All_Data/(?P<collection>VIIRS-.*-EDR)_All/(?P<kind>(?:BrightnessTemperature)|(?:Reflectance))'
 # where to find Latitude and Longitude
 GEO_PATH = r'All_Data/(?P<geo_collection>VIIRS-.*GTM-EDR-GEO)_All'
 TIME_PATH = r'Data_Products/VIIRS-.*GTM-EDR-GEO/VIIRS-.*-EDR-GEO_Aggr'
@@ -123,11 +123,11 @@ class Granule(object):
             geo_ref = self.edr.attrs.get('N_GEO_Ref', None)
             if geo_ref:
                 geo_ref = str(geo_ref[0,0])
-                LOG.debug("N_GEO_Ref is %s" % geo_ref)
+                LOG.debug("N_GEO_Ref is {0:s}".format(geo_ref))
                 _, geo_filename = os.path.split(geo_ref)
                 geo_dir, _ = os.path.split(edr_path)
                 geo_path = os.path.join(geo_dir, geo_filename)
-                LOG.debug("using %s as geo path via N_GEO_Ref" % geo_path)
+                LOG.debug("using {0:s} as geo path via N_GEO_Ref".format(geo_path))
             else:
                 LOG.info('no N_GEO_Ref; assuming integrated geolocation')
         if geo_path:
@@ -249,7 +249,7 @@ class AWIPS2_NetCDF4(object):
     def create_image_vars(self, kind, collection, data, factors):
         # Create and write Variables
         # Image data
-        LOG.debug('data shape is %s' % repr(data.shape))
+        LOG.debug('data shape is {0:s}'.format(repr(data.shape)))
         bt_var = self._nc.createVariable("{0:s}@{1:s}".format(kind, collection), 'u2',
                                     dimensions=(self.row_dim_name, self.col_dim_name))
         bt_var[:, :] = data
@@ -257,7 +257,7 @@ class AWIPS2_NetCDF4(object):
         # FIXME: Need missing_valuename?
         # Scaling Factors
         prefix = re.match(r'^([A-Z][a-z]+).*', kind).group(1)   # BrightnessTemperature -> Brightness
-        LOG.debug('%s is prefix' % prefix)
+        LOG.debug('{0:s} is prefix'.format(prefix))
 
         bt_factors_var = self._nc.createVariable(
             "{0:s}Factors@{1:s}".format(prefix, collection),
@@ -317,12 +317,12 @@ def _nc_stem_from_edr_path(gran, tipb_id=None, station=None):
     dn, fn =os.path.split(gran.edr_path)
     m = RE_NPP_EDR.match(fn)
     if not m:
-        raise ValueError('%s is not a valid CDFCB-compliant NPP pathname' % gran.edr_path)
+        raise ValueError('{0:s} is not a valid CDFCB-compliant NPP pathname'.format(gran.edr_path))
     g = m.groupdict()
     sat,d,t,e,c,site,kind_band = map(lambda x: g[x], ('sat', 'date', 'start_time', 'end_time', 'created_time', 'site', 'kindband'))
     tipb_id = tipb_id or TITANIUM_LEAD.get(kind_band, None)
     if not tipb_id:
-        raise ValueError('%s is not a known EDR type' % kind_band)
+        raise ValueError('{0:s} is not a known EDR type'.format(kind_band))
     sdt, edt = nppdatetime(d,t,e)
     collection = gran.collection.replace('-', '_')
     ncs = _ncdatefmt(sdt)
@@ -344,7 +344,7 @@ def wmo_wrap(nc_path, wmo_header="TIPB99 KNES 000000", wmo_path=None):
     """
     wmo_header = wmo_header + '\r\r\n'
     wmo_path = nc_path + WMO_SUFFIX if wmo_path is None else wmo_path
-    LOG.debug('writing %s with header %r' % (wmo_path, wmo_header))
+    LOG.debug('writing {0:s} with header {1!r:s}'.format(wmo_path, wmo_header))
     gzfp = open(wmo_path, 'wb')
     gzfp.write(wmo_header)
     gzfp.flush()
@@ -363,9 +363,9 @@ def transform(edr_path, output_dir=None, geo_path=None, tipb_id=None, station=No
     if output_dir is not None:
         wmo_path = os.path.join(output_dir, os.path.split(wmo_path)[-1])
     start, end = gran.start_end
-    LOG.debug('start, end = %s, %s' % (start,end))
+    LOG.debug('start, end = {0:s}, {1:s}'.format(start, end))
 
-    LOG.info('creating output file %s' % ncfn)
+    LOG.info('creating output file {0:s}'.format(ncfn))
     nc = AWIPS2_NetCDF4(ncfn)
     LOG.debug('adding dimensions')
     nc.create_dimensions(gran.along_track_pixels, gran.cross_track_pixels, gran.factor_count)
@@ -387,7 +387,7 @@ def transform(edr_path, output_dir=None, geo_path=None, tipb_id=None, station=No
     wmo_header = '{0:s} {1:s} {2:s}'.format(tipb_id, station, ddhhmm)
     wmo_wrap(ncfn, wmo_header=wmo_header, wmo_path=wmo_path)
     if cleanup:
-        LOG.debug('cleaning out intermediate file %s' % ncfn)
+        LOG.debug('cleaning out intermediate file {0:s}'.format(ncfn))
         os.unlink(ncfn)
     LOG.info('done!')
     return wmo_path
@@ -437,10 +437,10 @@ def main():
             from glob import glob
             pat = os.path.join(arg, 'V???O*h5')   # VI?BO, VM??O, VNCCO
             for edr_path in glob(pat):
-                LOG.info('processing %s' % edr_path)
-                transform(edr_path, output_dir=options.output, cleanup=not options.debug)
+                LOG.info('processing {0:s}'.format(edr_path))
+                transform(edr_path, station=options.station, output_dir=options.output, cleanup=not options.debug)
         else:
-            LOG.warning('really not sure what to do with %r - ignoring' % arg)
+            LOG.warning('really not sure what to do with {0!r:s} - ignoring'.format(arg))
 
     return 0
 
