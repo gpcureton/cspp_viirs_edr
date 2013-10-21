@@ -459,7 +459,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
 
 
     if AGGREGATE is True:
-        LOG.info("Aggregating VIIRS {}...".format(AlgorithmName)
+        LOG.info("Aggregating VIIRS {}...".format(AlgorithmName))
         number_problems = aggregate_products(work_dir, EDR_collectionShortNames)
 
     # check new IVAOT output granules
