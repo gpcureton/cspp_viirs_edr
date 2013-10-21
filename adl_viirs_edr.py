@@ -89,9 +89,6 @@ import numpy as np
 from numpy import ma
 import copy
 
-import ctypes
-from numpy.ctypeslib import ndpointer
-
 import tables as pytables
 from tables import exceptions as pyEx
 
@@ -99,37 +96,18 @@ from multiprocessing import Pool, Lock, Value, cpu_count
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
-import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
-
-#import datetime as dt
-
-# ancillary search and unpacker common routines
-# We need [ 'CSPP_RT_HOME', 'ADL_HOME', 'CSPP_RT_ANC_TILE_PATH', 'CSPP_RT_ANC_CACHE_DIR', 'CSPP_RT_ANC_PATH' ] environment 
-# variables to be set...
 from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
 from adl_common import check_and_convert_path
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 from adl_post_process import repack_products, aggregate_products
-# log file scanning
 import adl_log
-
-# cache loading and searching
-#import adl_anc_retrieval
-
-# N_GEO_Ref fix for ADL
-#from adl_geo_ref import write_geo_ref
-
-# post-processing on blob+asc products
-#from adl_post_process import repack_products,aggregate_products,add_geo_attribute_to_aggregates
-#from adl_post_process import SHORTNAME_2_PRODUCTID
 
 # every module should have a LOG object
 sourcename= file_Id.split(" ")
 LOG = logging.getLogger(sourcename[1])
 from adl_common import configure_logging
 from adl_common import _test_logging as test_logging
-
 
 import Algorithms
 
