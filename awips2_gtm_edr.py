@@ -28,7 +28,11 @@ from collections import namedtuple
 import numpy as np
 from subprocess import PIPE, Popen
 
+
 LOG = logging.getLogger(__name__)
+
+# This is modified from adl_geo_ref:RE_NPP due to things like VI1BO instead of SVI01; kind and band are combined
+RE_NPP_EDR = re.compile('(?P<kindband>[A-Z0-9]+)_(?P<sat>[A-Za-z0-9]+)_d(?P<date>\d+)_t(?P<start_time>\d+)_e(?P<end_time>\d+)_b(?P<orbit>\d+)_c(?P<created_time>\d+)_(?P<site>[a-zA-Z0-9]+)_(?P<domain>[a-zA-Z0-9]+)\.h5')
 
 
 def h5path(elf, path, groups=None):
@@ -288,24 +292,46 @@ class AWIPS2_NetCDF4(object):
         self._nc = None
 
 
+TITANIUM_LEAD = {
+    'VI1BO': 'TIPB01',
+    'VI2BO': 'TIPB02',
+    'VI3BO': 'TIPB03',
+    'VI4BO': 'TIPB04',
+    'VI5BO': 'TIPB05',
+    'VM01O': 'TIPB11',
+    'VM02O': 'TIPB14',
+    'VM03O': 'TIPB19',
+    'VM04O': 'TIPB24',
+    'VM05O': 'TIPB25',
+    'VM06O': 'TIPB26',
+    'VNCCO': 'TIPB27'
+}
+
+
 def _ncdatefmt(dt):
     return dt.strftime('%Y%m%d%H%M%S') + ('%1d' % (dt.microsecond / 100000))
 
 
-# extract time information from filename
-RE_WHEN = re.compile(r'_(\w+)_d(\d{8})_t(\d{7})_e(\d{7})_b\d+_c(\d{20})')
-
-
-def _nc_stem_from_edr_path(gran, unknown1, unknown2):
+def _nc_stem_from_edr_path(gran, tipb_id=None, organization=None):
     "convert granule and source information into a netcdf filename"
     dn, fn =os.path.split(gran.edr_path)
-    q, = RE_WHEN.findall(fn)
-    sat,d,t,e,c = q
+    m = RE_NPP_EDR.match(fn)
+    if not m:
+        raise ValueError('%s is not a valid CDFCB-compliant NPP pathname' % gran.edr_path)
+    g = m.groupdict()
+    sat,d,t,e,c,site,kind_band = map(lambda x: g[x], ('sat', 'date', 'start_time', 'end_time', 'created_time', 'site', 'kindband'))
+    tipb_id = tipb_id or TITANIUM_LEAD.get(kind_band, None)
+    if not tipb_id:
+        raise ValueError('%s is not a known EDR type' % kind_band)
     sdt, edt = nppdatetime(d,t,e)
     collection = gran.collection.replace('-', '_')
     ncs = _ncdatefmt(sdt)
     nce = _ncdatefmt(edt)
-    return '{collection:s}_{unknown1:s}_{unknown2:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}'.format(**locals())
+    ddhhmm = sdt.strftime('%d%H%M')
+    return ('{collection:s}_{tipb_id:s}_{organization:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}'.format(**locals()),
+            tipb_id,
+            organization or site.upper(),
+            ddhhmm)
 
 
 WMO_SUFFIX = '.gz.wmo'
@@ -313,7 +339,7 @@ WMO_SUFFIX = '.gz.wmo'
 
 def wmo_wrap(nc_path, wmo_header="TIPB99 KNES 000000", wmo_path=None):
     """
-    create AWIPS2 wrapper, which involves a text header followe by a gzipped netcdf file.
+    create AWIPS2 wrapper, which involves a text header followed by a gzipped netcdf file.
     Yeah, about that...
     """
     wmo_header = wmo_header + '\r\r\n'
@@ -327,21 +353,18 @@ def wmo_wrap(nc_path, wmo_header="TIPB99 KNES 000000", wmo_path=None):
     _,_ = gz.communicate()
 
 
-# FIXME: resolve unknown1, unknown2, unknown3
-# FIXME: 010448 magic number unknown3 may be specific to VI4BO
-
-def transform(edr_path, output_dir=None, geo_path=None, unknown1='TIPB99', unknown2='KNES', unknown3='010448', wmo_path=None, cleanup=True):
+def transform(edr_path, output_dir=None, geo_path=None, tipb_id=None, organization=None, wmo_path=None, cleanup=True):
     LOG.info('opening files')
     gran = Granule(edr_path, geo_path)
-    ncfn = _nc_stem_from_edr_path(gran, unknown1=unknown1, unknown2=unknown2) + '.nc'
+    ncstem, tipb_id, organization, ddhhmm = _nc_stem_from_edr_path(gran, tipb_id=tipb_id, organization=organization)
+    ncfn = ncstem + '.nc'
     if wmo_path is None:
         wmo_path = ncfn + WMO_SUFFIX
     if output_dir is not None:
         wmo_path = os.path.join(output_dir, os.path.split(wmo_path)[-1])
     start, end = gran.start_end
-    if unknown3 is None:
-        unknown3 = start.strftime('%H%M%S')
     LOG.debug('start, end = %s, %s' % (start,end))
+
     LOG.info('creating output file %s' % ncfn)
     nc = AWIPS2_NetCDF4(ncfn)
     LOG.debug('adding dimensions')
@@ -359,8 +382,9 @@ def transform(edr_path, output_dir=None, geo_path=None, unknown1='TIPB99', unkno
     nc.create_geo_vars(gran.geo_collection, lat_envelope=env.lat, lon_envelope=env.lon)
     LOG.debug('writing NetCDF4 file')
     nc.close()
+
     LOG.debug('wrapping NetCDF4 as WMO')
-    wmo_header = '{0:s} {1:s} {2:s}'.format(unknown1, unknown2, unknown3)
+    wmo_header = '{0:s} {1:s} {2:s}'.format(tipb_id, organization, ddhhmm)
     wmo_wrap(ncfn, wmo_header=wmo_header, wmo_path=wmo_path)
     if cleanup:
         LOG.debug('cleaning out intermediate file %s' % ncfn)
@@ -372,7 +396,7 @@ def transform(edr_path, output_dir=None, geo_path=None, unknown1='TIPB99', unkno
 def main():
     import optparse
     usage = """
-%prog [options] VIIRS-imagery-file.h5 {VIIRS-geo-file.h5} {output-nc-file.h5}
+%prog [options] VIIRS-imagery-file.h5 {VIIRS-geo-file.h5} {output-nc-file}
 """
     parser = optparse.OptionParser(usage)
     #parser.add_option('-t', '--test', dest="self_test",
@@ -409,7 +433,7 @@ def main():
             transform(arg, output_dir=options.output, cleanup=not options.debug)
         elif os.path.isdir(arg):
             from glob import glob
-            pat = os.path.join(arg, 'VI5BO*h5')   # FIXME this should be VI?BO*h5
+            pat = os.path.join(arg, 'V???O*h5')   # VI?BO, VM??O, VNCCO
             for edr_path in glob(pat):
                 LOG.info('processing %s' % edr_path)
                 transform(edr_path, output_dir=options.output, cleanup=not options.debug)
