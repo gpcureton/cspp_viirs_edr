@@ -308,27 +308,42 @@ TITANIUM_LEAD = {
 }
 
 
+# convert GTM M-band IDs back to band numbers in collection names...
+CDFCB_DEFACEPALM = {
+    'M1ST': 'M1',
+    'M2ND': 'M4',
+    'M3RD': 'M9',
+    'M4TH': 'M14',
+    'M5TH': 'M15',
+    'M6TH': 'M16'
+}
+
+
 def _ncdatefmt(dt):
     return dt.strftime('%Y%m%d%H%M%S') + ('%1d' % (dt.microsecond / 100000))
 
 
 def _nc_stem_from_edr_path(gran, tipb_id=None, station=None):
-    "convert granule and source information into a netcdf filename"
-    dn, fn =os.path.split(gran.edr_path)
+    "convert granule and source information into a netcdf filename and supporting header information"
+    dn, fn = os.path.split(gran.edr_path)
     m = RE_NPP_EDR.match(fn)
     if not m:
         raise ValueError('{0:s} is not a valid CDFCB-compliant NPP pathname'.format(gran.edr_path))
     g = m.groupdict()
-    sat,d,t,e,c,site,kind_band = map(lambda x: g[x], ('sat', 'date', 'start_time', 'end_time', 'created_time', 'site', 'kindband'))
+    sat, d, t, e, c, site, kind_band = map(lambda x: g[x], ('sat', 'date', 'start_time', 'end_time', 'created_time', 'site', 'kindband'))
     tipb_id = tipb_id or TITANIUM_LEAD.get(kind_band, None)
     if not tipb_id:
         raise ValueError('{0:s} is not a known EDR type'.format(kind_band))
     sdt, edt = nppdatetime(d,t,e)
     collection = gran.collection.replace('-', '_')
+    # convert back to original band IDs
+    for (face, palm) in CDFCB_DEFACEPALM.items():
+        collection = collection.replace(face, palm)
     ncs = _ncdatefmt(sdt)
     nce = _ncdatefmt(edt)
+    creation = c[:15]  # truncate
     ddhhmm = sdt.strftime('%d%H%M')
-    return ('{collection:s}_{tipb_id:s}_{station:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{c:s}'.format(**locals()),
+    return ('{collection:s}_{tipb_id:s}_{station:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{creation:s}'.format(**locals()),
             tipb_id,
             station or site.upper(),
             ddhhmm)
