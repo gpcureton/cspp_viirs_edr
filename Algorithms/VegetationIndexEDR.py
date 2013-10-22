@@ -345,13 +345,8 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
             pool.join()
             sys.exit(1)
 
-    if AGGREGATE is True:
-        LOG.info("Aggregating VIIRS {}...".format(AlgorithmName))
-        number_problems = aggregate_products(work_dir, EDR_collectionShortNames)
 
-
-
-    # check new IICMO output granules
+    # check new VIVIO output granules
     vegIdxEdr_new_granules, vegIdxEdr_ID = h5_xdr_inventory(vegIdxEdrPattern, VEGIDX_EDR_GRANULE_ID_ATTR_PATH, state=vegIdxEdr_ID)
 
     LOG.debug("vegIdxEdr_ID.values() = {}".format(vegIdxEdr_ID.values()))
@@ -397,24 +392,14 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
 
     LOG.info("Cleaning up work directory...")
 
-    # Remove asc/blob file pairs...
-    LOG.info("Removing {} blob/asc file pairs...".format(AlgorithmName))
-    for shortName in EDR_collectionShortNames:
-        edr_glob = path.join(work_dir,"*.{}".format(shortName))
-        blobFiles = glob(edr_glob)
-        #ascBlobFiles = glob(path.join(work_dir, '????????-?????-????????-????????.*'))
-        if blobFiles != [] :
-            for files in blobFiles:
-                ascFile = string.replace(files,".{}".format(shortName),".asc")
-                LOG.info('removing %s' % (files))
-                os.unlink(files)
-                LOG.info('removing %s' % (ascFile))
-                os.unlink(ascFile)
-
     LOG.info("Removing task xml files...")
     for fn in glob(path.join(work_dir, xml_glob)):
-        LOG.debug('removing task file %s' % (fn))
-        os.unlink(fn)
+        LOG.debug('removing task file {}'.format(fn))
+        try :
+            os.unlink(fn)
+        except Exception, err:
+            LOG.warn( "{}".format(str(err)))
+
 
     LOG.info("Removing log directories %s ..."%(log_dir_glob))
     for dirname in glob(path.join(work_dir,log_dir_glob)):

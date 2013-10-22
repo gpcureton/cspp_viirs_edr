@@ -387,11 +387,8 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
             pool.join()
             sys.exit(1)
 
-    if AGGREGATE is True:
-        LOG.info("Aggregating VIIRS {}...".format(AlgorithmName))
-        number_problems = aggregate_products(work_dir, EDR_collectionShortNames)
 
-    # check new IICMO output granules
+    # check new IVISR output granules
     surfrefIp_new_granules, surfrefIp_ID = h5_xdr_inventory(surfRefIpPattern, SURFREF_IP_GRANULE_ID_ATTR_PATH, state=surfrefIp_ID)
 
     LOG.debug("surfrefIp_ID.values() = {}".format(surfrefIp_ID.values()))

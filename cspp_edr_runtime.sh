@@ -1,7 +1,6 @@
 test -n "$CSPP_EDR_HOME" || echo "CSPP_EDR_HOME is not set. Please set this environment variable to the install location of CSPP software packages. (When installed, \$CSPP_EDR_HOME/ADL is a directory.)"
 
 
-
 # the adl-common.py module will assign defaults
 # these variables should only be set for custom installations
 unset CSPP_RT_ANC_CACHE_DIR
@@ -12,6 +11,7 @@ unset CSPP_RT_ANC_HOME
 unset DCONFIG
 export DCONFIG=${CSPP_EDR_HOME}/common/ADL/cfg
 unset JPSS_REMOTE_ANC_DIR
+
 
 #
 # derived CSPP default locations (site installs may move these under some circumstances)

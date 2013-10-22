@@ -458,10 +458,6 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
             sys.exit(1)
 
 
-    if AGGREGATE is True:
-        LOG.info("Aggregating VIIRS {}...".format(AlgorithmName))
-        number_problems = aggregate_products(work_dir, EDR_collectionShortNames)
-
     # check new IVAOT output granules
     aotIp_new_granules, aotIp_ID = h5_xdr_inventory(aotIpPattern, AOT_IP_GRANULE_ID_ATTR_PATH, state=aotIp_ID)
 

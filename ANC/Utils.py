@@ -31,7 +31,7 @@ from numpy import ma
 import pygrib
 
 import adl_blob
-from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE, env,JPSS_REMOTE_ANC_DIR
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE, env, JPSS_REMOTE_ANC_DIR
 
 # Plotting stuff
 import matplotlib
@@ -369,6 +369,7 @@ def retrieve_NCEP_grib_files(geoDicts):
             args = shlex.split(cmdStr)
 
             LOG.info("CSPP_RT_ANC_CACHE_DIR = {}".format(CSPP_RT_ANC_CACHE_DIR))
+            LOG.info("JPSS_REMOTE_ANC_DIR = {}".format(JPSS_REMOTE_ANC_DIR))
 
             procRetVal = 0
             procObj = subprocess.Popen(args,env=env(CSPP_EDR_ANC_CACHE_DIR=CSPP_RT_ANC_CACHE_DIR,CSPP_RT_HOME=CSPP_RT_HOME,JPSS_REMOTE_ANC_DIR=JPSS_REMOTE_ANC_DIR),bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -378,6 +379,7 @@ def retrieve_NCEP_grib_files(geoDicts):
             procOutput = procObj.stdout.readlines()
 
             for lines in procOutput:
+                LOG.debug(lines)
                 if "GDAS/GFS file" in lines :
                     lines = string.replace(lines,'GDAS/GFS file 1: ','')
                     lines = string.replace(lines,'GDAS/GFS file 2: ','')

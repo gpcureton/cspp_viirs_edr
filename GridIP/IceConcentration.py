@@ -334,7 +334,7 @@ class IceConcentration() :
         try :
             LOG.info('Retrieving MMAB files for %s ...' % (dateStamp))
             cmdStr = '%s/get_anc_cspp_icec.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
-            LOG.info('\t%s' % (cmdStr))
+            LOG.debug('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
 
             procRetVal = 0
@@ -345,6 +345,7 @@ class IceConcentration() :
             procOutput = procObj.stdout.readlines()
             
             for lines in procOutput:
+                LOG.debug(lines)                
                 if CSPP_RT_ANC_CACHE_DIR in lines.replace("//","/") :
                     lines = string.replace(lines,'\n','')
                     mmabFiles.append(lines)

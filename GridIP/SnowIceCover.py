@@ -286,7 +286,7 @@ class SnowIceCover() :
         try :
             LOG.info('Retrieving NISE files for %s ...' % (dateStamp))
             cmdStr = '%s/get_anc_cspp_nise.csh %s' % (ANC_SCRIPTS_PATH,dateStamp)
-            LOG.info('\t%s' % (cmdStr))
+            LOG.debug('\t%s' % (cmdStr))
             args = shlex.split(cmdStr)
 
             procRetVal = 0
@@ -297,6 +297,7 @@ class SnowIceCover() :
             procOutput = procObj.stdout.readlines()
 
             for lines in procOutput:
+                LOG.debug(lines)                
                 if CSPP_RT_ANC_CACHE_DIR in lines.replace("//","/") :
                     lines = string.replace(lines,'\n','')
                     niseFiles.append(lines)

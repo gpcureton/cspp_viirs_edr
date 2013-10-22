@@ -1114,6 +1114,164 @@ def _granulate_GridIP(inDir,geoDicts,algList,dummy_granule_dict):
     return dummy_granule_dict
 
 
+'''
+# these variables can be initialized from the environment but default to expected values
+NAGG=os.path.join(CSPP_RT_HOME, 'common', 'local','bin' ,'nagg')
+REPACK=os.path.join(CSPP_RT_HOME, 'common', 'local','bin' ,'h5repack')
+DPE_DOMAIN = check_existing_env_var('DPE_DOMAIN',default_value='dev')
+DPE_SITE_ID = check_existing_env_var('DPE_SITE_ID',default_value='cspp')
+
+PRODUCTID_2_SHORTNAME= dict()
+SHORTNAME_2_PRODUCTID = dict()
+
+def _build_product_name_maps():
+    """ Read ADL short name to product map
+    and create dictionaries for name convertion
+    """
+    
+    if len ( PRODUCTID_2_SHORTNAME ) == 0 :
+    
+        tree= ET.parse(DDS_PRODUCT_FILE)
+        p = tree.find("group/group") 
+    
+        links = list(p.iter("config"))   # Returns list of all links
+
+        for i in links:
+            productid=i.find('configValue').text
+            shortname=i.find('name').text
+            shortname=shortname.replace("_NPP","")
+        
+            PRODUCTID_2_SHORTNAME[productid] = shortname
+            SHORTNAME_2_PRODUCTID[shortname] = productid
+            
+            
+# nagg -n 10 -O "cspp" -D "dev" -t SVM16  SVM16*.h5
+
+reported_nagg_status=False
+reported_repack_status=False
+reported_geo_status=False
+
+geo_product_ids=[
+    "GATMO",
+    "GCRSO",
+    "GAERO",
+    "GCLDO",
+    "GDNBO",
+    "GNCCO",
+    "GIGTO",
+    "GIMGO",
+    "GITCO",
+    "GMGTO",
+    "GMODO",
+    "GMTCO",
+    "GNHFO",
+    "GOTCO",
+    "GOSCO",
+    "GONPO",
+    "GONCO",
+    "GCRIO",
+    "GATRO"
+    ]
+
+edr_product_ids = \
+["ICALI", "ICALM", "ICCCR", "ICISE", "ICMSE", "ICSTT", "ICTLI", "ICTLM", "IICMO", "SATMR", "SATMS", \
+ "SCRIS", "SOMPS", "SOMTC", "SOMSC", "SOMNC", "SVDNB", "SVI01", "SVI02", "SVI03", "SVI04", "SVI05", \
+ "SVM01", "SVM02", "SVM03", "SVM04", "SVM05", "SVM06", "SVM07", "SVM08", "SVM09", "SVM10", "SVM11", \
+ "SVM12", "SVM13", "SVM14", "SVM15", "SVM16", "TATMS", "REDRO", "OOTCO", "VAOOO", "VCBHO", "VCCLO", \
+ "VCEPO", "VCOTO", "VCTHO", "VCTPO", "VCTTO", "VI1BO", "VI2BO", "VI3BO", "VI4BO", "VI5BO", "VISTO", \
+ "VLSTO", "VM01O", "VM02O", "VM03O", "VM04O", "VM05O", "VM06O", "VNCCO", "VNHFO", "VOCCO", "VISAO", \
+ "VSCDO", "VSCMO", "VSICO", "VSSTO", "VSTYO", "VSUMO", "VIVIO", "REDRS", "OOTCS", "VAOOS", "VCBHS", \
+ "VCCLS", "VCEPS", "VCOTS", "VCTHS", "VCTPS", "VCTTS", "VISTS", "VLSTS", "VNCCS", "VNHFS", "VOCCS", \
+ "VISAS", "VSCDS", "VSCMS", "VSICS", "VSSTS", "VSTPS", "VSUMS", "VIVIS" ]
+
+
+def _nagg(work_dir, productid, num_gran=15 ) :
+
+    global reported_nagg_status
+
+    pattern = productid + "_npp*.h5"
+    before =  glob.glob(os.path.join(work_dir, pattern))
+    LOG.debug( "products to AGG")
+    LOG.debug( before )
+
+    geo=False
+    if productid in geo_product_ids :
+        geo=True
+
+    if geo == True :
+        args =  [NAGG,"-g",productid,"-n",str(num_gran), "-O" ,DPE_SITE_ID ,"-D" ,DPE_DOMAIN,"-S"]
+    else :
+        args =  [NAGG,"-g","no","-n",str(num_gran), "-O" ,DPE_SITE_ID ,"-D" ,DPE_DOMAIN,"-S", "-t", productid ]
+   
+    for f in before:
+        args.append( f)
+    if len(before) > 0 :
+        if not reported_nagg_status:
+            reported_nagg_status=True 
+            status_line('Aggregate products')
+ 
+        sh( args, env=env(WORK_DIR=work_dir))
+        for fn in before:
+            ""
+            LOG.debug("remove"+fn)
+            os.remove(fn)
+
+
+def aggregate_products( work_dir, short_names , num_gran=300) :
+    "Aggregate available products matching a short name list, returning a count of products that had problems"
+    _build_product_name_maps()
+    problems=0
+    for short_name in short_names:       
+        productid = SHORTNAME_2_PRODUCTID[short_name]
+        LOG.debug("aggregate_products "+short_name+" "+productid)
+        try:
+            _nagg(work_dir, productid,num_gran=num_gran)
+
+        except CalledProcessError as oops:
+            LOG.debug(traceback.format_exc())
+            if productid not in edr_product_ids :
+                LOG.warning('nagg does not support aggregation of {} files...'.format(productid, oops))
+            LOG.error('nagg failed on %r: %r . Continuing' % (productid, oops))
+            problems = problems + 1
+    return problems   
+    
+
+def _repack(work_dir, h5):
+    "run Adl_Unpacker.exe on an HDF5 file"
+    if not h5.endswith('.h5'):
+        LOG.warning('%r should end with .h5?' % h5)
+    LOG.debug('running h5repack on %r' % h5)
+ 
+    h5_big=h5+".big"
+    os.rename(h5,h5_big)
+    sh( [  REPACK,"-f","GZIP=1" , h5_big, h5 ] ,log_execution=False , env=env(WORK_DIR=work_dir))
+    os.remove(h5_big)
+  
+    
+def repack_products(work_dir, short_names ):
+    global reported_repack_status
+
+    _build_product_name_maps()
+    problems=0
+    for short_name in short_names:
+        productid = SHORTNAME_2_PRODUCTID[short_name]
+        pattern = productid+"_npp*.h5"
+        for fn in glob.glob(os.path.join(work_dir, pattern)):
+            if not reported_repack_status :
+#                 status_line('Compress products')
+                 reported_repack_status =True
+  
+            try:
+                LOG.debug("Compress:"+fn)
+                _repack(work_dir, fn)
+            except CalledProcessError as oops:
+                LOG.debug(traceback.format_exc())
+                LOG.error('h5repack failed on %r: %r . Continuing' % (fn, oops))
+                problems = problems + 1
+    return problems
+'''
+
+
 def __cleanup_dummy_files(work_dir, algList, noDummyGranules, dummy_granule_dict):
     '''
     Remove radiometric, geolocation and ancillary blob/asc pairs, and product HDF5
@@ -1133,6 +1291,11 @@ def __cleanup_dummy_files(work_dir, algList, noDummyGranules, dummy_granule_dict
                         LOG.info('Removing dummy {:15}:{:16} file -> {}'.format(granID,shortName,files))
                         os.unlink(files)
 
+
+def __cleanup_dummy_h5_files(work_dir, algList, dummy_granule_dict):
+    '''
+    Remove product HDF5 files that correspond to the dummy values of N_Granule_ID.
+    '''
     # Remove dummy HDF5 product files
     for alg in algList :
         LOG.info("Removing dummy {} HDF5 files...".format(alg))
@@ -1711,10 +1874,11 @@ def main():
         # if no errors or only non-critical errors: clean up
         LOG.info("{} return code : {}".format(alg.AlgorithmName,rc))
 
-        if rc == 0 and not options.cspp_debug:
-            LOG.info("Cleaning up workspace for VIIRS {}...".format(alg.AlgorithmName))
 
+        if rc == 0 and not options.cspp_debug:
             for alg in algorithms :
+
+                LOG.info("Cleaning up workspace for VIIRS {}...".format(alg.AlgorithmName))
 
                 algorithmXmlGlob = '%s*.xml' % (alg.algorithmLWxml)
                 algorithmLogGlob = '%s_*' % (alg.controllerName)
@@ -1726,12 +1890,26 @@ def main():
         LOG.info("Skipping execution of VIIRS %s ..." % (alg.AlgorithmName))
 
 
+    # Aggregation...
+    if options.aggregate is True:
+
+        __cleanup_dummy_h5_files(work_dir, algList, dummy_granule_dict)
+        
+        for alg in algorithms :
+            if alg.AlgorithmString in algList:
+                LOG.info("Aggregating VIIRS {}...".format(alg.AlgorithmName))
+                number_problems = aggregate_products(work_dir, alg.EDR_collectionShortNames)
+
     # General Cleanup...
     if not options.cspp_debug:
 
         # Remove dummy asc/blob pairs and HDF5 files
         __cleanup_dummy_files(work_dir, algList, options.noDummyGranules, dummy_granule_dict)
         
+        # Remove dummy HDF5 files
+        if options.aggregate is False:
+            __cleanup_dummy_h5_files(work_dir, algList, dummy_granule_dict)
+
         # Remove what's left...
         __cleanup(work_dir, [log_dir])
 
