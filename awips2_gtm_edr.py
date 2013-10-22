@@ -262,16 +262,16 @@ class AWIPS2_NetCDF4(object):
         self._nc.setncattr("g_ring_latitude", g_ring_lat)
         self._nc.setncattr("g_ring_longitude", g_ring_lon)
 
-    def create_image_vars(self, kind, collection, data, factors):
+    def create_image_vars(self, var_stem, collection, data, factors):
         # Create and write Variables
         # Image data
         LOG.debug('data shape is {0:s}'.format(repr(data.shape)))
-        bt_var = self._nc.createVariable("{0:s}@{1:s}".format(kind, collection), 'u2',
+        bt_var = self._nc.createVariable("{0:s}@{1:s}".format(var_stem, collection), 'u2',
                                     dimensions=(self.row_dim_name, self.col_dim_name))
         bt_var[:, :] = data
         bt_var.setncattr("missing_value", "65535 65534 65533 65532 65531 65530 65529 65528")  # FUTURE: fix this, it can break NetCDF readers. Do we really need it?
         # Scaling Factors
-        prefix = re.match(r'^([A-Z][a-z]+).*', kind).group(1)   # BrightnessTemperature -> Brightness
+        prefix = re.match(r'^([A-Z][a-z]+).*', var_stem).group(1)   # BrightnessTemperature -> Brightness
         LOG.debug('{0:s} is prefix'.format(prefix))
 
         bt_factors_var = self._nc.createVariable(
@@ -308,29 +308,18 @@ class AWIPS2_NetCDF4(object):
 
 
 TITANIUM_LEAD = {
-    'VI1BO': 'TIPB01',
-    'VI2BO': 'TIPB02',
-    'VI3BO': 'TIPB03',
-    'VI4BO': 'TIPB04',
-    'VI5BO': 'TIPB05',
-    'VM01O': 'TIPB11',
-    'VM02O': 'TIPB14',
-    'VM03O': 'TIPB19',
-    'VM04O': 'TIPB24',
-    'VM05O': 'TIPB25',
-    'VM06O': 'TIPB26',
-    'VNCCO': 'TIPB27'
-}
-
-
-# convert GTM M-band IDs back to band numbers in collection names...
-CDFCB_DEFACEPALM = {
-    'M1ST': 'M1',
-    'M2ND': 'M4',
-    'M3RD': 'M9',
-    'M4TH': 'M14',
-    'M5TH': 'M15',
-    'M6TH': 'M16'
+    'VI1BO': ('TIPB01', 'Reflectance', 'VIIRS_I1_IMG_EDR'),
+    'VI2BO': ('TIPB02', 'Reflectance', 'VIIRS_I2_IMG_EDR'),
+    'VI3BO': ('TIPB03', 'Reflectance', 'VIIRS_I3_IMG_EDR'),
+    'VI4BO': ('TIPB04', 'Reflectance', 'VIIRS_I4_IMG_EDR'),
+    'VI5BO': ('TIPB05', 'Reflectance', 'VIIRS_I5_IMG_EDR'),
+    'VM01O': ('TIPB11', 'BrightnessTemperature', 'VIIRS_M1_EDR'),
+    'VM02O': ('TIPB14', 'BrightnessTemperature', 'VIIRS_M4_EDR'),
+    'VM03O': ('TIPB19', 'BrightnessTemperature', 'VIIRS_M9_EDR'),
+    'VM04O': ('TIPB24', 'BrightnessTemperature', 'VIIRS_M14_EDR'),
+    'VM05O': ('TIPB25', 'BrightnessTemperature', 'VIIRS_M15_EDR'),
+    'VM06O': ('TIPB26', 'BrightnessTemperature', 'VIIRS_M16_EDR'),
+    'VNCCO': ('TIPB27', 'Albedo', 'VIIRS_NCC_EDR'),
 }
 
 
@@ -338,30 +327,31 @@ def _ncdatefmt(dt):
     return dt.strftime('%Y%m%d%H%M%S') + ('%1d' % (dt.microsecond / 100000))
 
 
-def _nc_stem_from_edr_path(gran, tipb_id=None, station=None):
+nc_info = namedtuple('nc_info', 'filename_stem tipb_id station ddhhmm variable_stem')
+
+
+def _nc_info_from_edr_path(edr_path, station=None):
     "convert granule and source information into a netcdf filename and supporting header information"
-    dn, fn = os.path.split(gran.edr_path)
+    dn, fn = os.path.split(edr_path)
     m = RE_NPP_EDR.match(fn)
     if not m:
         raise ValueError('{0:s} is not a valid CDFCB-compliant NPP pathname'.format(gran.edr_path))
     g = m.groupdict()
     sat, d, t, e, c, site, kind_band = map(lambda x: g[x], ('sat', 'date', 'start_time', 'end_time', 'created_time', 'site', 'kindband'))
-    tipb_id = tipb_id or TITANIUM_LEAD.get(kind_band, None)
+    tipb_id, nc_var_stem, stem = TITANIUM_LEAD.get(kind_band, (None, None, None))
     if not tipb_id:
         raise ValueError('{0:s} is not a known EDR type'.format(kind_band))
     sdt, edt = nppdatetime(d,t,e)
-    collection = gran.collection.replace('-', '_')
-    # convert back to original band IDs
-    for (face, palm) in CDFCB_DEFACEPALM.items():
-        collection = collection.replace(face, palm)
     ncs = _ncdatefmt(sdt)
     nce = _ncdatefmt(edt)
     creation = c[:15]  # truncate
     ddhhmm = sdt.strftime('%d%H%M')
-    return ('{collection:s}_{tipb_id:s}_{station:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{creation:s}'.format(**locals()),
+    return nc_info(
+            '{stem:s}_{tipb_id:s}_{station:s}_{sat:s}_s{ncs:s}_e{nce:s}_c{creation:s}'.format(**locals()),
             tipb_id,
             station or site.upper(),
-            ddhhmm)
+            ddhhmm,
+            nc_var_stem)
 
 
 WMO_SUFFIX = '.gz.wmo'
@@ -383,10 +373,10 @@ def wmo_wrap(nc_path, wmo_header="TIPB99 KNES 000000", wmo_path=None):
     _,_ = gz.communicate()
 
 
-def transform(edr_path, output_dir=None, geo_path=None, tipb_id=None, station=None, wmo_path=None, cleanup=True):
+def transform(edr_path, output_dir=None, geo_path=None, station=None, wmo_path=None, cleanup=True):
     LOG.info('opening files')
     gran = Granule(edr_path, geo_path)
-    ncstem, tipb_id, station, ddhhmm = _nc_stem_from_edr_path(gran, tipb_id=tipb_id, station=station)
+    ncstem, tipb_id, station, ddhhmm, varname = _nc_info_from_edr_path(edr_path, station=station)
     ncfn = ncstem + '.nc'
     if wmo_path is None:
         wmo_path = ncfn + WMO_SUFFIX
@@ -406,7 +396,7 @@ def transform(edr_path, output_dir=None, geo_path=None, tipb_id=None, station=No
     LOG.debug("writing G-Ring attributes")
     nc.create_g_ring_attrs(g_ring_lat=gr.lat, g_ring_lon=gr.lon)
     LOG.debug('transferring image data')
-    nc.create_image_vars(gran.kind, gran.collection, gran.data, gran.factors)
+    nc.create_image_vars(varname, gran.collection, gran.data, gran.factors)
     LOG.debug('transferring lat-lon envelope')
     env = gran.lat_lon_envelope
     nc.create_geo_vars(gran.geo_collection, lat_envelope=env.lat, lon_envelope=env.lon)
@@ -453,7 +443,7 @@ def main():
     #    sys.exit(2)
 
     levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
-    logging.basicConfig(level = levels[min(3,options.verbosity)])
+    logging.basicConfig(level=levels[min(3,options.verbosity)])
 
     if not args:
         parser.error( 'incorrect arguments, try -h or --help.' )
