@@ -269,7 +269,8 @@ class AWIPS2_NetCDF4(object):
         bt_var = self._nc.createVariable("{0:s}@{1:s}".format(var_stem, collection), 'u2',
                                     dimensions=(self.row_dim_name, self.col_dim_name))
         bt_var[:, :] = data
-        bt_var.setncattr("missing_value", "65535 65534 65533 65532 65531 65530 65529 65528")  # FUTURE: fix this, it can break NetCDF readers. Do we really need it?
+        bt_var.setncattr("missing_value", [65535, 65534, 65533, 65532, 65531, 65530, 65529, 65528])
+
         # Scaling Factors
         prefix = re.match(r'^([A-Z][a-z]+).*', var_stem).group(1)   # BrightnessTemperature -> Brightness
         LOG.debug('{0:s} is prefix'.format(prefix))
@@ -291,12 +292,12 @@ class AWIPS2_NetCDF4(object):
         lat_var = self._nc.createVariable("Latitude@{0:s}".format(collection), 'f4',
                                           dimensions=(self.row_dim_name, self.env_dim_name))
         lat_var[:, :] = lat_envelope
-        lat_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
+        lat_var.setncattr("missing_value", [-999.9, -999.8, -999.5, -999.4, -999.3])
 
         lon_var = self._nc.createVariable("Longitude@{0:s}".format(collection), 'f4',
                                           dimensions=(self.row_dim_name, self.env_dim_name))
         lon_var[:, :] = lon_envelope
-        lon_var.setncattr("missing_value", "-999.9 -999.8 -999.5 -999.4 -999.3")
+        lon_var.setncattr("missing_value", [-999.9, -999.8, -999.5, -999.4, -999.3])
 
     def __init__(self, filename):
         self._nc = Dataset(filename, 'w')
@@ -313,12 +314,12 @@ TITANIUM_LEAD = {
     'VI3BO': ('TIPB03', 'Reflectance', 'VIIRS_I3_IMG_EDR'),
     'VI4BO': ('TIPB04', 'Reflectance', 'VIIRS_I4_IMG_EDR'),
     'VI5BO': ('TIPB05', 'Reflectance', 'VIIRS_I5_IMG_EDR'),
-    'VM01O': ('TIPB11', 'BrightnessTemperature', 'VIIRS_M1_EDR'),
-    'VM02O': ('TIPB14', 'BrightnessTemperature', 'VIIRS_M4_EDR'),
-    'VM03O': ('TIPB19', 'BrightnessTemperature', 'VIIRS_M9_EDR'),
-    'VM04O': ('TIPB24', 'BrightnessTemperature', 'VIIRS_M14_EDR'),
-    'VM05O': ('TIPB25', 'BrightnessTemperature', 'VIIRS_M15_EDR'),
-    'VM06O': ('TIPB26', 'BrightnessTemperature', 'VIIRS_M16_EDR'),
+    'VM01O': ('TIPB11', 'BrightnessTemperatureOrReflectance', 'VIIRS_M1_EDR'),
+    'VM02O': ('TIPB14', 'BrightnessTemperatureOrReflectance', 'VIIRS_M4_EDR'),
+    'VM03O': ('TIPB19', 'BrightnessTemperatureOrReflectance', 'VIIRS_M9_EDR'),
+    'VM04O': ('TIPB24', 'BrightnessTemperatureOrReflectance', 'VIIRS_M14_EDR'),
+    'VM05O': ('TIPB25', 'BrightnessTemperatureOrReflectance', 'VIIRS_M15_EDR'),
+    'VM06O': ('TIPB26', 'BrightnessTemperatureOrReflectance', 'VIIRS_M16_EDR'),
     'VNCCO': ('TIPB27', 'Albedo', 'VIIRS_NCC_EDR'),
 }
 
