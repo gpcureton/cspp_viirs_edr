@@ -341,7 +341,7 @@ def _nc_info_from_edr_path(edr_path, station=None, region=None):
     dn, fn = os.path.split(edr_path)
     m = RE_NPP_EDR.match(fn)
     if not m:
-        raise ValueError('{0:s} is not a valid CDFCB-compliant NPP pathname'.format(gran.edr_path))
+        raise ValueError('{0:s} is not a valid CDFCB-compliant NPP pathname'.format(edr_path))
     g = m.groupdict()
     sat, d, t, e, c, site, kind_band = map(lambda x: g[x], ('sat', 'date', 'start_time', 'end_time', 'created_time', 'site', 'kindband'))
     tipb_id, nc_var_stem, stem = CHANNEL_INFO_LUT.get(kind_band, (None, None, None))
