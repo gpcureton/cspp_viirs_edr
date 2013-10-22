@@ -313,19 +313,19 @@ class AWIPS2_NetCDF4(object):
         self._nc = None
 
 
-TITANIUM_LEAD = {
-    'VI1BO': ('TIPB01', 'Reflectance', 'VIIRS_I1_IMG_EDR'),
-    'VI2BO': ('TIPB02', 'Reflectance', 'VIIRS_I2_IMG_EDR'),
-    'VI3BO': ('TIPB03', 'Reflectance', 'VIIRS_I3_IMG_EDR'),
-    'VI4BO': ('TIPB04', 'BrightnessTemperature', 'VIIRS_I4_IMG_EDR'),
-    'VI5BO': ('TIPB05', 'BrightnessTemperature', 'VIIRS_I5_IMG_EDR'),
-    'VM01O': ('TIPB11', 'BrightnessTemperatureOrReflectance', 'VIIRS_M1_EDR'),
-    'VM02O': ('TIPB14', 'BrightnessTemperatureOrReflectance', 'VIIRS_M4_EDR'),
-    'VM03O': ('TIPB19', 'BrightnessTemperatureOrReflectance', 'VIIRS_M9_EDR'),
-    'VM04O': ('TIPB24', 'BrightnessTemperatureOrReflectance', 'VIIRS_M14_EDR'),
-    'VM05O': ('TIPB25', 'BrightnessTemperatureOrReflectance', 'VIIRS_M15_EDR'),
-    'VM06O': ('TIPB26', 'BrightnessTemperatureOrReflectance', 'VIIRS_M16_EDR'),
-    'VNCCO': ('TIPB27', 'Albedo', 'VIIRS_NCC_EDR'),
+CHANNEL_INFO_LUT = {
+    'VI1BO': ('01', 'Reflectance', 'VIIRS_I1_IMG_EDR'),
+    'VI2BO': ('02', 'Reflectance', 'VIIRS_I2_IMG_EDR'),
+    'VI3BO': ('03', 'Reflectance', 'VIIRS_I3_IMG_EDR'),
+    'VI4BO': ('04', 'BrightnessTemperature', 'VIIRS_I4_IMG_EDR'),
+    'VI5BO': ('05', 'BrightnessTemperature', 'VIIRS_I5_IMG_EDR'),
+    'VM01O': ('11', 'BrightnessTemperatureOrReflectance', 'VIIRS_M1_EDR'),
+    'VM02O': ('14', 'BrightnessTemperatureOrReflectance', 'VIIRS_M4_EDR'),
+    'VM03O': ('19', 'BrightnessTemperatureOrReflectance', 'VIIRS_M9_EDR'),
+    'VM04O': ('24', 'BrightnessTemperatureOrReflectance', 'VIIRS_M14_EDR'),
+    'VM05O': ('25', 'BrightnessTemperatureOrReflectance', 'VIIRS_M15_EDR'),
+    'VM06O': ('26', 'BrightnessTemperatureOrReflectance', 'VIIRS_M16_EDR'),
+    'VNCCO': ('27', 'Albedo', 'VIIRS_NCC_EDR'),
 }
 
 
@@ -336,7 +336,7 @@ def _ncdatefmt(dt):
 nc_info = namedtuple('nc_info', 'filename_stem tipb_id station ddhhmm variable_stem')
 
 
-def _nc_info_from_edr_path(edr_path, station=None):
+def _nc_info_from_edr_path(edr_path, station=None, region=None):
     "convert granule and source information into a netcdf filename and supporting header information"
     dn, fn = os.path.split(edr_path)
     m = RE_NPP_EDR.match(fn)
@@ -344,9 +344,10 @@ def _nc_info_from_edr_path(edr_path, station=None):
         raise ValueError('{0:s} is not a valid CDFCB-compliant NPP pathname'.format(gran.edr_path))
     g = m.groupdict()
     sat, d, t, e, c, site, kind_band = map(lambda x: g[x], ('sat', 'date', 'start_time', 'end_time', 'created_time', 'site', 'kindband'))
-    tipb_id, nc_var_stem, stem = TITANIUM_LEAD.get(kind_band, (None, None, None))
+    tipb_id, nc_var_stem, stem = CHANNEL_INFO_LUT.get(kind_band, (None, None, None))
     if not tipb_id:
         raise ValueError('{0:s} is not a known EDR type'.format(kind_band))
+    tipb_id = region + tipb_id
     sdt, edt = nppdatetime(d,t,e)
     ncs = _ncdatefmt(sdt)
     nce = _ncdatefmt(edt)
@@ -379,10 +380,10 @@ def wmo_wrap(nc_path, wmo_header="TIPB99 KNES 000000", wmo_path=None):
     _,_ = gz.communicate()
 
 
-def transform(edr_path, output_dir=None, geo_path=None, station=None, wmo_path=None, cleanup=True):
+def transform(edr_path, output_dir=None, geo_path=None, region=None, station=None, wmo_path=None, cleanup=True):
     LOG.info('opening files')
     gran = Granule(edr_path, geo_path)
-    ncstem, tipb_id, station, ddhhmm, varname = _nc_info_from_edr_path(edr_path, station=station)
+    ncstem, tipb_id, station, ddhhmm, varname = _nc_info_from_edr_path(edr_path, station=station, region=region)
     ncfn = ncstem + '.nc'
     if wmo_path is None:
         wmo_path = ncfn + WMO_SUFFIX
@@ -431,10 +432,12 @@ def main():
                     help='each occurrence increases verbosity 1 level through ERROR-WARNING-INFO-DEBUG')
     parser.add_option('-d', '--debug', dest='debug', action="count", default=0,
                       help='enable debug mode where clean-up does not occur (results in .nc file creation)')
-    parser.add_option('-s', '--station', dest='station', default='KNES', type='str',
-                      help='Station of origin, which is placed in headers')
     parser.add_option('-o', '--output', dest='output', default=None,
-                     help='destination directory to store output to')
+                      help='destination directory to store output to')
+    parser.add_option('-s', '--station', dest='station', default='CSPP', type='str',
+                      help='Station of origin, which is placed in headers, e.g. KNES')
+    parser.add_option('-r', '--region', dest='region', default='TIPB', type='str',
+                      help='AWIPS2 WMO region, which is placed in headers, e.g. TIPB for Alaska')
     # parser.add_option('-I', '--include-path', dest="includes",
     #                 action="append", help="include path to append to GCCXML call")
     (options, args) = parser.parse_args()
@@ -457,13 +460,13 @@ def main():
 
     for arg in args:
         if os.path.isfile(arg):
-            transform(arg, station=options.station, output_dir=options.output, cleanup=not options.debug)
+            transform(arg, station=options.station, output_dir=options.output, region=options.region, cleanup=not options.debug)
         elif os.path.isdir(arg):
             from glob import glob
             pat = os.path.join(arg, 'V???O*h5')   # VI?BO, VM??O, VNCCO
             for edr_path in glob(pat):
                 LOG.info('processing {0:s}'.format(edr_path))
-                transform(edr_path, station=options.station, output_dir=options.output, cleanup=not options.debug)
+                transform(edr_path, station=options.station, region=options.region, output_dir=options.output, cleanup=not options.debug)
         else:
             LOG.warning('really not sure what to do with {0!r:s} - ignoring'.format(arg))
 
