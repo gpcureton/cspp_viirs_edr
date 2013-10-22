@@ -266,13 +266,18 @@ class AWIPS2_NetCDF4(object):
         # Create and write Variables
         # Image data
         LOG.debug('data shape is {0:s}'.format(repr(data.shape)))
-        bt_var = self._nc.createVariable("{0:s}@{1:s}".format(var_stem, collection), 'u2',
+        var_name = "{0:s}@{1:s}".format(var_stem, collection)
+        LOG.info('writing variable {0:s}...'.format(var_name))
+        bt_var = self._nc.createVariable(var_name, 'u2',
                                     dimensions=(self.row_dim_name, self.col_dim_name))
         bt_var[:, :] = data
         bt_var.setncattr("missing_value", [65535, 65534, 65533, 65532, 65531, 65530, 65529, 65528])
 
         # Scaling Factors
-        prefix = re.match(r'^([A-Z][a-z]+).*', var_stem).group(1)   # BrightnessTemperature -> Brightness
+        # BrightnessTemperature => BrightnessFactors
+        # BrightnessTemperatureOrReflectance => BrightnessTemperatureOrReflectanceFactors
+        # good job guys...
+        prefix = 'Brightness' if var_stem == 'BrightnessTemperature' else var_stem
         LOG.debug('{0:s} is prefix'.format(prefix))
 
         bt_factors_var = self._nc.createVariable(
@@ -312,8 +317,8 @@ TITANIUM_LEAD = {
     'VI1BO': ('TIPB01', 'Reflectance', 'VIIRS_I1_IMG_EDR'),
     'VI2BO': ('TIPB02', 'Reflectance', 'VIIRS_I2_IMG_EDR'),
     'VI3BO': ('TIPB03', 'Reflectance', 'VIIRS_I3_IMG_EDR'),
-    'VI4BO': ('TIPB04', 'Reflectance', 'VIIRS_I4_IMG_EDR'),
-    'VI5BO': ('TIPB05', 'Reflectance', 'VIIRS_I5_IMG_EDR'),
+    'VI4BO': ('TIPB04', 'BrightnessTemperature', 'VIIRS_I4_IMG_EDR'),
+    'VI5BO': ('TIPB05', 'BrightnessTemperature', 'VIIRS_I5_IMG_EDR'),
     'VM01O': ('TIPB11', 'BrightnessTemperatureOrReflectance', 'VIIRS_M1_EDR'),
     'VM02O': ('TIPB14', 'BrightnessTemperatureOrReflectance', 'VIIRS_M4_EDR'),
     'VM03O': ('TIPB19', 'BrightnessTemperatureOrReflectance', 'VIIRS_M9_EDR'),
