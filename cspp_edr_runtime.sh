@@ -1,3 +1,10 @@
+#!/bin/bash
+# $Id$
+# Contains some package specific setup.
+#
+# Copyright 2011-2013, University of Wisconsin Regents.
+# Licensed under the GNU GPLv3.
+
 test -n "$CSPP_EDR_HOME" || echo "CSPP_EDR_HOME is not set. Please set this environment variable to the install location of CSPP software packages. (When installed, \$CSPP_EDR_HOME/ADL is a directory.)"
 
 
