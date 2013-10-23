@@ -290,7 +290,10 @@ class SnowIceCover() :
             args = shlex.split(cmdStr)
 
             procRetVal = 0
-            procObj = subprocess.Popen(args,env=env(CSPP_EDR_ANC_CACHE_DIR=CSPP_RT_ANC_CACHE_DIR,CSPP_RT_HOME=CSPP_RT_HOME,JPSS_REMOTE_ANC_DIR=JPSS_REMOTE_ANC_DIR),bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            procObj = subprocess.Popen(args, \
+                    env=env(CSPP_EDR_ANC_CACHE_DIR=CSPP_RT_ANC_CACHE_DIR,CSPP_RT_HOME=CSPP_RT_HOME, \
+                    JPSS_REMOTE_ANC_DIR=JPSS_REMOTE_ANC_DIR), \
+                    bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             procObj.wait()
             procRetVal = procObj.returncode
 
