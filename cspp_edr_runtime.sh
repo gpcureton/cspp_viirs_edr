@@ -39,7 +39,7 @@ export PYTHONPATH=$CSPP_EDR_HOME/common
 #environment cleanups
 unset LD_PRELOAD
 
-test -x "$PY" || oops "Python interpreter not available; please source cspp_env.sh"
+test -x "$PY" || echo "Python interpreter not available; please source cspp_env.sh"
 
 # Linux execution configuration
 export OSTYPE=`uname`
