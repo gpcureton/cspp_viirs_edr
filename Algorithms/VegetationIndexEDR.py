@@ -240,7 +240,7 @@ def submit_granule(additional_env):
     except CalledProcessError as oops:
         pid = getattr(oops, 'pid', None)
         LOG.debug(traceback.format_exc())
-        LOG.error('{} failed on {}: {}. Continuing...' % (cmd[0], xml, oops))
+        LOG.error('{} failed on {}: {}. Continuing...'.format(cmd[0], xml, oops))
         granule_diagnostic['crashed'] = True
 
     t2 = time()
@@ -267,9 +267,9 @@ def submit_granule(additional_env):
         LOG.warn(traceback.format_exc())
 
     if compress == "True":
-        LOG.info('Compress products for %s' % granule_id)
+        LOG.info('Compress products for {}'.format(granule_id))
         repack_products(granule_output_dir, EDR_collectionShortNames)
-        LOG.info('Compress products for %s complete.' % granule_id)
+        LOG.info('Compress products for {} complete.'.format(granule_id))
 
     move_products_to_work_directory(granule_output_dir)
 
@@ -399,7 +399,6 @@ def cleanup(work_dir, xml_glob, log_dir_glob, *more_dirs):
             os.unlink(fn)
         except Exception, err:
             LOG.warn( "{}".format(str(err)))
-
 
     LOG.info("Removing log directories %s ..."%(log_dir_glob))
     for dirname in glob(path.join(work_dir,log_dir_glob)):

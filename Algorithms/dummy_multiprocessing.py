@@ -229,7 +229,7 @@ def dummy_exe(additional_env):
     # Create a log file corresponding to this granule
     logTime = datetime.utcnow()
     pid = randint(500,30000)
-    logName = '{}_%s_%d' % (controllerBinary,logTime.strftime("%Y%m%d_%H%M%S"),pid)
+    logName = '{}_{}_{}'.format(controllerBinary,logTime.strftime("%Y%m%d_%H%M%S"),pid)
     os.mkdir(path.join(granule_output_dir,logName))
     open('%s.log'%(path.join(granule_output_dir,'log',logName)), 'a').close()
 
@@ -285,7 +285,7 @@ def submit_granule(additional_env):
     except CalledProcessError as oops:
         pid = getattr(oops, 'pid', None)
         LOG.debug(traceback.format_exc())
-        LOG.error('{} failed on {}: {}. Continuing...' % (cmd[0], xml, oops))
+        LOG.error('{} failed on {}: {}. Continuing...'.format(cmd[0], xml, oops))
         granule_diagnostic['crashed'] = True
 
     t2 = time()

@@ -264,7 +264,7 @@ def submit_granule(additional_env):
     except CalledProcessError as oops:
         pid = getattr(oops, 'pid', None)
         LOG.debug(traceback.format_exc())
-        LOG.error('{} failed on {}: {}. Continuing...' % (cmd[0], xml, oops))
+        LOG.error('{} failed on {}: {}. Continuing...'.format(cmd[0], xml, oops))
         granule_diagnostic['crashed'] = True
 
     t2 = time()
