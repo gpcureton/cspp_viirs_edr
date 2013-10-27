@@ -34,7 +34,7 @@ unset JPSS_REMOTE_ANC_DIR
 export PY=${CSPP_EDR_HOME}/common/ShellB3/bin/python
 
 # common modules location used by CSPP scripts
-export PYTHONPATH=$CSPP_EDR_HOME/common
+export PYTHONPATH=$CSPP_EDR_HOME/common:${CSPP_EDR_HOME}/viirs
 
 #environment cleanups
 unset LD_PRELOAD

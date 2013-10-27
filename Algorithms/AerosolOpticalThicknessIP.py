@@ -337,7 +337,7 @@ def submit_granule(additional_env):
             granule_diagnostic['no_output'].append(True)
             granule_diagnostic['output_file'].append(None)
         else :
-            LOG.info('New AVAFO granule: {}'.format(aotEdr_new_granules))
+            LOG.info('New VAOOO granule: {}'.format(aotEdr_new_granules))
             aerosolEDR_granules_made = set(aotEdr_ID.values()) - aerosolEDR_prior_granules
             LOG.info('Aerosol Optical Thickness EDR granules created: {}'.format(', '.join(list(aerosolEDR_granules_made))))
             granule_diagnostic['no_output'].append(False)
@@ -347,11 +347,11 @@ def submit_granule(additional_env):
         suspMatEdr_new_granules, suspMatEdr_ID = h5_xdr_inventory(suspMatEdrPattern, SUSMAT_EDR_GRANULE_ID_ATTR_PATH, state=suspMatEdr_ID)
 
         if granule_id not in suspMatEdr_new_granules:
-            LOG.warning('no VAOOO HDF5 output for {}'.format(granule_id))
+            LOG.warning('no VSUMO HDF5 output for {}'.format(granule_id))
             granule_diagnostic['no_output'].append(True)
             granule_diagnostic['output_file'].append(None)
         else :
-            LOG.info('New AVAFO granule: {}'.format(suspMatEdr_new_granules))
+            LOG.info('New VSUMO granule: {}'.format(suspMatEdr_new_granules))
             suspMatEDR_granules_made = set(suspMatEdr_ID.values()) - suspMatEDR_prior_granules
             LOG.info('Suspended Matter EDR granules created: {}'.format(', '.join(list(suspMatEDR_granules_made))))
             granule_diagnostic['no_output'].append(False)

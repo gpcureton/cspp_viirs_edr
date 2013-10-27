@@ -5,7 +5,7 @@
 # Environment settings:
 # CSPP_EDR_HOME : the location of the CSPP_RT directory
 #
-# Copyright 2011-2012, University of Wisconsin Regents.
+# Copyright 2011-2013, University of Wisconsin Regents.
 # Licensed under the GNU GPLv3.
 
 if [ -z "$CSPP_EDR_HOME" ]; then
