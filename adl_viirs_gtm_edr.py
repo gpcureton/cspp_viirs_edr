@@ -676,6 +676,9 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache
         tasks.append(task_input(kind, geo_granule, sdr_cns, edr_cns, work_dir, additional_env,
                                 cleanup, aggregate, compress))
 
+    if not tasks:
+        LOG.error('no VIIRS SDR data was found to process - was VIIRS SDR run with --edr in order to preserve IP blobs?')
+
     LOG.debug('task list:')
     LOG.debug(pformat(tasks))
 
@@ -785,6 +788,11 @@ def viirs_gtm_edr(work_dir, input_dir, nprocs=1, allow_cache_update=True,
     LOG.debug(repr(results))
     error_count = 0
     LOG.info('Product list')
+
+    if not results:
+        LOG.error('no GTM products were created')
+        error_count = 1
+
     for kind, granule, products, errors in results:
         LOG.info('%s:%s => %r' % (kind, granule, products))
         if errors:
