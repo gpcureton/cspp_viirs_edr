@@ -54,7 +54,7 @@ from adl_common import status_line, configure_logging, get_return_code, check_en
 
 # ancillary search and unpacker common routines
 from adl_common import sh, link_ancillary_to_work_dir, env
-from adl_common import COMMON_LOG_CHECK_TABLE, EXTERNAL_BINARY, CSPP_RT_ANC_CACHE_DIR, CSPP_RT_ANC_PATH, DDS_PRODUCT_FILE, ADL_HOME, CSPP_RT_ANC_TILE_PATH
+from adl_common import COMMON_LOG_CHECK_TABLE, EXTERNAL_BINARY, CSPP_RT_ANC_CACHE_DIR, CSPP_RT_ANC_PATH, DDS_PRODUCT_FILE, ADL_HOME, CSPP_RT_ANC_TILE_PATH, ADL_VARS
 
 from adl_post_process import repack_products, aggregate_products, add_geo_attribute_to_aggregates
 
@@ -784,7 +784,8 @@ def viirs_gtm_edr(work_dir, input_dir, nprocs=1, allow_cache_update=True,
                                        LINKED_ANCILLARY=anc_dir,
                                        INPUT_DIR=input_dir,
                                        ADL_HOME=ADL_HOME,
-                                       CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH)
+                                       CSPP_RT_ANC_TILE_PATH=CSPP_RT_ANC_TILE_PATH,
+                                       DCONFIG=ADL_VARS['DCONFIG'])
     LOG.debug(repr(results))
     error_count = 0
     LOG.info('Product list')
