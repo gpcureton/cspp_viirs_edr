@@ -1403,7 +1403,7 @@ def main():
     configure_logging(level,FILE=logfile)
 
     # Check the environment variables, and whether we can write to the working directory
-    check_env(work_dir)
+#    check_env(work_dir)
     
     # create work directory
     if not path.isdir(work_dir):

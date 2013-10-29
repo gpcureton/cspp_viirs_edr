@@ -50,7 +50,7 @@ import adl_log
 import adl_geo_ref
 import adl_anc_retrieval
 
-from adl_common import status_line, configure_logging, get_return_code, check_env, check_and_convert_path
+from adl_common import status_line, configure_logging, get_return_code,  check_and_convert_path
 
 # ancillary search and unpacker common routines
 from adl_common import sh, link_ancillary_to_work_dir, env
@@ -764,7 +764,7 @@ def viirs_gtm_edr(work_dir, input_dir, nprocs=1, allow_cache_update=True,
     :param cleanup: whether or not to clean up the work directory after finishing, if no errors occurred
     :param allow_cache_update: whether or not to allow dynamic ancillary to be downloaded
     """
-    check_env(work_dir)
+
 
     anc_dir = os.path.join(work_dir, ANCILLARY_SUB_DIR)
     setup_directories(work_dir, anc_dir)
