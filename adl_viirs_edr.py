@@ -1366,7 +1366,7 @@ def main():
     optionalGroup.add_option('-v', '--verbose',
                       dest='verbosity',
                       action="count",
-                      default=2,
+                      default=0,
                       help='each occurrence increases verbosity 1 level from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG')
 
 

@@ -235,7 +235,7 @@ $PY $CSPP_EDR_HOME/viirs/adl_viirs_edr.py \
     $DEBUG_OPT \
     $CHAIN_OPT \
     $PROC_OPT \
-    $VERBOSITY_OPT
+    $VERBOSITY_OPT -vv
 
 ##############################
 #         Packaging          #
