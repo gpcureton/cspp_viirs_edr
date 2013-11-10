@@ -2414,7 +2414,7 @@ def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
 ###################################################
 
 def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,\
-        scale=1.3,mapRes='c', prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS Cloud Mask'):
+        scale=1.3,mapRes='c', prodFileName='',outFileName='VCM.png',dpi=300,titleStr='VIIRS Cloud Mask'):
     '''
     Plots the VIIRS Cloud Mask on an orthographic projection
     '''
@@ -2580,7 +2580,7 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scatte
 def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
         vmin=0.0,vmax=1.0,scale=1.3, \
         lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,mapRes='c',cmap=None, \
-        prodFileName='',outFileName='out.png',dpi=300,titleStr='VIIRS AOT'):
+        prodFileName='',outFileName='AOT.png',dpi=300,titleStr='VIIRS AOT'):
     '''
     Plots the VIIRS Aerosol Optical Thickness on an orthographic projection
     '''
@@ -2782,7 +2782,6 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
     if scatterPlot:
         cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
     else:
-        gridData = ma.masked_outside(gridData,vmin,vmax)
         cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     print "orthoPlot_SST ModeGran = ",ModeGran
@@ -2914,7 +2913,6 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     if scatterPlot:
         cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
     else:
-        gridData = ma.masked_outside(gridData,vmin,vmax)
         cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     print "orthoPlot_NDVI ModeGran = ",ModeGran
