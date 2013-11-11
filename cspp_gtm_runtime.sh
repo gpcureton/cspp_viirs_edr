@@ -12,7 +12,7 @@ unset CSPP_RT_ANC_HOME
 unset CSPP_RT_HOME
 unset DCONFIG
 unset JPSS_REMOTE_ANC_DIR
-
+export DPE_VER=CSPP_GTM_1_1
 #
 # derived CSPP default locations (site installs may move these under some circumstances)
 #
