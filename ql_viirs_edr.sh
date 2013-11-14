@@ -16,15 +16,15 @@ fi
 
 # Check number of arguments
 if [ "$#" -ne 3 ]; then
-  echo "Usage: ql_viirs_edr.sh <PROD> <GMTCO file path> <PROD file path>"
+  echo "Usage: ql_viirs_edr.sh <PROD> <GMTCO or GITCO file path> <PROD file path>"
   echo "where"
   echo " PROD is one of the following: " 
-  echo "       VCM (cloud mask)" 
-  echo "       AOT (Aerosol Optical Thickness)"
-  echo "       SST (Sea Surface Temperature)"
-  echo "       NDVI (Normalized Difference Vegetation Index)"
-  echo "       EVI (Enhanced Vegetation Index)"
-  echo " GMTCO file path is the full path to the Geolocation file directory"
+  echo "    VCM (cloud mask) uses GMTCO* geolocation files" 
+  echo "    AOT (Aerosol Optical Thickness) uses GMTCO* geolocation files"
+  echo "    SST (Sea Surface Temperature) uses GMTCO* geolocation files"
+  echo "    NDVI (Normalized Difference Vegetation Index) uses GITCO* geolocation files"
+  echo "    EVI (Enhanced Vegetation Index) uses GITCO* geolocation files"
+  echo " GMTCO/GITCO file path is the full path to the Geolocation file directory"
   echo " PROD file path is the path to the EDR file directory"
   exit 1
 fi
@@ -74,8 +74,15 @@ if [[ "$PROD" == "EVI" ]] ; then
   OUTFILENAME=VIIRS_Enhanced_Vegetation_Index.png
 fi
 
+if [[ "$PROD" != "NDVI" && "$PROD" != "EVI" ]] ; then
 
-$PY $CSPP_EDR_HOME/viirs/ql_viirs_edr.py --geo_file=${GEO_PATH}/GMTCO* --ip_file=${EDR_PATH}/${IPFILE}*.h5 -p ${PROD} -d 300 --stride=5 -m 'l' -o ${OUTFILENAME}
+   $PY $CSPP_EDR_HOME/viirs/ql_viirs_edr.py --geo_file="${GEO_PATH}/GMTCO*" --ip_file="${EDR_PATH}/${IPFILE}*.h5" -p ${PROD} -d 300 --stride=5 -m 'l' -o ${OUTFILENAME}
+
+else
+
+   $PY $CSPP_EDR_HOME/viirs/ql_viirs_edr.py --geo_file="${GEO_PATH}/GITCO*" --ip_file="${EDR_PATH}/${IPFILE}*.h5" -p ${PROD} -d 300 --stride=5 -m 'l' -o ${OUTFILENAME}
+
+fi
 
 if [ $? -eq  0 ] ;  then
    echo "VIIRS EDR quick look script successfully finished"
