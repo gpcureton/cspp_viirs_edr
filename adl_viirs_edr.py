@@ -437,15 +437,18 @@ def _strReplace(fileName,oldString,newString):
     replaced with newString.
     """
     fileChanged=0
-    with open(fileName) as thefile:
-        content = thefile.read()                 # read entire file into memory
-        replacedText = content.replace(oldString, newString)
-    if replacedText != content:
-        LOG.debug('Replacing occurence of "%s" in %s with "%s"' % (oldString,path.basename(fileName),newString))
-        with open(fileName, 'w') as thefile:
-            thefile.write(replacedText)
-        fileChanged=1
-    return fileChanged
+    try :
+        with open(fileName) as thefile:
+            content = thefile.read()                 # read entire file into memory
+            replacedText = content.replace(oldString, newString)
+        if replacedText != content:
+            LOG.debug('Replacing occurence of "%s" in %s with "%s"' % (oldString,path.basename(fileName),newString))
+            with open(fileName, 'w') as thefile:
+                thefile.write(replacedText)
+            fileChanged=1
+        return fileChanged
+    except Exception, err :
+        LOG.error("{}.".format(err))
 
 
 def _convert_datetime(s):
