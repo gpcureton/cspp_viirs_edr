@@ -1443,14 +1443,14 @@ def _argparse():
         LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
 
-    return args,work_dir
+    return args,work_dir,log_dir
 
 
 
 def main():
 
     #options,work_dir = _optparse()
-    options,work_dir = _argparse()
+    options,work_dir,log_dir = _argparse()
 
     # Determine the ordered list of algs to satisfy the required 
     # algorithm's dependencies.
