@@ -2916,9 +2916,9 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
         cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
     print "orthoPlot_NDVI ModeGran = ",ModeGran
-    #if (ModeGran == 0) :
-        #print "Printing NIGHT text"
-        #fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
+    if (ModeGran == 0) :
+        print "Printing NIGHT text"
+        fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
 
     # add a colorbar axis
     cax_rect = [0.05 , 0.05, 0.9 , 0.06 ] # [left,bottom,width,height]
@@ -3638,8 +3638,8 @@ def main():
         stride = stride_IP if options.stride==None else options.stride
         ipProd = options.ipProd
 
-        #vmin = 290. if (vmin==None) else vmin
-        #vmax = 305. if (vmax==None) else vmax
+        vmin = -1. if (vmin==None) else vmin
+        vmax = 1.  if (vmax==None) else vmax
 
         lats,lons,ndviData,gran_lat_0,gran_lon_0,ModeGran = gran_NDVI(geoList,prodList,prodName=ipProd,shrink=stride)
         
