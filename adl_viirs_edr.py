@@ -81,7 +81,6 @@ import shlex, subprocess
 from subprocess import CalledProcessError, call
 from shutil import rmtree,copyfile
 from glob import glob
-import optparse as optparse
 from time import time
 from datetime import datetime,timedelta
 
@@ -310,6 +309,18 @@ def _skim_viirs_sdr(collectionShortName,work_dir):
             yield info
 
 
+def __is_contiguous(grana, granb, tolerance=MAX_CONTIGUOUS_DELTA):
+    """
+    This is a custom version of adl_asc._is_contiguous(), which keys off of 'StartTime' and 'EndTime', rather than
+    'ObservedStartTime' and 'ObservedEndTime' as is done here.
+    """
+    delta = granb['ObservedStartTime'] - grana['ObservedEndTime']
+    LOG.debug('delta of %s between %r and %r' % (delta, grana['N_Granule_ID'], granb['N_Granule_ID']))
+    if (delta >= tolerance) :
+        LOG.info( "Granule gap of %s sec end %s to start %s  " % (str(delta),grana['ObservedStartTime'].isoformat(),granb['ObservedEndTime'].isoformat()))
+    return (delta < tolerance)
+
+
 def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_granules_preferred=False):
     """
     given a sequence of granule dictionaries, yield a sequence of contiguous granule groups as tuples
@@ -352,7 +363,7 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
             if a['N_Granule_ID']==b['N_Granule_ID']:
                 LOG.error('Granule %r has been unpacked to this directory multiple times!' % (a['N_Granule_ID']))
                 return
-            if _is_contiguous(a, b, tolerance):
+            if __is_contiguous(a, b, tolerance):
                 seq[a['URID']] = a
                 seq[b['URID']] = b
             else:
@@ -1237,159 +1248,177 @@ def __cleanup(work_dir, dirs_to_remove):
             LOG.warn( "{}".format(str(err)))
 
 
-def main():
+def _argparse():
+    '''
+    Method to encapsulate the option parsing and various setup tasks.
+    '''
+
+    import argparse
 
     endianChoices = ['little','big']
     algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','ATMOS','LAND','OCEAN','ALL','MPC']
 
+    defaults = {'work_dir':'.',
+                'skipSdrUnpack':False,
+                'skipAuxLinking':False,
+                'skipAncillary':False,
+                'skipAlgorithm':False,
+                'cspp_debug':False,
+                'noAlgChain':False,
+                'noDummyGranules':False,
+                'processors':1,
+                'sdr_Endianness':'little',
+                'anc_Endianness':'little',
+                'compress':False,
+                'aggregate':False
+                }
+
     description = '''Run one or more ADL VIIRS EDR Controllers.'''
     usage = "usage: %prog [mandatory args] [options]"
-    version = "%prog "+__version__
+    version = __version__
 
-    parser = optparse.OptionParser(description=description,usage=usage,version=version)
+    parser = argparse.ArgumentParser()
 
     # Mandatory arguments
 
-    mandatoryGroup = optparse.OptionGroup(parser, "Mandatory Arguments",
-                        "At a minimum these arguments must be specified")
-
-    mandatoryGroup.add_option('-i','--input_files',
+    parser.add_argument('-i','--input_files',
                       action="store",
                       dest="inputFiles",
-                      type="string",
-                      help="The fully qualified path to the input files. May be a directory or a file glob.")
+                      type=str,
+                      required=True,
+                      help="The fully qualified path to the input files. May be a directory or a file glob."
+                      )
 
-    mandatoryGroup.add_option('--alg',
+    parser.add_argument('--alg',
                       action="store",
                       dest="algorithm",
-                      type="choice",
-                      #default='little',
+                      type=str,
+                      required=True,
                       choices=algorithmChoices,
                       help='''The VIIRS algorithm to run.\n\n
                               Possible values are...
-                              %s.
-                           ''' % (algorithmChoices.__str__()[1:-1]))
-
-    parser.add_option_group(mandatoryGroup)
+                              {}.
+                           '''.format(algorithmChoices.__str__()[1:-1])
+                      )
 
     # Optional arguments 
 
-    optionalGroup = optparse.OptionGroup(parser, "Extra Options",
-                         "These options may be used to customize behaviour of this program.")
-
-    optionalGroup.add_option('-w','--work_directory',
+    parser.add_argument('-w','--work_directory',
                       action="store",
                       dest="work_dir",
-                      type="string",
-                      default='.',
-                      help="The directory which all activity will occur in, defaults to the current directory.")
+                      type=str,
+                      default=defaults['work_dir'],
+                      help="The directory which all activity will occur in, defaults to the current directory. [default: {}]".format(defaults['work_dir'])
+                      )
     
-    optionalGroup.add_option('--skip_sdr_unpack',
+    parser.add_argument('--skip_sdr_unpack',
                       action="store_true",
                       dest="skipSdrUnpack",
-                      help="Skip the unpacking of the VIIRS SDR HDF5 files.")
+                      default=defaults['skipSdrUnpack'],
+                      help="Skip the unpacking of the VIIRS SDR HDF5 files. [default: {}]".format(defaults['skipSdrUnpack'])
+                      )
 
-    optionalGroup.add_option('--skip_aux_linking',
+    parser.add_argument('--skip_aux_linking',
                       action="store_true",
                       dest="skipAuxLinking",
-                      help="Skip the the linking to auxillary files.")
+                      default=defaults['skipAuxLinking'],
+                      help="Skip the the linking to auxillary files. [default: {}]".format(defaults['skipAuxLinking'])
+                      )
 
-    optionalGroup.add_option('--skip_ancillary',
+    parser.add_argument('--skip_ancillary',
                       action="store_true",
                       dest="skipAncillary",
-                      help="Skip the retrieval and granulation of ancillary data.")
+                      default=defaults['skipAncillary'],
+                      help="Skip the retrieval and granulation of ancillary data. [default: {}]".format(defaults['skipAncillary'])
+                      )
 
-    optionalGroup.add_option('--skip_algorithm',
+    parser.add_argument('--skip_algorithm',
                       action="store_true",
                       dest="skipAlgorithm",
-                      help="Skip running the VIIRS EDR algorithm(s).")
+                      default=defaults['skipAlgorithm'],
+                      help="Skip running the VIIRS EDR algorithm(s). [default: {}]".format(defaults['skipAlgorithm'])
+                      )
 
-    optionalGroup.add_option('--debug',
+    parser.add_argument('--debug',
                       action="store_true",
                       dest="cspp_debug",
-                      default=False,
-                      help="Enable debug mode on ADL and avoid cleaning workspace")
+                      default=defaults['cspp_debug'],
+                      help="Enable debug mode on ADL and avoid cleaning workspace. [default: {}]".format(defaults['cspp_debug'])
+                      )
 
-    optionalGroup.add_option('--no_chain',
+    parser.add_argument('--no_chain',
                       action="store_true",
                       dest="noAlgChain",
-                      default=False,
-                      help="Do not run prerequisite algorithms.")
+                      default=defaults['noAlgChain'],
+                      help="Do not run prerequisite algorithms. [default: {}]".format(defaults['noAlgChain'])
+                      )
 
-    optionalGroup.add_option('--no_dummy_granules',
+    parser.add_argument('--no_dummy_granules',
                       action="store_true",
                       dest="noDummyGranules",
-                      default=False,
-                      help="Do not generate dummy SDR or ancillary cross granules.")
+                      default=defaults['noDummyGranules'],
+                      help="Do not generate dummy SDR or ancillary cross granules. [default: {}]".format(defaults['noDummyGranules'])
+                      )
 
-    optionalGroup.add_option('-p','--processors',
+    parser.add_argument('-p','--processors',
                       action="store",
                       dest="processors",
-                      default=1,
-                      type="int",
-                      help="Number of cpus to use for granule processing.")
+                      default=defaults['processors'],
+                      type=int,
+                      help="Number of cpus to use for granule processing. [default: {}]".format(defaults['processors'])
+                      )
 
-    optionalGroup.add_option('--sdr_endianness',
+    parser.add_argument('--sdr_endianness',
                       action="store",
                       dest="sdr_Endianness",
-                      type="choice",
-                      default='little',
+                      type=str,
+                      default=defaults['sdr_Endianness'],
                       choices=endianChoices,
                       help='''The input VIIRS SDR endianness.\n\n
                               Possible values are...
-                              %s. [default: 'little']
-                           ''' % (endianChoices.__str__()[1:-1]))
+                              {}. [default: '{}']
+                           '''.format(endianChoices.__str__()[1:-1],defaults['sdr_Endianness'])
+                      )
     
-    optionalGroup.add_option('--anc_endianness',
+    parser.add_argument('--anc_endianness',
                       action="store",
                       dest="anc_Endianness",
-                      type="choice",
-                      default='little',
+                      type=str,
+                      default=defaults['anc_Endianness'],
                       choices=endianChoices,
                       help='''The input VIIRS ancillary endianness.\n\n
                               Possible values are...
-                              %s. [default: 'little']
-                           ''' % (endianChoices.__str__()[1:-1]))
+                              {}. [default: '{}']
+                           '''.format(endianChoices.__str__()[1:-1],defaults['anc_Endianness'])
+                      )
 
-    optionalGroup.add_option('-z', '--zip',
+    parser.add_argument('-z', '--zip',
                       action="store_true",
                       dest="compress",
-                      default=False,
-                      help="Enable product compression")
+                      default=defaults['compress'],
+                      help="Enable product compression. [default: {}]".format(defaults['compress'])
+                      )
 
-    optionalGroup.add_option('-a', '--aggregate',
+    parser.add_argument('-a', '--aggregate',
                       action="store_true",
                       dest="aggregate",
-                      default=False,
-                      help="Enable product nagg aggregation")
+                      default=defaults['aggregate'],
+                      help="Enable product nagg aggregation. [default: {}]".format(defaults['aggregate'])
+                      )
 
-    optionalGroup.add_option('-v', '--verbose',
+    parser.add_argument('-v', '--verbose',
                       dest='verbosity',
                       action="count",
                       default=0,
-                      help='each occurrence increases verbosity 1 level from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG')
+                      help='each occurrence increases verbosity 1 level from INFO: -v=DEBUG'
+                      )
 
 
-    parser.add_option_group(optionalGroup)
+    args = parser.parse_args()
 
-    # Parse the arguments from the command line
-    (options, args) = parser.parse_args()
-
-    # Check that all of the mandatory options are given. If one or more 
-    # are missing, print error message and exit...
-    mandatories = ['inputFiles','algorithm']
-    mand_errors = ["Missing mandatory argument [-i input_files --input_files=input_files]",
-                   "Missing mandatory argument [--alg=%r ]"%(algorithmChoices)]
-    isMissingMand = False
-    for m,m_err in zip(mandatories,mand_errors):
-        if not options.__dict__[m]:
-            isMissingMand = True
-            parser.error(m_err)
-    if isMissingMand :
-        parser.error("Incomplete mandatory arguments, aborting...")
 
     # Set the work directory
-    work_dir = check_and_convert_path("WORK_DIR",options.work_dir)
+    work_dir = check_and_convert_path("WORK_DIR",args.work_dir)
     LOG.debug('Setting the work directory to %r' % (work_dir))
 
     # Set up the logging
@@ -1399,11 +1428,8 @@ def main():
     logfile= path.join(work_dir, logname )
 
     levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
-    level = levels[min(options.verbosity,3)]
+    level = levels[min(args.verbosity,3)]
     configure_logging(level,FILE=logfile)
-
-    # Check the environment variables, and whether we can write to the working directory
-#    check_env(work_dir)
     
     # create work directory
     if not path.isdir(work_dir):
@@ -1413,6 +1439,15 @@ def main():
     if not path.isdir(log_dir):
         LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
+
+    return args,work_dir
+
+
+
+def main():
+
+    #options,work_dir = _optparse()
+    options,work_dir = _argparse()
 
     # Determine the ordered list of algs to satisfy the required 
     # algorithm's dependencies.
