@@ -120,7 +120,6 @@ class SkinTemp() :
         '''
         # Set some environment variables and paths
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    
         ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
         # Collect some data from the geolocation dictionary
@@ -132,7 +131,7 @@ class SkinTemp() :
         geoFiles = glob('%s/%s*' % (self.inDir,URID))
         geoFiles.sort()
 
-        LOG.debug("\n###########################")
+        LOG.debug("###########################")
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
@@ -140,7 +139,7 @@ class SkinTemp() :
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoFiles : %r" % (geoFiles))
-        LOG.debug("###########################\n")
+        LOG.debug("###########################")
 
         timeDelta = (self.date_1 - self.date_0).total_seconds()
         LOG.debug("timeDelta is %r seconds" %(timeDelta))
@@ -159,7 +158,7 @@ class SkinTemp() :
         LOG.debug("average(gridData_0) = %f" %(np.average(self.gridData_0)))
         LOG.debug("average(gridData_1) = %f" %(np.average(self.gridData_1)))
         LOG.debug("average(gridData) = %f" %(np.average(self.gridData)))
-        
+
         # Do we have terrain corrected geolocation?
         terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
 
@@ -171,7 +170,7 @@ class SkinTemp() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -267,6 +266,8 @@ class SkinTemp() :
         self.lonMax    = lonMax
         self.lonRange  = lonRange
         self.scanMode  = scanMode
+        self.latitude  = latitude
+        self.longitude = longitude        
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -279,7 +280,6 @@ class SkinTemp() :
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
@@ -371,8 +371,8 @@ class SkinTemp() :
             gridData = np.roll(gridData,360)
             gridLon,gridLat = np.meshgrid(lons,lats)
 
-            LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
         else :
 
@@ -384,12 +384,11 @@ class SkinTemp() :
             longitudeNegIdx = np.where(longitude < 0.)
             longitude[longitudeNegIdx] += 360.
 
-            LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
-
-        LOG.info("min of gridData  = %r"%(np.min(gridData)))
-        LOG.info("max of gridData  = %r"%(np.max(gridData)))
+        LOG.debug("min of gridData  = %r"%(np.min(gridData)))
+        LOG.debug("max of gridData  = %r"%(np.max(gridData)))
 
         t1 = time()
         data,dataIdx = self._grid2Gran_bilinearInterp(np.ravel(latitude),
@@ -404,8 +403,8 @@ class SkinTemp() :
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
 
-        LOG.info("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
-        LOG.info("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
+        LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
+        LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.

@@ -131,7 +131,7 @@ class SpecSurfHumidity() :
         geoFiles = glob('%s/%s*' % (self.inDir,URID))
         geoFiles.sort()
 
-        LOG.debug("\n###########################")
+        LOG.debug("###########################")
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
@@ -139,7 +139,7 @@ class SpecSurfHumidity() :
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoFiles : %r" % (geoFiles))
-        LOG.debug("###########################\n")
+        LOG.debug("###########################")
 
         timeDelta = (self.date_1 - self.date_0).total_seconds()
         LOG.debug("timeDelta is %r seconds" %(timeDelta))
@@ -170,7 +170,7 @@ class SpecSurfHumidity() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -266,6 +266,8 @@ class SpecSurfHumidity() :
         self.lonMax    = lonMax
         self.lonRange  = lonRange
         self.scanMode  = scanMode
+        self.latitude  = latitude
+        self.longitude = longitude        
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -278,7 +280,6 @@ class SpecSurfHumidity() :
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
@@ -386,7 +387,6 @@ class SpecSurfHumidity() :
             LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
             LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
-
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))
         LOG.debug("max of gridData  = %r"%(np.max(gridData)))
 
@@ -423,6 +423,3 @@ class SpecSurfHumidity() :
             a blob/asc file pair from the input ancillary data object.'''
 
         return shipOutToFile(self)
-
-
-

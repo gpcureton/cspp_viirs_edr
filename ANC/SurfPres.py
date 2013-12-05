@@ -59,6 +59,7 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile, plotArr
 
+
 class SurfPres() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
@@ -138,8 +139,8 @@ class SurfPres() :
         geo_Collection_ShortName = dicts['N_Collection_Short_Name']
         N_Granule_ID = dicts['N_Granule_ID']
         ObservedStartTimeObj = dicts['ObservedStartTime']
-        geoAscFileName = dicts['_filename']
-        geoBlobFileName = string.replace(geoAscFileName,'asc',geo_Collection_ShortName)
+        geoFiles = glob('%s/%s*' % (self.inDir,URID))
+        geoFiles.sort()
 
         LOG.debug("###########################")
         LOG.debug("  Geolocation Information  ")
@@ -148,8 +149,7 @@ class SurfPres() :
         LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
-        LOG.debug("geoAscFileName : %r" % (geoAscFileName))
-        LOG.debug("geoBlobFileName : %r" % (geoBlobFileName))
+        LOG.debug("geoFiles : %r" % (geoFiles))
         LOG.debug("###########################")
 
         timeDelta = (self.date_1 - self.date_0).total_seconds()
@@ -181,7 +181,7 @@ class SurfPres() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -189,20 +189,20 @@ class SurfPres() :
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
         if path.exists(geoXmlFile):
-            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
 
         # Open the geolocation blob and get the latitude and longitude
 
         endian = self.sdrEndian
-        LOG.debug("SDR Endianness is %s" %(endian))
 
-        geoBlobObj = adl_blob.map(geoXmlFile,geoBlobFileName, endian=endian)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
         geoBlobArrObj = geoBlobObj.as_arrays()
 
         # Get scan_mode to find any bad scans
 
-        scanMode = getattr(geoBlobArrObj,'scan_mode').astype('uint8')
-        LOG.debug("Scan Mode = %r" % (scanMode))
+        scanMode = geoBlobArrObj.scan_mode[:]
+        badScanIdx = np.where(scanMode==254)[0]
+        LOG.debug("Bad Scans: %r" % (badScanIdx))
 
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.
@@ -233,13 +233,12 @@ class SurfPres() :
 
         # Check if the geolocation is in radians, convert to degrees
         if 'RGEO' in geo_Collection_ShortName :
-            LOG.info("Geolocation is in radians, convert to degrees...")
+            LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
             latMin,latMax = np.min(latitude),np.max(latitude)
             latRange = latMax-latMin
-
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
@@ -250,11 +249,11 @@ class SurfPres() :
 
         geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][latitude.dtype.name]
         latitude = ma.array(latitude,mask=latMask,fill_value=geoFillValue)
-        latitude = latitude.filled()
+        self.latitude = latitude.filled()
 
         geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][longitude.dtype.name]
         longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
-        longitude = longitude.filled()
+        self.longitude = longitude.filled()
 
         # Record the corners, taking care to exclude any bad scans...
         nDetectors = 16
@@ -287,15 +286,13 @@ class SurfPres() :
         # Parse the geolocation asc file to get struct information which will be 
         # written to the ancillary asc files
 
-        LOG.debug("geolocation asc filename : %s"%(geoAscFileName))
-
+        geoAscFileName = path.join(self.inDir,URID+".asc")
         LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
         self.GRingLongitudeStr = getAscStructs(geoAscFile,"GRingLongitude",12)
 
@@ -432,8 +429,8 @@ class SurfPres() :
             gridData = np.roll(gridData,360)
             gridLon,gridLat = np.meshgrid(lons,lats)
 
-            LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
         else :
 
@@ -445,8 +442,8 @@ class SurfPres() :
             longitudeNegIdx = np.where(longitude < 0.)
             longitude[longitudeNegIdx] += 360.
 
-            LOG.info("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))
         LOG.debug("max of gridData  = %r"%(np.max(gridData)))

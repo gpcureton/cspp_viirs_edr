@@ -112,7 +112,7 @@ class PrecipWater() :
 
         self.gridData_0 = getattr(ncepBlobFile_0,self.blobDatasetName).astype(self.dataType)
         self.gridData_1 = getattr(ncepBlobFile_1,self.blobDatasetName).astype(self.dataType)
-        
+
 
     def setGeolocationInfo(self,dicts):
         '''
@@ -120,7 +120,6 @@ class PrecipWater() :
         '''
         # Set some environment variables and paths
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    
         ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
         # Collect some data from the geolocation dictionary
@@ -171,7 +170,7 @@ class PrecipWater() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -267,6 +266,8 @@ class PrecipWater() :
         self.lonMax    = lonMax
         self.lonRange  = lonRange
         self.scanMode  = scanMode
+        self.latitude  = latitude
+        self.longitude = longitude
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -279,7 +280,6 @@ class PrecipWater() :
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
@@ -386,7 +386,6 @@ class PrecipWater() :
 
             LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
             LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
-
 
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))
         LOG.debug("max of gridData  = %r"%(np.max(gridData)))

@@ -45,8 +45,9 @@ import ViirsData
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
 import adl_asc
-from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
-from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains
+from adl_asc import _eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
+from adl_common import ADL_HOME, CSPP_RT_HOME
 
 # every module should have a LOG object
 try :
@@ -57,6 +58,7 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
+
 
 class QstLwm() :
 
@@ -150,26 +152,23 @@ class QstLwm() :
         geo_Collection_ShortName = dicts['N_Collection_Short_Name']
         N_Granule_ID = dicts['N_Granule_ID']
         ObservedStartTimeObj = dicts['ObservedStartTime']
-        geoAscFileName = dicts['_filename']
-        geoBlobFileName = string.replace(geoAscFileName,'asc',geo_Collection_ShortName)
+        geoFiles = glob('%s/%s*' % (self.inDir,URID))
+        geoFiles.sort()
 
-        LOG.debug("\n###########################")
+        LOG.debug("###########################")
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
         LOG.debug("ObservedStartTime : %s" % (ObservedStartTimeObj.__str__()))
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
-        LOG.debug("geoAscFileName : %r" % (geoAscFileName))
-        LOG.debug("geoBlobFileName : %r" % (geoBlobFileName))
-        LOG.debug("###########################\n")
+        LOG.debug("geoFiles : %r" % (geoFiles))
+        LOG.debug("###########################")
 
         # Do we have terrain corrected geolocation?
-
         terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
 
         # Do we have long or short style geolocation field names?
-
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
             LOG.debug("We have long form geolocation names")
@@ -177,7 +176,7 @@ class QstLwm() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -185,19 +184,21 @@ class QstLwm() :
         geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
         if path.exists(geoXmlFile):
-            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoBlobFileName))
+            LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,geoXmlFile,geoFiles[0]))
 
         # Open the geolocation blob and get the latitude and longitude
 
         endian = self.sdrEndian
 
-        geoBlobObj = adl_blob.map(geoXmlFile,geoBlobFileName, endian=endian)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
         geoBlobArrObj = geoBlobObj.as_arrays()
 
         # Get scan_mode to find any bad scans
 
-        scanMode = getattr(geoBlobArrObj,'scan_mode').astype('uint8')
-        LOG.debug("Scan Mode = %r" % (scanMode))
+        scanMode = geoBlobArrObj.scan_mode[:]
+        badScanIdx = np.where(scanMode==254)[0]
+        LOG.debug("Bad Scans: %r" % (badScanIdx))
+
 
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.
@@ -228,28 +229,27 @@ class QstLwm() :
 
         # Check if the geolocation is in radians, convert to degrees
         if 'RGEO' in geo_Collection_ShortName :
-            LOG.info("Geolocation is in radians, convert to degrees...")
+            LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
             latMin,latMax = np.min(latitude),np.max(latitude)
             latRange = latMax-latMin
-
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of latitude: %f %f %f" % (latMin,latMax,latRange))
             LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
 
         geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][latitude.dtype.name]
         latitude = ma.array(latitude,mask=latMask,fill_value=geoFillValue)
-        latitude = latitude.filled()
+        self.latitude = latitude.filled()
 
         geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][longitude.dtype.name]
         longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
-        longitude = longitude.filled()
+        self.longitude = longitude.filled()
 
         # Shift the longitudes to be between -180 and 180 degrees
         if lonMax > 180. :
@@ -275,7 +275,7 @@ class QstLwm() :
         # Check for dateline/pole crossings
         num180Crossings = findDatelineCrossings(latCrnList,lonCrnList)
         LOG.debug("We have %d dateline crossings."%(num180Crossings))
-        
+
         # Copy the geolocation information to the class object
         self.latMin    = latMin
         self.latMax    = latMax
@@ -293,15 +293,15 @@ class QstLwm() :
         # Parse the geolocation asc file to get struct information which will be 
         # written to the ancillary asc files
 
-        LOG.debug("geolocation asc filename : %s"%(geoAscFileName))
-
+        geoAscFileName = path.join(self.inDir,URID+".asc")
         LOG.debug("\nOpening %s..." % (geoAscFileName))
 
         geoAscFile = open(geoAscFileName,'rt')
 
+        self.ObservedDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
+        #self.RangeDateTimeStr =  self.ObservedDateTimeStr
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
         self.GRingLongitudeStr = getAscStructs(geoAscFile,"GRingLongitude",12)
 

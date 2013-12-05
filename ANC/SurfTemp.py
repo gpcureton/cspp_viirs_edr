@@ -120,7 +120,6 @@ class SurfTemp() :
         '''
         # Set some environment variables and paths
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
-    
         ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
         # Collect some data from the geolocation dictionary
@@ -159,7 +158,7 @@ class SurfTemp() :
         LOG.debug("average(gridData_0) = %f" %(np.average(self.gridData_0)))
         LOG.debug("average(gridData_1) = %f" %(np.average(self.gridData_1)))
         LOG.debug("average(gridData) = %f" %(np.average(self.gridData)))
-        
+
         # Do we have terrain corrected geolocation?
         terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
 
@@ -171,7 +170,7 @@ class SurfTemp() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -223,7 +222,7 @@ class SurfTemp() :
 
         # Check if the geolocation is in radians, convert to degrees
         if 'RGEO' in geo_Collection_ShortName :
-            LOG.warning("Geolocation is in radians, convert to degrees...")
+            LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
@@ -232,7 +231,7 @@ class SurfTemp() :
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of latitude: %f %f %f" % (latMin,latMax,latRange))
             LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
@@ -267,6 +266,8 @@ class SurfTemp() :
         self.lonMax    = lonMax
         self.lonRange  = lonRange
         self.scanMode  = scanMode
+        self.latitude  = latitude
+        self.longitude = longitude        
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -279,7 +280,6 @@ class SurfTemp() :
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
@@ -386,7 +386,6 @@ class SurfTemp() :
 
             LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
             LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
-
 
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))
         LOG.debug("max of gridData  = %r"%(np.max(gridData)))

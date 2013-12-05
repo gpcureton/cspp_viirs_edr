@@ -59,6 +59,7 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 
+
 class WindDirection() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
@@ -90,7 +91,6 @@ class WindDirection() :
         '''
         Ingest the ancillary dataset.
         '''
-
         dates = []
         ncepBlobFiles = []
         for gridBlobStruct in ancBlob:
@@ -136,7 +136,7 @@ class WindDirection() :
         geoFiles = glob('%s/%s*' % (self.inDir,URID))
         geoFiles.sort()
 
-        LOG.debug("\n###########################")
+        LOG.debug("###########################")
         LOG.debug("  Geolocation Information  ")
         LOG.debug("###########################")
         LOG.debug("N_Granule_ID : %r" % (N_Granule_ID))
@@ -144,7 +144,7 @@ class WindDirection() :
         LOG.debug("N_Collection_Short_Name : %s" %(geo_Collection_ShortName))
         LOG.debug("URID : %r" % (URID))
         LOG.debug("geoFiles : %r" % (geoFiles))
-        LOG.debug("###########################\n")
+        LOG.debug("###########################")
 
         timeDelta = (self.date_1 - self.date_0).total_seconds()
         LOG.debug("timeDelta is %r seconds" %(timeDelta))
@@ -184,7 +184,7 @@ class WindDirection() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -236,7 +236,7 @@ class WindDirection() :
 
         # Check if the geolocation is in radians, convert to degrees
         if 'RGEO' in geo_Collection_ShortName :
-            LOG.warning("Geolocation is in radians, convert to degrees...")
+            LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
@@ -245,7 +245,7 @@ class WindDirection() :
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of latitude: %f %f %f" % (latMin,latMax,latRange))
             LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
@@ -280,6 +280,8 @@ class WindDirection() :
         self.lonMax    = lonMax
         self.lonRange  = lonRange
         self.scanMode  = scanMode
+        self.latitude  = latitude
+        self.longitude = longitude        
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -292,7 +294,6 @@ class WindDirection() :
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)

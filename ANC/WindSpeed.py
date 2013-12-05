@@ -59,6 +59,7 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 
+
 class WindSpeed() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
@@ -90,7 +91,6 @@ class WindSpeed() :
         '''
         Ingest the ancillary dataset.
         '''
-
         dates = []
         ncepBlobFiles = []
         for gridBlobStruct in ancBlob:
@@ -184,7 +184,7 @@ class WindSpeed() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -236,7 +236,7 @@ class WindSpeed() :
 
         # Check if the geolocation is in radians, convert to degrees
         if 'RGEO' in geo_Collection_ShortName :
-            LOG.warning("Geolocation is in radians, convert to degrees...")
+            LOG.debug("Geolocation is in radians, convert to degrees...")
             latitude = np.degrees(latitude)
             longitude = np.degrees(longitude)
         
@@ -245,7 +245,7 @@ class WindSpeed() :
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of latitude: %f %f %f" % (latMin,latMax,latRange))
             LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
@@ -280,6 +280,8 @@ class WindSpeed() :
         self.lonMax    = lonMax
         self.lonRange  = lonRange
         self.scanMode  = scanMode
+        self.latitude  = latitude
+        self.longitude = longitude        
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -292,7 +294,6 @@ class WindSpeed() :
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)

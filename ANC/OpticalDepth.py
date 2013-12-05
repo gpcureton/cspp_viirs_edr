@@ -59,6 +59,7 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 
+
 class OpticalDepth() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
@@ -172,11 +173,9 @@ class OpticalDepth() :
         LOG.debug("average(gridData) = %f" %(np.average(self.gridData)))
 
         # Do we have terrain corrected geolocation?
-
         terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
 
         # Do we have long or short style geolocation field names?
-
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
             LOG.debug("We have long form geolocation names")
@@ -184,7 +183,7 @@ class OpticalDepth() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s",geo_Collection_ShortName)
+            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
@@ -280,6 +279,8 @@ class OpticalDepth() :
         self.lonMax    = lonMax
         self.lonRange  = lonRange
         self.scanMode  = scanMode
+        self.latitude  = latitude
+        self.longitude = longitude        
         self.latCrnList  = latCrnList
         self.lonCrnList  = lonCrnList
         self.num180Crossings  = num180Crossings
@@ -292,7 +293,6 @@ class OpticalDepth() :
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
         self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
         self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
         self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
@@ -385,8 +385,8 @@ class OpticalDepth() :
             gridData = np.roll(gridData,360)
             gridLon,gridLat = np.meshgrid(lons,lats)
 
-            LOG.info("start,end NAAPS Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end NAAPS Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
         else :
 
@@ -398,8 +398,8 @@ class OpticalDepth() :
             longitudeNegIdx = np.where(longitude < 0.)
             longitude[longitudeNegIdx] += 360.
 
-            LOG.info("start,end NAAPS Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.info("start,end NAAPS Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end NAAPS Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end NAAPS Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
 
 
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))

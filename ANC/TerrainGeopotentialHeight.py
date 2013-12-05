@@ -121,7 +121,6 @@ class TerrainGeopotentialHeight() :
         '''
         Populate this class instance with the geolocation data for a single granule
         '''
-
         # Set some environment variables and paths
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
         ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
@@ -146,11 +145,9 @@ class TerrainGeopotentialHeight() :
         LOG.debug("###########################")
 
         # Do we have terrain corrected geolocation?
-
         terrainCorrectedGeo = True if 'GEO-TC' in geo_Collection_ShortName else False
 
         # Do we have long or short style geolocation field names?
-
         if (geo_Collection_ShortName=='VIIRS-MOD-GEO-TC' or geo_Collection_ShortName=='VIIRS-MOD-RGEO') :
             longFormGeoNames = True
             LOG.debug("We have long form geolocation names")
@@ -176,7 +173,6 @@ class TerrainGeopotentialHeight() :
         geoBlobArrObj = geoBlobObj.as_arrays()
 
         # If we have the terrain corrected geolocation, get the terrain height
-
         if terrainCorrectedGeo :
             self.ingest(geoBlobArrObj)
 
@@ -224,7 +220,7 @@ class TerrainGeopotentialHeight() :
             lonMin,lonMax = np.min(longitude),np.max(longitude)
             lonRange = lonMax-lonMin
 
-            LOG.debug("New min,max,range of latitide: %f %f %f" % (latMin,latMax,latRange))
+            LOG.debug("New min,max,range of latitude: %f %f %f" % (latMin,latMax,latRange))
             LOG.debug("New min,max,range of longitude: %f %f %f" % (lonMin,lonMax,lonRange))
 
         # Restore fill values to masked pixels in geolocation
@@ -245,10 +241,9 @@ class TerrainGeopotentialHeight() :
 
         geoAscFile = open(geoAscFileName,'rt')
 
-        #RangeDateTimeStr =  _getAscLine(geoAscFile,"RangeDateTime")
-        self.RangeDateTimeStr  =  getAscLine(geoAscFile,"ObservedDateTime")
-        self.RangeDateTimeStr  =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
-        self.GRingLatitudeStr  =  getAscStructs(geoAscFile,"GRingLatitude",12)
+        self.RangeDateTimeStr =  getAscLine(geoAscFile,"ObservedDateTime")
+        self.RangeDateTimeStr =  string.replace(self.RangeDateTimeStr,"ObservedDateTime","RangeDateTime")
+        self.GRingLatitudeStr =  getAscStructs(geoAscFile,"GRingLatitude",12)
         self.GRingLongitudeStr = getAscStructs(geoAscFile,"GRingLongitude",12)
 
         geoAscFile.close()
