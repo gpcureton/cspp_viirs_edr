@@ -114,7 +114,7 @@ import Algorithms
 MINIMUM_SDR_BLOB_SIZE = 81000000
 
 # maximum delay between granule end time and next granule start time to consider them contiguous
-MAX_CONTIGUOUS_DELTA=timedelta(seconds = 2)
+MAX_CONTIGUOUS_DELTA=timedelta(seconds = 5)
 
 
 
@@ -1451,6 +1451,8 @@ def main():
 
     #options,work_dir = _optparse()
     options,work_dir,log_dir = _argparse()
+
+    LOG.info("Starting CSPP VIIRS EDR...")
 
     # Determine the ordered list of algs to satisfy the required 
     # algorithm's dependencies.
