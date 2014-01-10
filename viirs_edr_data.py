@@ -441,7 +441,8 @@ class AerosolProdData:
                                 )
     
     ViirsAeroQualvalues = ((  (0,1,2,3), (0,1,2,3), (0,1,2,3), (0,1,2,3)                ),      # Byte 0
-                           (  (0,1,2,3), (0,1,2,3), (0,1,2,3,4,5,6), (0,1)              ),      # Byte 1
+                           #(  (0,1,2,3), (0,1,2,3), (0,1,2,3,4,5,6), (0,1)              ),      # Byte 1
+                           (  (0,1,2,3), (0,1,2,3), (0,1,2,3,4,5), (0,1)              ),      # Byte 1
                            (  (0,1,2,3), (0,1,2,3), (0,1,2,3,4,5,6,7)                   ),      # Byte 2
                            (  (0,1), (0,1), (0,1), (0,1), (0,1,2), (0,1), (0,1)         ),      # Byte 3
                            (  (0,1), (0,1), (0,1), (0,1), (0,1)                         )       # Byte 4
@@ -449,7 +450,8 @@ class AerosolProdData:
 
     ViirsAeroQualFillBoundaries = [
                                    [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5]   ], # Byte 0
-                                   [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5], [-0.5, 0.5, 1.5] ], # Byte 1
+                                   #[ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5], [-0.5, 0.5, 1.5] ], # Byte 1
+                                   [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5], [-0.5, 0.5, 1.5] ], # Byte 1
                                    [ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5]  ], # Byte 2
                                    [ [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5, 2.5], [-0.5, 0.5, 1.5], [-0.5, 0.5, 1.5] ], # Byte 3
                                    [ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]   ] # Byte 4
@@ -457,7 +459,8 @@ class AerosolProdData:
 
     ViirsAeroQualFillColours = [
                                    [ ['#00ff00','b','r','k'],['#00ff00','b','r','k'],['#00ff00','b','r','k'],['r','b','#00ff00','w'] ], # Byte 0
-                                   [ ['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['brown','green','cyan','blue','w','yellow','r'], ['k','g'] ], # Byte 1
+                                   #[ ['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['brown','green','cyan','blue','w','yellow','r'], ['k','g'] ], # Byte 1
+                                   [ ['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['brown','green','cyan','blue','w','yellow'], ['k','g'] ], # Byte 1
                                    [ ['yellow','orange','brown','k'],['w','#000080','#0012ff','#00a4ff'],['#000080','#0012ff','#00a4ff','#b6ff41','#ffb900','#ff3200','#800000','yellow'] ], # Byte 2
                                    [ ['k','g'], ['k','g'], ['k','g'], ['k','g'], ['brown','green','yellow'], ['k','g'], ['k','g'] ], # Byte 3
                                    [ ['k','g'], ['k','g'], ['k','g'], ['k','g']   ] # Byte 4
@@ -466,8 +469,9 @@ class AerosolProdData:
     # The tick labels of the colourbar categories
     ViirsAeroQualTickNames = [
                               [ ['High Quality','Degraded Quality','Excluded Quality','Not Produced'],['High Quality','Degraded Quality','Excluded Quality','Not Produced'],['High Quality','Degraded Quality','Excluded Quality','Not Produced'],['Poor','Low','Medium','High'] ],      # Byte 0
-                              [ ['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Land & Desert','Land, No Desert','Inland Water','Sea Water','None','Coastal','Ephemeral Water'], ['No','Yes'] ],      # Byte 1
-                              [ ['Day','Low Sun, Degraded','Twilight, Excluded','Night'],['None','Interpolation only','Interpolation & Climatology/NAAPS','Climatology/NAAPS'],['None','Geometry Based','Wind Speed Based','Geometry & Wind','Internal','Internal & Geometry','Internal & Wind','All'] ],      # Byte 2
+                              #[ ['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Land/Desert','Land','Inland Water','Sea Water','None','Coastal','Ephemeral Water'], ['No','Yes'] ],      # Byte 1
+                              [ ['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Land/Desert','Land','Inland Water','Sea Water','None','Coastal'], ['No','Yes'] ],      # Byte 1
+                              [ ['Day','Low Sun, Degraded','Twilight, Excluded','Night'],['None','Interpolation only','Interpolation \n& Climatology/NAAPS','Climatology/NAAPS'],['None','Geometry \nBased','Wind Speed \nBased','Geometry \n& Wind','Internal','Internal \n& Geometry','Internal \n& Wind','All'] ],      # Byte 2
                               [ ['No','Yes'], ['No','Yes'], ['No','Yes'], ['No','Yes'],[ 'Dark','Soil Dominated','Bright'], ['No','Yes'], ['No','Yes'] ],      # Byte 3
                               [ ['No','Yes'], ['No','Yes'], ['No','Yes'], ['No','Yes'] ]       # Byte 4
                              ]
@@ -632,4 +636,104 @@ class SeaSurfaceTempProdData:
             #cmap = cm.jet,
         ),
     }
+
+#class VegetationIndexProdData:
+    #"""
+    #This class contains static data for the VIIRS VI Products.
+    #"""
+
+    #ViirsVIqualBitMasks = ((3, 12,  48, 64 , 128        ),
+                            #(1, 2, 12, 48, 64, 128       ),
+                            #(1, 2, 4, 8, 16, 32, 64, 128 ),
+                            #(1, 2, 4, 8, 16, 32, 64, 128 ))
+
+    #ViirsVIqualBitShift = ((0, 2, 4, 6, 7         ),
+                            #(0, 1, 2, 4, 6, 7      ),
+                            #(0, 1, 2, 3, 4, 5, 6, 7),
+                            #(0, 1, 2, 3, 4, 5, 6, 7))
+
+    #ViirsVIqualBitMaskNames = (('Skin SST Quality','Bulk SST Quality','SST State','Algorithm','Day / Night'),
+                                 #('Bad LWIR Pixel','Bad SWIR Pixel','Cloud Confidence','Adjacent Pixel Cloud Confident Value','Thin Cirrus','Sea Ice'),
+                                 #('Sun Glint','Exclusion, AOT > 1','Degraded, AOT > 0.6','Exclusion, Not Ocean','Degraded, HCS limit','Degraded, Sensor Zenith Angle > 40','Skin SST Outside Range','Bulk SST Outside Range'),
+                                 #('Skin SST Degraded, T > 305 K','Bulk SST Degraded, T > 305 K','Spare','Spare','Spare','Spare','Spare','Spare'),
+                                #)
+    
+    #ViirsVIqualvalues = ( (  (0,1,2,3), (0,1,2,3), (0,1,2), (0,1), (0,1)             ),      # Byte 0
+                           #(  (0,1), (0,1), (0,1,2,3), (0,1,2,3), (0,1), (0,1)        ),      # Byte 1
+                           #(  (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1)  ),      # Byte 2
+                           #(  (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1), (0,1)  )       # Byte 3
+                          #)
+
+    #ViirsVIqualFillBoundaries = [
+                                   #[ [-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]                          ], # Byte 0
+                                   #[ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5, 2.5, 3.5],[-0.5, 0.5, 1.5, 2.5, 3.5], [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]             ], # Byte 1
+                                   #[ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]], # Byte 3
+                                   #[ [-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5],[-0.5, 0.5, 1.5]] # Byte 4
+                                 #]
+
+    #ViirsVIqualFillColours = [
+                                #[ ['k', 'r', 'b', '#00ff00'],['k', 'r', 'b', '#00ff00'],['brown','green','yellow'],['k','g'],['k','yellow']       ], # Byte 0
+                                #[ ['g','k'],['g','k'],['#00ff00','#00ffff','#ff0000','w'],['#00ff00','#00ffff','#ff0000','w'],['k','g'],['k','g'] ], # Byte 2
+                                #[ ['k','g'],['k','g'],['k','g'],['b','k'],['g','k'],['k','g'],['g','k'],['g','k']                                 ], # Byte 3
+                                #[ ['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g'],['k','g']                                 ] # Byte 4
+                              #]
+
+    ## The tick labels of the colourbar categories
+    #ViirsVIqualTickNames = [
+                              #[ ['Not retrieved','Excluded','Degraded','High Quality'],['Not retrieved','Excluded','Degraded','High Quality'],[' Dry / None','Moist','Average'],['Non-linear Split Window','Triple Window'],['Night','Day'] ],      # Byte 0
+                              #[ ['Good SDR','Bad SDR'],['Good SDR','Bad SDR'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['Confident Clear','Probably Clear','Probably Cloudy','Confident Cloudy'],['No Thin Cirrus','Thin Cirrus'],['No Sea Ice','Sea Ice'] ],      # Byte 1
+                              #[ ['No sun glint','Sun glint'],['No','Yes'],['No','Yes'],['Ocean','Not ocean'],['Within HCS limit','Past HCS limit'],['No','Yes'],['In range','Out of range'],['In range','Out of range'] ],      # Byte 3
+                              #[ ['Not degraded','Degraded'],['Not degraded','Degraded'],['',''],['',''],['',''],['',''],['',''],['',''] ]       # Byte 4
+                            #]
+                              
+
+
+    #class VegetationIndexProd:
+        #"""
+        #This class provides a data structure to hold the plot attributes
+        #for a particular aerosol product.
+        #"""
+        #def __init__(self,
+            #SDSname         = None,\
+            #SDSfactorsName  = None,\
+            #gridType        = None,\
+            #SDStitleString  = None,\
+            #vmin            = None,\
+            #vmax            = None,\
+            #cmap            = None,\
+            #cbarTickPos     = None,\
+            #cbarTickNames   = None,\
+            #cbarTitle       = None,\
+            #logScale        = False
+            #):
+            #self.SDSname         = SDSname        
+            #self.SDSfactorsName  = SDSfactorsName        
+            #self.gridType        = gridType       
+            #self.SDStitleString  = SDStitleString 
+            #self.vmin            = vmin           
+            #self.vmax            = vmax           
+            #self.cmap            = cmap           
+            #self.cbarTickPos     = cbarTickPos    
+            #self.cbarTickNames   = cbarTickNames  
+            #self.cbarTitle       = cbarTitle      
+            #self.logScale        = logScale
+
+    #SeaSurfaceTempProduct = {
+        #'bulk_sst': SeaSurfaceTempProd(
+            #SDSname = '/All_Data/VIIRS-VI-EDR_All/BulkSST',
+            #SDStitleString = "VIIRS Bulk Sea Surface Temperature",
+            #vmin = 273.,
+            #vmax = 300.,
+            #cbarTitle = "SST ($K$)",
+            ##cmap = cm.jet,
+        #),
+        #'skin_sst': SeaSurfaceTempProd(
+            #SDSname = '/All_Data/VIIRS-VI-EDR_All/SkinSST',
+            #SDStitleString = "VIIRS Skin Sea Surface Temperature",
+            #vmin = 273.,
+            #vmax = 300.,
+            #cbarTitle = "SST ($K$)",
+            ##cmap = cm.jet,
+        #),
+    #}
 

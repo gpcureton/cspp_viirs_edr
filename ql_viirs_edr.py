@@ -2910,6 +2910,7 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     #m.bluemarble()
 
     # Plot the granule data
+    cmap = cm.YlGn
     if scatterPlot:
         cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
     else:

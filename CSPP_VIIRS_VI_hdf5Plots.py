@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-CSPP_VIIRS_CM-IP_hdf5Plots.py
+CSPP_VIIRS_VI_hdf5Plots.py
 
-Purpose: Create swath projection quicklook PNGs from the VIIRS SST EDR HDF5 files.
+Purpose: Create swath projection quicklook PNGs from the VIIRS VI EDR HDF5 files.
          Images can be created for the EDR product or the associated quality flags.
 
 Minimum commandline...
 
 export CSPP_EDR_HOME=$(readlink -f /path/to/EDR)
-. ${CSPP_EDR_HOME}/cspp_edr_runtime.sh
+source $CSPP_EDR_HOME/cspp_edr_env.sh
 
-python CSPP_VIIRS_CM-IP_hdf5Plots.py -i '/path/to/files/IICMO*.h5'
+python CSPP_VIIRS_VI_hdf5Plots.py -i '/path/to/files/VIVIO*.h5'
 
   or
 
-python CSPP_VIIRS_CM-IP_hdf5Plots.py --input_files=/path/to/files/IICMO*.h5
+python CSPP_VIIRS_VI_hdf5Plots.py --input_files=/path/to/files/VIVIO*.h5
 
 
 Created by Geoff Cureton on 2013-06-04.
@@ -75,6 +75,8 @@ dpi=200
 ### bool arrays, and the trim pixels are set to True.
 trimObj = ViirsTrimTable()
 modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
+onboardTrimMask = trimObj.createOnboardImgTrimArray(nscans=48,trimType=bool)
+ongroundTrimMask = trimObj.createImgTrimArray(nscans=48,trimType=bool)
 
 
 def get_hdf5_dict(hdf5Path,filePrefix):
@@ -105,20 +107,20 @@ def get_hdf5_dict(hdf5Path,filePrefix):
 
             # Open the hdf5 file
             fileObj = pytables.openFile(files)
-            
+
             # Get a "pointer" to the granules attribute group.
-            VIIRS_CM_IP_Gran_0 = fileObj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
-            
+            VIIRS_VI_EDR_Gran_0 = fileObj.getNode('/Data_Products/VIIRS-VI-EDR/VIIRS-VI-EDR_Gran_0')
+
             # Retrieve a few attributes
-            granID =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Granule_ID')[0][0]
+            granID =  getattr(VIIRS_VI_EDR_Gran_0.attrs,'N_Granule_ID')[0][0]
             print 'N_Granule_ID = %s' % (granID)
-            
-            dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+
+            dayNightFlag =  getattr(VIIRS_VI_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
             print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-            
-            shortName = fileObj.getNodeAttr('/Data_Products/VIIRS-CM-IP','N_Collection_Short_Name')[0][0]
+
+            shortName = fileObj.getNodeAttr('/Data_Products/VIIRS-VI-EDR','N_Collection_Short_Name')[0][0]
             print 'N_Collection_Short_Name = %s' % (shortName)
-            
+
             # Strip the path from the filename
             hdf5File = path.basename(files)
 
@@ -130,36 +132,33 @@ def get_hdf5_dict(hdf5Path,filePrefix):
     return shortNameDict
 
 
-class VCMclass():
+class VIclass():
 
     def __init__(self,hdf5Dir):
 
         self.hdf5Dir = hdf5Dir
 
         self.collShortNames = [
-                               'VIIRS-CM-IP'
+                               'VIIRS-VI-EDR',
                               ]
 
         self.plotDescr = {}
-        self.plotDescr['VIIRS-CM-IP'] = ['Cloud Mask','Cloud Phase']
+        self.plotDescr['VIIRS-VI-EDR'] = ['Top of Atmosphere NDVI','Top of Canopy EVI']
 
         self.plotLims = {}
-        self.plotLims['VIIRS-CM-IP'] = [0, 3]
+        #self.plotLims['VIIRS-VI-EDR'] = [250., 290.]
+        self.plotLims['VIIRS-VI-EDR'] = [None,None]
 
         self.dataName = {}
-        self.dataName['VIIRS-CM-IP'] = ['/All_Data/VIIRS-CM-IP_All/QF1_VIIRSCMIP', \
-                                        '/All_Data/VIIRS-CM-IP_All/QF6_VIIRSCMIP']
+        self.dataName['VIIRS-VI-EDR'] = ['/All_Data/VIIRS-VI-EDR_All/TOA_NDVI','/All_Data/VIIRS-VI-EDR_All/TOC_EVI']
 
-        self.byteIdx = {}
-        self.byteIdx['VIIRS-CM-IP'] = [0,5]
+        self.dataFactors = {}
+        self.dataFactors['VIIRS-VI-EDR'] = ['/All_Data/VIIRS-VI-EDR_All/TOA_NDVI_Factors','/All_Data/VIIRS-VI-EDR_All/TOC_EVI_Factors']
 
-        self.byteDsetIdx = {}
-        self.byteDsetIdx['VIIRS-CM-IP'] = [1,0]
-
-        self.hdf5_dict = get_hdf5_dict(hdf5Dir,'IICMO')
+        self.hdf5_dict = get_hdf5_dict(hdf5Dir,'VIVIO')
 
 
-    def plot_VCM_granules(self,plotProd='IP',pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_VI_granules(self,plotProd='EDR',vmin=None,vmax=None,pngDir=None,pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -172,35 +171,30 @@ class VCMclass():
 
         print 'collShortNames = %r' % (collShortNames)
 
-        CMD = viirs_edr_data.CloudMaskData
-
         for shortName in collShortNames :
 
             print 'shortName = %s' % (shortName)
 
-            if (plotProd == 'IP'):
+            if (plotProd == 'EDR'):
 
                 dataNames = self.dataName[shortName]
-                byteIdx = self.byteIdx[shortName]
-                byteDsetIdx = self.byteDsetIdx[shortName]
+                factorsNames = self.dataFactors[shortName]
                 plotDescrs = plotDescr[shortName]
-                prodNames = ['CMask','CPhase']
+                prodNames = ['NDVI','EVI']
 
-            elif (plotProd == 'CMask'):
+            elif (plotProd == 'NDVI'):
 
                 dataNames = [self.dataName[shortName][0]]
-                byteIdx = [self.byteIdx[shortName][0]]
-                byteDsetIdx = [self.byteDsetIdx[shortName][0]]
+                factorsNames = [self.dataFactors[shortName][0]]
                 plotDescrs = [plotDescr[shortName][0]]
-                prodNames = ['CMask']
+                prodNames = ['NDVI']
 
-            elif (plotProd == 'CPhase'):
+            elif (plotProd == 'EVI'):
 
                 dataNames = [self.dataName[shortName][1]]
-                byteIdx = [self.byteIdx[shortName][1]]
-                byteDsetIdx = [self.byteDsetIdx[shortName][1]]
+                factorsNames = [self.dataFactors[shortName][1]]
                 plotDescrs = [plotDescr[shortName][1]]
-                prodNames = ['CPhase']
+                prodNames = ['EVI']
 
             granID_list =  hdf5_dict[shortName].keys()
             granID_list.sort()
@@ -208,44 +202,43 @@ class VCMclass():
             for granID in granID_list :
 
                 print '%s --> %s ' % (shortName, granID)
-                
+
                 hdf5Obj = hdf5_dict[shortName][granID][1]
-                
-                VIIRS_CM_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
-                dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-                orbitNumber =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+
+                VIIRS_VI_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-VI-EDR/VIIRS-VI-EDR_Gran_0')
+                dayNightFlag =  getattr(VIIRS_VI_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
                 print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-                print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
                 orient = -1 if dayNightFlag == 'Day' else 1
 
-                for dataName,byte,dSet,plotDescr,prodName in zip(dataNames,byteIdx,byteDsetIdx,plotDescrs,prodNames):
+                for dataName,factorsName,plotDescr,prodName in zip(dataNames,factorsNames,plotDescrs,prodNames):
 
                     data = hdf5Obj.getNode(dataName)[:,:]
-                    
-                    pixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]
-                    print "pixelTrimValue is %r" % (pixelTrimValue)
+                    print "Int data = {}".format(data[:16,:10])
 
-                    # Bit mask and shift to get the Cloud Mask
-                    bitMask  = CMD.ViirsCMbitMasks[byte][dSet]
-                    bitShift = CMD.ViirsCMbitShift[byte][dSet]
+                    factors = hdf5Obj.getNode(factorsName)[:]
+                    data = data * factors[0] + factors[1]
 
-                    vmin,vmax = CMD.ViirsCMvalues[byte][dSet][0], CMD.ViirsCMvalues[byte][dSet][-1]
-                    data = np.bitwise_and(data ,bitMask) >> bitShift
+                    print "float data = {}".format(data[:16,:10])
+                    print "factors = {}".format(factors)
 
-                    # Apply the moderate pixel trim, so that we can properly mask them out at plot time.
-                    data = ma.array(data,mask=modTrimMask,fill_value=trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name])
-                    data = data.filled()
+                    VIqualFlag = hdf5Obj.getNode('/All_Data/VIIRS-VI-EDR_All/QF1_VIIRSVIEDR')
+                    VIqualFlag = np.bitwise_and(VIqualFlag,1) >> 0 # NDVI quality
+                    #VIqualFlag = np.bitwise_and(VIqualFlag,2) >> 1 # EVI quality
+                    VIqualFlagMask = ma.masked_equal(VIqualFlag,0).mask
 
-                    cmap = ListedColormap(CMD.ViirsCMfillColours[byte][dSet])
+                    # What value are the bowtie deletion pixels
+                    ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
+                    print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
+                    onboardPixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]
+                    print "Onboard Pixel Trim value is {}".format(onboardPixelTrimValue)
 
-                    numCats = np.array(CMD.ViirsCMfillColours[byte][dSet]).size
-                    numBounds = numCats + 1
+                    # Apply the On-board pixel trim
+                    data = ma.array(data,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
+                    data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
 
-                    tickPos = np.arange(float(numBounds))/float(numCats)
-                    tickPos = tickPos[0 :-1] + tickPos[1]/2.
-
-                    print "numCats = ",numCats
-                    print "tickPos = ",tickPos
+                    ## Apply the On-board pixel trim
+                    data = ma.array(data,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
+                    data = data.filled() # Substitute for the masked values with onboardPixelTrimValue
 
                     plotTitle = '%s : %s %s' % (shortName,granID,annotation)
                     cbTitle = plotDescr
@@ -258,7 +251,7 @@ class VCMclass():
                     # Create main axes instance, leaving room for colorbar at bottom,
                     # and also get the Bbox of the axes instance
                     ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
-                    ax = fig.add_axes(ax_rect,axis_bgcolor='lightgray')
+                    ax = fig.add_axes(ax_rect)
 
                     # Granule axis title
                     ax_title = ppl.setp(ax,title=plotTitle)
@@ -267,13 +260,20 @@ class VCMclass():
 
                     # Plot the data
                     print "%s is of kind %r" % (shortName,data.dtype.kind)
-                    #print data
                     if (data.dtype.kind =='i' or data.dtype.kind =='u'):
-                        data = ma.masked_greater(data,200)
+                        fill_mask = ma.masked_greater(data,200).mask
                     else:
-                        data = ma.masked_less(data,-800.)
+                        fill_mask = ma.masked_less(data,-800.).mask
 
-                    im = ax.imshow(ma.masked_less(data[::orient,::orient],0),interpolation='nearest',vmin=vmin,vmax=vmax,cmap=cmap)
+                    # Construct the total mask
+                    #totalMask = VIqualFlagMask + fill_mask
+                    totalMask = fill_mask
+
+                    # Mask the aerosol so we only have the retrievals
+                    data = ma.masked_array(data,mask=totalMask)
+                    
+                    im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
+                    
                     ppl.setp(ax.get_xticklabels(), visible=False)
                     ppl.setp(ax.get_yticklabels(), visible=False)
                     ppl.setp(ax.get_xticklines(),visible=False)
@@ -286,12 +286,7 @@ class VCMclass():
                     # Plot the colorbar.
                     cb = fig.colorbar(im, cax=cax, orientation='horizontal')
                     ppl.setp(cax.get_xticklabels(),fontsize=9)
-                    ppl.setp(cax.get_xticklines(),visible=False)
-
-                    # Set the colourbar tick locations and ticklabels
-                    #ppl.setp(cb.ax,xticks=CMD.ViirsCMTickPos) # In colorbar axis coords (0..1)
-                    cb.set_ticks(vmax*tickPos) # In data coords (0..3)
-                    ppl.setp(cb.ax,xticklabels=CMD.ViirsCMtickNames[byte][dSet])
+                    ppl.setp(cax.get_xticklines(),visible=True)
 
                     # Colourbar title
                     cax_title = ppl.setp(cax,title=cbTitle)
@@ -310,11 +305,12 @@ class VCMclass():
                     print "Writing to %s..." % (pngFile)
 
                     ppl.close('all')
+                    sys.exit(0)
 
                 hdf5Obj.close()
 
 
-    def plot_VCM_pass(self,plotProd='IP',pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_SST_pass(self,plotProd='EDR',vmin=None,vmax=None,pngDir=None,pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -327,68 +323,74 @@ class VCMclass():
 
         print 'collShortNames = %r' % (collShortNames)
 
-        CMD = viirs_edr_data.CloudMaskData
-
         for shortName in collShortNames :
 
             print 'shortName = %s' % (shortName)
 
-            if (plotProd == 'IP'):
+            if (plotProd == 'EDR'):
 
                 dataNames = self.dataName[shortName]
-                byteIdx = self.byteIdx[shortName]
-                byteDsetIdx = self.byteDsetIdx[shortName]
+                factorsNames = self.dataFactors[shortName]
                 plotDescrs = plotDescr[shortName]
-                prodNames = ['CMask','CPhase']
+                prodNames = ['SkinSST','BulkSST']
 
-            elif (plotProd == 'CMask'):
+            elif (plotProd == 'Skin'):
 
                 dataNames = [self.dataName[shortName][0]]
-                byteIdx = [self.byteIdx[shortName][0]]
-                byteDsetIdx = [self.byteDsetIdx[shortName][0]]
+                factorsNames = [self.dataFactors[shortName][0]]
                 plotDescrs = [plotDescr[shortName][0]]
-                prodNames = ['CMask']
+                prodNames = ['SkinSST']
 
-            elif (plotProd == 'CPhase'):
+            elif (plotProd == 'Bulk'):
 
                 dataNames = [self.dataName[shortName][1]]
-                byteIdx = [self.byteIdx[shortName][1]]
-                byteDsetIdx = [self.byteDsetIdx[shortName][1]]
+                factorsNames = [self.dataFactors[shortName][1]]
                 plotDescrs = [plotDescr[shortName][1]]
-                prodNames = ['CPhase']
+                prodNames = ['BulkSST']
 
             granID_list =  hdf5_dict[shortName].keys()
             granID_list.sort()
 
-
-            for dataName,byte,dSet,plotDescr,prodName in zip(dataNames,byteIdx,byteDsetIdx,plotDescrs,prodNames):
+            for dataName,factorsName,plotDescr,prodName in zip(dataNames,factorsNames,plotDescrs,prodNames):
 
                 # Read in the data from the granules and concatenate
                 for granID in granID_list :
 
                     print '%s --> %s ' % (shortName, granID)
-                    
+
                     hdf5Obj = hdf5_dict[shortName][granID][1]
-                    
-                    VIIRS_CM_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
-                    dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-                    orbitNumber =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+
+                    VIIRS_SST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0')
+                    dayNightFlag =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                    orbitNumber =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
                     print 'N_Day_Night_Flag = %s' % (dayNightFlag)
                     print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
                     orient = -1 if dayNightFlag == 'Day' else 1
 
+
                     dataGranule = hdf5Obj.getNode(dataName)[:,:]
+                    factors = hdf5Obj.getNode(factorsName)[:]
+                    dataGranule = dataGranule*factors[0] + factors[1]
+
+                    SSTqualFlagGranule = hdf5Obj.getNode('/All_Data/VIIRS-SST-EDR_All/QF1_VIIRSSSTEDR')
+                    SSTqualFlagGranule = np.bitwise_and(SSTqualFlagGranule,3) >> 0
+                    SSTqualFlagMaskGranule = ma.masked_equal(SSTqualFlagGranule,0).mask
 
                     # Concatenate the granules.
                     try :
                         data = np.vstack((data,dataGranule))
-                        print "data shape = %s\n" %(str(data.shape))
+                        SSTqualFlagMask = np.vstack((SSTqualFlagMask,SSTqualFlagMaskGranule))
+                        print "data shape = {}".format(data.shape)
+                        print "SSTqualFlagMask shape = {}\n".format(SSTqualFlagMask.shape)
                     except :
                         data = dataGranule[:,:]
-                        print "data shape = %s\n" %(str(data.shape))
+                        SSTqualFlagMask = SSTqualFlagMaskGranule[:,:]
+                        print "data shape = {}".format(data.shape)
+                        print "SSTqualFlagMask shape = {}\n".format(SSTqualFlagMask.shape)
 
-                    hdf5Obj.close()
-                    
+                print "Final data shape = {}".format(data.shape)
+                print "Final SSTqualFlagMask shape = {}\n".format(SSTqualFlagMask.shape)
+
                 # What value are the bowtie deletion pixels
                 ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
                 print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
@@ -402,12 +404,8 @@ class VCMclass():
                 onboardTrimMask = trimObj.createOnboardModTrimArray(nscans=numScans,trimType=bool)
                 ongroundTrimMask = trimObj.createModTrimArray(nscans=numScans,trimType=bool)
 
-                # Bit mask and shift to get the Cloud Mask
-                bitMask  = CMD.ViirsCMbitMasks[byte][dSet]
-                bitShift = CMD.ViirsCMbitShift[byte][dSet]
-
-                vmin,vmax = CMD.ViirsCMvalues[byte][dSet][0], CMD.ViirsCMvalues[byte][dSet][-1]
-                data = np.bitwise_and(data ,bitMask) >> bitShift
+                print "onboardTrimMask  shape = {}".format(onboardTrimMask.shape)
+                print "ongroundTrimMask shape = {}\n".format(ongroundTrimMask.shape)
 
                 # Apply the On-board pixel trim
                 data = ma.array(data,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
@@ -417,23 +415,7 @@ class VCMclass():
                 data = ma.array(data,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
                 data = data.filled() # Substitute for the masked values with onboardPixelTrimValue
 
-                # Flip the pass depending on whether this is an ascending or decending pass
-                data = data[::orient,::orient]
-
-                # Define the colourbar
-                cmap = ListedColormap(CMD.ViirsCMfillColours[byte][dSet])
-
-                numCats = np.array(CMD.ViirsCMfillColours[byte][dSet]).size
-                numBounds = numCats + 1
-
-                tickPos = np.arange(float(numBounds))/float(numCats)
-                tickPos = tickPos[0 :-1] + tickPos[1]/2.
-
-                print "numCats = ",numCats
-                print "tickPos = ",tickPos
-
-                # Set the plot and colourbar titles...
-                plotTitle = '%s : %s %s' % (shortName,granID,annotation)
+                plotTitle = '%s : orbit %s %s' % (shortName,orbitNumber,annotation)
                 cbTitle = plotDescr
 
                 # Create figure with default size, and create canvas to draw on
@@ -454,21 +436,26 @@ class VCMclass():
                 ppl.setp(ax_title,fontsize=12)
                 ppl.setp(ax_title,family="sans-serif")
 
-                # Remove the ticks and ticklabels on the main axis
+                # Plot the data
+                print "%s is of kind %r" % (shortName,data.dtype.kind)
+                if (data.dtype.kind =='i' or data.dtype.kind =='u'):
+                    fill_mask = ma.masked_greater(data,200).mask
+                else:
+                    fill_mask = ma.masked_less(data,-800.).mask
+
+                # Construct the total mask
+
+                totalMask = SSTqualFlagMask + fill_mask
+
+                # Mask the aerosol so we only have the retrievals
+                data = ma.masked_array(data,mask=totalMask)
+                
+                im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
+                
                 ppl.setp(ax.get_xticklabels(), visible=False)
                 ppl.setp(ax.get_yticklabels(), visible=False)
                 ppl.setp(ax.get_xticklines(),visible=False)
                 ppl.setp(ax.get_yticklines(),visible=False)
-
-                # Mask the data
-                print "%s is of kind %r" % (shortName,data.dtype.kind)
-                if (data.dtype.kind =='i' or data.dtype.kind =='u'):
-                    data = ma.masked_greater(data,247)
-                else:
-                    data = ma.masked_less(data,-800.)
-
-                # Plot the dataset on the main plotting axis
-                im = ax.imshow(data,interpolation='nearest',vmin=vmin,vmax=vmax,cmap=cmap)
 
                 # add a colorbar axis
                 cax_rect = [0.05 , 0.05, 0.9 , 0.08 ] # [left,bottom,width,height]
@@ -477,20 +464,15 @@ class VCMclass():
                 # Plot the colorbar.
                 cb = fig.colorbar(im, cax=cax, orientation='horizontal')
                 ppl.setp(cax.get_xticklabels(),fontsize=9)
-                ppl.setp(cax.get_xticklines(),visible=False)
-
-                # Set the colourbar tick locations and ticklabels
-                #ppl.setp(cb.ax,xticks=CMD.ViirsCMTickPos) # In colorbar axis coords (0..1)
-                cb.set_ticks(vmax*tickPos) # In data coords (0..3)
-                ppl.setp(cb.ax,xticklabels=CMD.ViirsCMtickNames[byte][dSet])
+                ppl.setp(cax.get_xticklines(),visible=True)
 
                 # Colourbar title
                 cax_title = ppl.setp(cax,title=cbTitle)
                 ppl.setp(cax_title,fontsize=10)
 
                 # Turn off the tickmarks on the colourbar
-                ppl.setp(cb.ax.get_xticklines(),visible=False)
-                ppl.setp(cb.ax.get_xticklabels(),fontsize=9)
+                #ppl.setp(cb.ax.get_xticklines(),visible=False)
+                #ppl.setp(cb.ax.get_xticklabels(),fontsize=9)
 
                 # Redraw the figure
                 canvas.draw()
@@ -502,9 +484,11 @@ class VCMclass():
 
                 ppl.close('all')
 
+                del(data)
+                del(SSTqualFlagMask)
 
 
-    def plot_VCM_granule_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_SST_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -513,19 +497,17 @@ class VCMclass():
         collShortNames = hdf5_dict.keys()
 
         if (plotProd == 'QF'):
-            byteList = [0,1,2,3,4,5]
+            byteList = [0,1,2,3]
         else :
-            byteList = [int(plotProd.strip('QF'))-1]
+            byteList = [int(plotProd.strip('QF'))]
 
         print 'collShortNames = %r' % (collShortNames)
 
-        CMD = viirs_edr_data.CloudMaskData
+        CMD = viirs_edr_data.SeaSurfaceTempProdData
 
         for shortName in collShortNames :
 
             print 'shortName = %s' % (shortName)
-
-            dataName = self.dataName[shortName]
 
             granID_list =  hdf5_dict[shortName].keys()
             granID_list.sort()
@@ -535,120 +517,110 @@ class VCMclass():
                 print '%s --> %s ' % (shortName, granID)
                 hdf5Obj = hdf5_dict[shortName][granID][1]
 
-                VIIRS_CM_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
-                dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-                orbitNumber =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+                VIIRS_SST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0')
+                dayNightFlag =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
                 print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-                print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
                 orient = -1 if dayNightFlag == 'Day' else 1
 
                 for byte in byteList :
 
                     print ""
 
-                    plots = list(CMD.ViirsCMbitMaskNames[byte])
+                    plots = list(CMD.ViirsSSTqualBitMaskNames[byte])
                     for item in plots:
                         if item == 'Spare':
                             plots.remove(item)
-                    print "plots = ",plots
+                    numPlots = len(plots)
+                    numRows = np.ceil(float(numPlots)/2.)
 
-                    if (plots == []):
+                    figWidth = 15. # inches
+                    figHeight = 3. * numPlots/2. # inches
+                    fig = Figure(figsize=((figWidth,figHeight)))
+                    canvas = FigureCanvas(fig)
 
-                        print "There are no valid datasets in this byte array, skipping..."
+                    Ax = []
+                    Im = []
+                    Txt = []
+                    Cb = []
 
-                    else :
+                    plotIdx = 1
 
-                        numPlots = len(plots)
-                        numRows = np.ceil(float(numPlots)/2.)
+                    for dSet in range(np.shape(CMD.ViirsSSTqualBitMasks[byte])[0]):
 
-                        figWidth = 15. # inches
-                        figHeight = 3. * numPlots/2. # inches
-                        fig = Figure(figsize=((figWidth,figHeight)))
-                        canvas = FigureCanvas(fig)
+                        print '\ndSet = %d' %(dSet)
 
-                        Ax = []
-                        Im = []
-                        Txt = []
-                        Cb = []
+                        dSetName = '/All_Data/VIIRS-SST-EDR_All/QF%s_VIIRSSSTEDR'%(str(byte+1))
+                        byteData = hdf5Obj.getNode(dSetName)[:,:]
 
-                        plotIdx = 1
+                        plotTitle = '%s : %s %s (Byte %d)' % (shortName,granID,annotation,byte)
+                        fig.text(0.5, 0.95, plotTitle, fontsize=16, color='black', ha='center', va='bottom', alpha=1.0)
 
-                        for dSet in range(np.shape(CMD.ViirsCMbitMasks[byte])[0]):
+                        if (CMD.ViirsSSTqualBitMaskNames[byte][dSet] == 'Spare') :
+                            print "Skipping dataset with byte = %d, dSet = %d" % (byte, dSet)
+                        else :
+                            print "byte = %d, dSet = %d" % (byte, dSet)
 
-                            print '\ndSet = %d' %(dSet)
+                            byteMask = CMD.ViirsSSTqualBitMasks[byte][dSet]
+                            byteShift = CMD.ViirsSSTqualBitShift[byte][dSet]
 
-                            dSetName = '/All_Data/VIIRS-CM-IP_All/QF%s_VIIRSCMIP' % (str(byte+1))
-                            byteData = hdf5Obj.getNode(dSetName)[:,:]
+                            print "byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName)
 
-                            plotTitle = '%s : %s %s (Byte %d)' % (shortName,granID,annotation,byte)
-                            fig.text(0.5, 0.95, plotTitle, fontsize=16, color='black', ha='center', va='bottom', alpha=1.0)
+                            data = np.bitwise_and(byteData,byteMask) >> byteShift
+                            vmin,vmax = CMD.ViirsSSTqualvalues[byte][dSet][0], CMD.ViirsSSTqualvalues[byte][dSet][-1]
+                            print "vmin = %d, vmax = %d" % (vmin, vmax)
 
-                            if (CMD.ViirsCMbitMaskNames[byte][dSet] == 'Spare') :
-                                print "Skipping dataset with byte = %d, dSet = %d" % (byte, dSet)
-                            else :
-                                print "byte = %d, dSet = %d" % (byte, dSet)
+                            cmap = ListedColormap(CMD.ViirsSSTqualFillColours[byte][dSet])
 
-                                byteMask = CMD.ViirsCMbitMasks[byte][dSet]
-                                byteShift = CMD.ViirsCMbitShift[byte][dSet]
+                            numCats = np.array(CMD.ViirsSSTqualFillColours[byte][dSet]).size
+                            numBounds = numCats + 1
 
-                                print "byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName)
+                            tickPos = np.arange(float(numBounds))/float(numCats)
+                            tickPos = tickPos[0 :-1] + tickPos[1]/2.
 
-                                data = np.bitwise_and(byteData,byteMask) >> byteShift
-                                vmin,vmax = CMD.ViirsCMvalues[byte][dSet][0], CMD.ViirsCMvalues[byte][dSet][-1]
-                                print "vmin = %d, vmax = %d" % (vmin, vmax)
+                            print "numCats = ",numCats
+                            print "tickPos = ",tickPos
 
-                                cmap = ListedColormap(CMD.ViirsCMfillColours[byte][dSet])
+                            titleStr = CMD.ViirsSSTqualBitMaskNames[byte][dSet]
+                            print "titleStr = %s" % (titleStr)
 
-                                numCats = np.array(CMD.ViirsCMfillColours[byte][dSet]).size
-                                numBounds = numCats + 1
+                            Ax.append(fig.add_subplot(numRows,2,plotIdx))
+                            print "data.dtype.__str__() = %s" % (data.dtype.__str__())
+                            Im.append(Ax[dSet].imshow(data.astype('int')[::orient,::orient], vmin=vmin, vmax=vmax, interpolation='nearest',cmap=cmap))
+                            Txt.append(Ax[dSet].set_title(titleStr))
 
-                                tickPos = np.arange(float(numBounds))/float(numCats)
-                                tickPos = tickPos[0 :-1] + tickPos[1]/2.
+                            ppl.setp(Txt[dSet],fontsize=10)
+                            ppl.setp(Ax[dSet].get_xticklines(), visible=False)
+                            ppl.setp(Ax[dSet].get_yticklines(), visible=False)
+                            ppl.setp(Ax[dSet].get_xticklabels(), visible=False)
+                            ppl.setp(Ax[dSet].get_yticklabels(), visible=False)
 
-                                print "numCats = ",numCats
-                                print "tickPos = ",tickPos
+                            Cb.append(fig.colorbar(Im[dSet], orientation='horizonal', pad=0.05))
 
-                                titleStr = CMD.ViirsCMbitMaskNames[byte][dSet]
-                                print "titleStr = %s" % (titleStr)
+                            print "Cb byte = %d, dSet = %d" % (byte, dSet)
+                            print "CMD.ViirsSSTqualTickNames[%d][%d] = %s" % \
+                                    (byte,dSet,CMD.ViirsSSTqualTickNames[byte][dSet])
+                            print "CMD.ViirsSSTqualFillColours[%d][%d] = %s" % \
+                                    (byte,dSet,CMD.ViirsSSTqualFillColours[byte][dSet])
 
-                                Ax.append(fig.add_subplot(numRows,2,plotIdx))
-                                print "data.dtype.__str__() = %s" % (data.dtype.__str__())
-                                Im.append(Ax[dSet].imshow(data.astype('int')[::orient,::orient], vmin=vmin, vmax=vmax, interpolation='nearest',cmap=cmap))
-                                Txt.append(Ax[dSet].set_title(titleStr))
+                            Cb[dSet].set_ticks(vmax*tickPos)
+                            ppl.setp(Cb[dSet].ax,xticklabels=CMD.ViirsSSTqualTickNames[byte][dSet])
+                            ppl.setp(Cb[dSet].ax.get_xticklabels(),fontsize=6)
+                            ppl.setp(Cb[dSet].ax.get_xticklines(),visible=False)
 
-                                ppl.setp(Txt[dSet],fontsize=10)
-                                ppl.setp(Ax[dSet].get_xticklines(), visible=False)
-                                ppl.setp(Ax[dSet].get_yticklines(), visible=False)
-                                ppl.setp(Ax[dSet].get_xticklabels(), visible=False)
-                                ppl.setp(Ax[dSet].get_yticklabels(), visible=False)
+                            plotIdx += 1
 
-                                Cb.append(fig.colorbar(Im[dSet], orientation='horizontal', pad=0.05))
+                    pngFile = path.join(pngDir,'%s%s_%s_QF%s.png' % (pngPrefix,shortName,granID,str(byte+1)))
+                    print "Writing to %s..." % (pngFile)
 
-                                print "Cb byte = %d, dSet = %d" % (byte, dSet)
-                                print "CMD.ViirsCMbitMaskNames[%d][%d] = %s" % \
-                                        (byte,dSet,CMD.ViirsCMbitMaskNames[byte][dSet])
-                                print "CMD.ViirsCMfillColours[%d][%d] = %s" % \
-                                        (byte,dSet,CMD.ViirsCMfillColours[byte][dSet])
+                    canvas.draw()
+                    canvas.print_figure(pngFile,dpi=dpi)
 
-                                Cb[dSet].set_ticks(vmax*tickPos)
-                                ppl.setp(Cb[dSet].ax,xticklabels=CMD.ViirsCMtickNames[byte][dSet])
-                                ppl.setp(Cb[dSet].ax.get_xticklabels(),fontsize=6)
-                                ppl.setp(Cb[dSet].ax.get_xticklines(),visible=False)
-
-                                plotIdx += 1
-
-                        pngFile = path.join(pngDir,'%s%s_%s_QF%s.png' % (pngPrefix,shortName,granID,str(byte+1)))
-                        print "Writing to %s..." % (pngFile)
-
-                        canvas.draw()
-                        canvas.print_figure(pngFile,dpi=dpi)
-
-                        ppl.close('all')
+                    ppl.close('all')
 
                 hdf5Obj.close()
 
 
-    def plot_VCM_pass_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_SST_pass_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -657,13 +629,13 @@ class VCMclass():
         collShortNames = hdf5_dict.keys()
 
         if (plotProd == 'QF'):
-            byteList = [0,1,2,3,4,5]
+            byteList = [0,1,2,3]
         else :
             byteList = [int(plotProd.strip('QF'))-1]
 
         print 'collShortNames = %r' % (collShortNames)
 
-        CMD = viirs_edr_data.CloudMaskData
+        CMD = viirs_edr_data.SeaSurfaceTempProdData
 
         for shortName in collShortNames :
 
@@ -679,7 +651,7 @@ class VCMclass():
 
                 print ""
 
-                plots = list(CMD.ViirsCMbitMaskNames[byte])
+                plots = list(CMD.ViirsSSTqualBitMaskNames[byte])
                 for item in plots:
                     if item == 'Spare':
                         plots.remove(item)
@@ -692,7 +664,7 @@ class VCMclass():
 
                 else :
 
-                    for dSet in range(np.shape(CMD.ViirsCMbitMasks[byte])[0]):
+                    for dSet in range(np.shape(CMD.ViirsSSTqualBitMasks[byte])[0]):
 
                         print '\ndSet = %d' %(dSet)
 
@@ -702,14 +674,14 @@ class VCMclass():
 
                             hdf5Obj = hdf5_dict[shortName][granID][1]
 
-                            VIIRS_CM_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
-                            dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-                            orbitNumber =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+                            VIIRS_SST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0')
+                            dayNightFlag =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                            orbitNumber =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
                             print 'N_Day_Night_Flag = %s' % (dayNightFlag)
                             print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
                             orient = -1 if dayNightFlag == 'Day' else 1
 
-                            dSetName = '/All_Data/VIIRS-CM-IP_All/QF%s_VIIRSCMIP' % (str(byte+1))
+                            dSetName = '/All_Data/VIIRS-SST-EDR_All/QF%s_VIIRSSSTEDR'%(str(byte+1))
                             byteDataGranule = hdf5Obj.getNode(dSetName)[:,:]
 
                             # Concatenate the granules.
@@ -744,23 +716,23 @@ class VCMclass():
                         # Flip the pass depending on whether this is an ascending or decending pass
                         byteData = byteData[::orient,::orient]
 
-                        if (CMD.ViirsCMbitMaskNames[byte][dSet] == 'Spare') :
+                        if (CMD.ViirsSSTqualBitMaskNames[byte][dSet] == 'Spare') :
                             print "Skipping dataset with byte = %d, dSet = %d" % (byte, dSet)
                         else :
                             print "byte = %d, dSet = %d" % (byte, dSet)
 
-                            byteMask = CMD.ViirsCMbitMasks[byte][dSet]
-                            byteShift = CMD.ViirsCMbitShift[byte][dSet]
+                            byteMask = CMD.ViirsSSTqualBitMasks[byte][dSet]
+                            byteShift = CMD.ViirsSSTqualBitShift[byte][dSet]
 
                             print "byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName)
 
                             data = np.bitwise_and(byteData,byteMask) >> byteShift
-                            vmin,vmax = CMD.ViirsCMvalues[byte][dSet][0], CMD.ViirsCMvalues[byte][dSet][-1]
+                            vmin,vmax = CMD.ViirsSSTqualvalues[byte][dSet][0], CMD.ViirsSSTqualvalues[byte][dSet][-1]
                             print "vmin = %d, vmax = %d" % (vmin, vmax)
 
-                            cmap = ListedColormap(CMD.ViirsCMfillColours[byte][dSet])
+                            cmap = ListedColormap(CMD.ViirsSSTqualFillColours[byte][dSet])
 
-                            numCats = np.array(CMD.ViirsCMfillColours[byte][dSet]).size
+                            numCats = np.array(CMD.ViirsSSTqualFillColours[byte][dSet]).size
                             numBounds = numCats + 1
 
                             tickPos = np.arange(float(numBounds))/float(numCats)
@@ -771,7 +743,7 @@ class VCMclass():
 
                             # Set the plot and colourbar titles...
                             plotTitle = '%s : orbit %s %s (Byte %d)' % (shortName,orbitNumber,annotation,byte)
-                            cbTitle = CMD.ViirsCMbitMaskNames[byte][dSet]
+                            cbTitle = CMD.ViirsSSTqualBitMaskNames[byte][dSet]
 
                             # Create figure with default size, and create canvas to draw on
                             passRows = float(data.shape[0])
@@ -820,7 +792,7 @@ class VCMclass():
                             # Set the colourbar tick locations and ticklabels
                             #ppl.setp(cb.ax,xticks=CMD.ViirsCMTickPos) # In colorbar axis coords (0..1)
                             cb.set_ticks(vmax*tickPos) # In data coords (0..3)
-                            ppl.setp(cb.ax,xticklabels=CMD.ViirsCMtickNames[byte][dSet])
+                            ppl.setp(cb.ax,xticklabels=CMD.ViirsSSTqualTickNames[byte][dSet])
 
                             # Colourbar title
                             cax_title = ppl.setp(cax,title=cbTitle)
@@ -828,7 +800,7 @@ class VCMclass():
 
                             # Turn off the tickmarks on the colourbar
                             ppl.setp(cb.ax.get_xticklines(),visible=False)
-                            ppl.setp(cb.ax.get_xticklabels(),fontsize=9)
+                            ppl.setp(cb.ax.get_xticklabels(),fontsize=7)
 
                             # Redraw the figure
                             canvas.draw()
@@ -843,14 +815,13 @@ class VCMclass():
                         del(byteData)
 
 
-
 ###################################################
 #                  Main Function                  #
 ###################################################
 
 def main():
 
-    prodChoices=['IP','QF','CMask','CPhase','QF1','QF2','QF3','QF4','QF5','QF6']
+    prodChoices=['EDR','QF','NDVI','EVI','QF1','QF2','QF3']
 
     description = \
     '''
@@ -868,7 +839,7 @@ def main():
                       action="store",
                       dest="hdf5Files" ,
                       type="string",
-                      help="The fully qualified path to the input IICMO HDF5 files. May be a directory or a file glob.")
+                      help="The fully qualified path to the input VIVIO HDF5 files. May be a directory or a file glob.")
 
     parser.add_option_group(mandatoryGroup)
 
@@ -913,7 +884,7 @@ def main():
                       dest="plotProduct",
                       type="choice",
                       choices=prodChoices,
-                      help='''The VIIRS CM IP or QF datasets to plot.\n\n
+                      help='''The VIIRS VI EDR or QF datasets to plot.\n\n
                            Possible values are...
                            %s
                            ''' % (prodChoices.__str__()[1:-1]))
@@ -978,12 +949,12 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     if (plotProduct is None):
         plotEDR = True
         plotQF = True
-        edrPlotProduct = 'IP'
+        edrPlotProduct = 'EDR'
         qfPlotProduct = 'QF'
     else :
-        if ('IP' in plotProduct) \
-           or ('CMask' in plotProduct) \
-           or ('CPhase' in plotProduct) :
+        if ('EDR' in plotProduct) \
+           or ('NDVI' in plotProduct) \
+           or ('EVI' in plotProduct) :
             plotEDR = True
             edrPlotProduct = plotProduct
 
@@ -993,11 +964,11 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
 
     if plotEDR :
         try :
-            VCMobj = VCMclass(hdf5Path)
+            VIobj = VIclass(hdf5Path)
             if plotPass :
-                VCMobj.plot_VCM_pass(plotProd=edrPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+                VIobj.plot_VI_pass(plotProd=edrPlotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
             else:
-                VCMobj.plot_VCM_granules(plotProd=edrPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+                VIobj.plot_VI_granules(plotProd=edrPlotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
 
             pytables.file.close_open_files()
         except Exception, err:
@@ -1006,11 +977,11 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
 
     if plotQF :
         try :
-            VCMobj = VCMclass(hdf5Path)
+            VIobj = VIclass(hdf5Path)
             if plotPass :
-                VCMobj.plot_VCM_pass_tests(plotProd=qfPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+                VIobj.plot_VI_pass_tests(plotProd=qfPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
             else:
-                VCMobj.plot_VCM_granule_tests(plotProd=qfPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+                VIobj.plot_VI_tests(plotProd=qfPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
 
             pytables.file.close_open_files()
         except Exception, err:
@@ -1023,4 +994,3 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
 
 if __name__ == '__main__':
     main()
-

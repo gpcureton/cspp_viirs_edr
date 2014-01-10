@@ -34,11 +34,11 @@ __docformat__ = 'Epytext'
 
 #############
 
-import string, sys
-from glob import glob
+import os, sys
 from os import path, uname, mkdir
+from glob import glob
+import string, logging, traceback
 from time import time
-import traceback
 
 import numpy as np
 from  numpy import ma as ma
@@ -78,7 +78,7 @@ modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
 
 
 def get_hdf5_dict(hdf5Path,filePrefix):
-    hdf5_asc_Files = {}
+    shortNameDict = {}
     
     hdf5Path = path.abspath(path.expanduser(hdf5Path))
     print "hdf5Path = %s" % (hdf5Path)
@@ -100,22 +100,34 @@ def get_hdf5_dict(hdf5Path,filePrefix):
     hdf5Files = glob(hdf5Glob)
     if hdf5Files != []:
         hdf5Files.sort()
-        hdf5Dict = {}
+        granIdDict = {}
         for files in hdf5Files :
+
+            # Open the hdf5 file
             fileObj = pytables.openFile(files)
+
+            # Get a "pointer" to the granules attribute group.
             VIIRS_Aeros_Opt_Thick_IP_Gran_0 = fileObj.getNode('/Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0')
+
+            # Retrieve a few attributes
             granID =  getattr(VIIRS_Aeros_Opt_Thick_IP_Gran_0.attrs,'N_Granule_ID')[0][0]
             print 'N_Granule_ID = %s' % (granID)
+
             dayNightFlag =  getattr(VIIRS_Aeros_Opt_Thick_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
             print 'N_Day_Night_Flag = %s' % (dayNightFlag)
+
             shortName = fileObj.getNodeAttr('/Data_Products/VIIRS-Aeros-Opt-Thick-IP','N_Collection_Short_Name')[0][0]
             print 'N_Collection_Short_Name = %s' % (shortName)
-            hdf5File = path.basename(files)
-            hdf5Dict[granID] = [hdf5File,fileObj]
-            #fileObj.close()
-        hdf5_asc_Files[shortName] = hdf5Dict
 
-    return hdf5_asc_Files
+            # Strip the path from the filename
+            hdf5File = path.basename(files)
+
+            # Add the granule information to the dictionary, keyed with the granule ID...
+            granIdDict[granID] = [hdf5File,fileObj]
+
+        shortNameDict[shortName] = granIdDict
+
+    return shortNameDict
 
 
 class AOTclass():
@@ -225,7 +237,7 @@ class AOTclass():
                     # Create main axes instance, leaving room for colorbar at bottom,
                     # and also get the Bbox of the axes instance
                     ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
-                    ax = fig.add_axes(ax_rect)
+                    ax = fig.add_axes(ax_rect,axis_bgcolor='lightgray')
 
                     # Granule axis title
                     ax_title = ppl.setp(ax,title=plotTitle)
@@ -240,13 +252,15 @@ class AOTclass():
                         fill_mask = ma.masked_less(data,-800.).mask
 
                     # Construct the total mask
-
                     totalMask = NAAPSflagMask + fill_mask
 
                     # Mask the aerosol so we only have the retrievals
                     data = ma.masked_array(data,mask=totalMask)
                     
-                    im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
+                    # Flip the pass depending on whether this is an ascending or decending pass
+                    data = data[::orient,::orient]
+
+                    im = ax.imshow(data,interpolation='nearest',vmin=vmin,vmax=vmax)
                     
                     ppl.setp(ax.get_xticklabels(), visible=False)
                     ppl.setp(ax.get_yticklabels(), visible=False)
@@ -280,7 +294,184 @@ class AOTclass():
 
                     ppl.close('all')
 
-                hdf5Obj.close()
+
+
+    def plot_AOT_pass(self,plotProd='IP',vmin=None,vmax=None,pngDir=None,pngPrefix=None,annotation='',dpi=300):
+
+        if pngDir is None :
+            pngDir = path.abspath(path.curdir)
+
+        plotDescr = self.plotDescr
+        plotLims = self.plotLims
+
+        hdf5_dict = self.hdf5_dict
+        collShortNames = hdf5_dict.keys()
+
+        print 'collShortNames = %r' % (collShortNames)
+
+        for shortName in collShortNames :
+
+            print 'shortName = %s' % (shortName)
+
+            if (plotProd == 'IP'):
+
+                dataNames = self.dataName[shortName]
+                plotDescrs = plotDescr[shortName]
+                prodNames = ['faot550','angexp','aotSlant550']
+
+            elif (plotProd == 'faot550'):
+
+                dataNames = [self.dataName[shortName][0]]
+                plotDescrs = [plotDescr[shortName][0]]
+                prodNames = ['faot550']
+
+            elif (plotProd == 'angexp'):
+
+                dataNames = [self.dataName[shortName][1]]
+                plotDescrs = [plotDescr[shortName][1]]
+                prodNames = ['angexp']
+
+            elif (plotProd == 'aotSlant550'):
+
+                dataNames = [self.dataName[shortName][2]]
+                plotDescrs = [plotDescr[shortName][2]]
+                prodNames = ['aotSlant550']
+
+            granID_list =  hdf5_dict[shortName].keys()
+            granID_list.sort()
+
+
+            for dataName,plotDescr,prodName in zip(dataNames,plotDescrs,prodNames):
+
+                # Read in the data from the granules and concatenate
+                for granID in granID_list :
+
+                    print '%s --> %s ' % (shortName, granID)
+
+                    hdf5Obj = hdf5_dict[shortName][granID][1]
+                    
+                    VIIRS_Aeros_Opt_Thick_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0')
+                    dayNightFlag =  getattr(VIIRS_Aeros_Opt_Thick_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                    orbitNumber =  getattr(VIIRS_Aeros_Opt_Thick_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+                    print 'N_Day_Night_Flag = %s' % (dayNightFlag)
+                    print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
+                    orient = -1 if dayNightFlag == 'Day' else 1
+
+                    dataGranule = hdf5Obj.getNode(dataName)[:,:]
+                    NAAPSflagGranule = hdf5Obj.getNode('/All_Data/VIIRS-Aeros-Opt-Thick-IP_All/QF3')
+                    NAAPSflagGranule = np.bitwise_and(NAAPSflagGranule,12) >> 2
+                    NAAPSflagMaskGranule = ma.masked_greater(NAAPSflagGranule,0).mask
+
+                    # Concatenate the granules.
+                    try :
+                        data = np.vstack((data,dataGranule))
+                        NAAPSflagMask = np.vstack((NAAPSflagMask,NAAPSflagMaskGranule))
+                        print "data shape = {}".format(data.shape)
+                        print "NAAPSflagMask shape = {}\n".format(NAAPSflagMask.shape)
+                    except :
+                        data = dataGranule[:,:]
+                        NAAPSflagMask = NAAPSflagMaskGranule[:,:]
+                        print "data shape = {}".format(data.shape)
+                        print "NAAPSflagMask shape = {}\n".format(NAAPSflagMask.shape)
+
+
+                print "Final data shape = {}".format(data.shape)
+                print "Final NAAPSflagMask shape = {}\n".format(NAAPSflagMask.shape)
+
+                # What value are the bowtie deletion pixels
+                ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
+                print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
+                onboardPixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]
+                print "Onboard Pixel Trim value is {}".format(onboardPixelTrimValue)
+
+                # Create onboard and onground pixel trim mask arrays, for the total number of
+                # scans in the pass...
+                numGranules = len(granID_list)
+                numScans = numGranules * 48
+                onboardTrimMask = trimObj.createOnboardModTrimArray(nscans=numScans,trimType=bool)
+                ongroundTrimMask = trimObj.createModTrimArray(nscans=numScans,trimType=bool)
+
+                print "onboardTrimMask  shape = {}".format(onboardTrimMask.shape)
+                print "ongroundTrimMask shape = {}\n".format(ongroundTrimMask.shape)
+
+                # Apply the On-board pixel trim
+                data = ma.array(data,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
+                data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
+
+                # Apply the On-board pixel trim
+                data = ma.array(data,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
+                data = data.filled() # Substitute for the masked values with onboardPixelTrimValue
+
+                plotTitle = '%s : orbit %s %s' % (shortName,orbitNumber,annotation)
+                cbTitle = plotDescr
+
+                # Create figure with default size, and create canvas to draw on
+                passRows = float(data.shape[0])
+                passCols = float(data.shape[1])
+                aspect = passRows/passCols
+                scale = 5.
+                fig = Figure(figsize=(scale*1.,scale*aspect))
+                canvas = FigureCanvas(fig)
+
+                # Create main axes instance, leaving room for colorbar at bottom,
+                # and also get the Bbox of the axes instance
+                ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
+                ax = fig.add_axes(ax_rect,axis_bgcolor='lightgray')
+
+                # Granule axis title
+                ax_title = ppl.setp(ax,title=plotTitle)
+                ppl.setp(ax_title,fontsize=12)
+                ppl.setp(ax_title,family="sans-serif")
+
+                # Plot the data
+                print "%s is of kind %r" % (shortName,data.dtype.kind)
+                if (data.dtype.kind =='i' or data.dtype.kind =='u'):
+                    fill_mask = ma.masked_greater(data,200).mask
+                else:
+                    fill_mask = ma.masked_less(data,-800.).mask
+
+                # Construct the total mask
+                totalMask = NAAPSflagMask + fill_mask
+
+                # Mask the aerosol so we only have the retrievals
+                data = ma.masked_array(data,mask=totalMask)
+                
+                im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
+                
+                ppl.setp(ax.get_xticklabels(), visible=False)
+                ppl.setp(ax.get_yticklabels(), visible=False)
+                ppl.setp(ax.get_xticklines(),visible=False)
+                ppl.setp(ax.get_yticklines(),visible=False)
+
+                # add a colorbar axis
+                cax_rect = [0.05 , 0.05, 0.9 , 0.08 ] # [left,bottom,width,height]
+                cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
+
+                # Plot the colorbar.
+                cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+                ppl.setp(cax.get_xticklabels(),fontsize=9)
+                ppl.setp(cax.get_xticklines(),visible=True)
+
+                # Colourbar title
+                cax_title = ppl.setp(cax,title=cbTitle)
+                ppl.setp(cax_title,fontsize=10)
+
+                # Turn off the tickmarks on the colourbar
+                #ppl.setp(cb.ax.get_xticklines(),visible=False)
+                #ppl.setp(cb.ax.get_xticklabels(),fontsize=9)
+
+                # Redraw the figure
+                canvas.draw()
+
+                # Save the figure to a png file...
+                pngFile = path.join(pngDir,'%s%s_b%s_%s.png' % (pngPrefix,shortName,orbitNumber,prodName))
+                canvas.print_figure(pngFile,dpi=dpi)
+                print "Writing to %s..." % (pngFile)
+
+                ppl.close('all')
+
+                del(data)
+                del(NAAPSflagMask)
 
 
     def plot_AOT_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
@@ -387,7 +578,7 @@ class AOTclass():
                             ppl.setp(Ax[dSet].get_xticklabels(), visible=False)
                             ppl.setp(Ax[dSet].get_yticklabels(), visible=False)
 
-                            Cb.append(fig.colorbar(Im[dSet], orientation='horizonal', pad=0.05))
+                            Cb.append(fig.colorbar(Im[dSet], orientation='horizontal', pad=0.05))
 
                             print "Cb byte = %d, dSet = %d" % (byte, dSet)
                             print "CMD.ViirsAeroQualTickNames[%d][%d] = %s" % \
@@ -411,6 +602,204 @@ class AOTclass():
                     ppl.close('all')
 
                 hdf5Obj.close()
+
+
+
+
+    def plot_AOT_pass_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
+
+        if pngDir is None :
+            pngDir = path.abspath(path.curdir)
+
+        hdf5_dict = self.hdf5_dict
+        collShortNames = hdf5_dict.keys()
+
+        if (plotProd == 'QF'):
+            byteList = [0,1,2,3,4]
+        else :
+            byteList = [int(plotProd.strip('QF'))-1]
+
+        print 'collShortNames = %r' % (collShortNames)
+
+        CMD = viirs_edr_data.AerosolProdData
+
+        for shortName in collShortNames :
+
+            print 'shortName = %s' % (shortName)
+
+            dataName = self.dataName[shortName]
+
+            granID_list =  hdf5_dict[shortName].keys()
+            granID_list.sort()
+
+
+            for byte in byteList :
+
+                print ""
+
+                plots = list(CMD.ViirsAeroQualBitMaskNames[byte])
+                for item in plots:
+                    if item == 'Spare':
+                        plots.remove(item)
+                print "plots = ",plots
+
+
+                if (plots == []):
+
+                    print "There are no valid datasets in this byte array, skipping..."
+
+                else :
+
+                    for dSet in range(np.shape(CMD.ViirsAeroQualBitMasks[byte])[0]):
+
+                        print '\ndSet = %d' %(dSet)
+
+                        for granID in granID_list :
+
+                            print '%s --> %s ' % (shortName, granID)
+
+                            hdf5Obj = hdf5_dict[shortName][granID][1]
+
+                            VIIRS_Aeros_Opt_Thick_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0')
+                            dayNightFlag =  getattr(VIIRS_Aeros_Opt_Thick_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                            orbitNumber =  getattr(VIIRS_Aeros_Opt_Thick_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+                            print 'N_Day_Night_Flag = %s' % (dayNightFlag)
+                            print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
+                            orient = -1 if dayNightFlag == 'Day' else 1
+
+                            dSetName = '/All_Data/VIIRS-Aeros-Opt-Thick-IP_All/QF%s'%(str(byte+1))
+                            byteDataGranule = hdf5Obj.getNode(dSetName)[:,:]
+
+                            # Concatenate the granules.
+                            try :
+                                byteData = np.vstack((byteData,byteDataGranule))
+                                print "byteData shape = %s\n" %(str(byteData.shape))
+                            except :
+                                byteData = byteDataGranule[:,:]
+                                print "byteData shape = %s\n" %(str(byteData.shape))
+
+                        # What value are the bowtie deletion pixels
+                        ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][byteData.dtype.name]
+                        print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
+                        onboardPixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][byteData.dtype.name]
+                        print "Onboard Pixel Trim value is {}\n".format(onboardPixelTrimValue)
+
+                        # Create onboard and onground pixel trim mask arrays, for the total number of
+                        # scans in the pass...
+                        numGranules = len(granID_list)
+                        numScans = numGranules * 48
+                        onboardTrimMask = trimObj.createOnboardModTrimArray(nscans=numScans,trimType=bool)
+                        ongroundTrimMask = trimObj.createModTrimArray(nscans=numScans,trimType=bool)
+
+                        # Apply the On-board pixel trim
+                        byteData = ma.array(byteData,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
+                        #byteData = byteData.filled() # Substitute for the masked values with ongroundPixelTrimValue
+
+                        # Apply the On-board pixel trim
+                        byteData = ma.array(byteData,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
+                        #byteData = byteData.filled() # Substitute for the masked values with onboardPixelTrimValue
+
+                        # Flip the pass depending on whether this is an ascending or decending pass
+                        byteData = byteData[::orient,::orient]
+
+                        if (CMD.ViirsAeroQualBitMaskNames[byte][dSet] == 'Spare') :
+                            print "Skipping dataset with byte = %d, dSet = %d" % (byte, dSet)
+                        else :
+                            print "byte = %d, dSet = %d" % (byte, dSet)
+
+                            byteMask = CMD.ViirsAeroQualBitMasks[byte][dSet]
+                            byteShift = CMD.ViirsAeroQualBitShift[byte][dSet]
+
+                            print "byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName)
+
+                            data = np.bitwise_and(byteData,byteMask) >> byteShift
+                            vmin,vmax = CMD.ViirsAeroQualvalues[byte][dSet][0], CMD.ViirsAeroQualvalues[byte][dSet][-1]
+                            print "vmin = %d, vmax = %d" % (vmin, vmax)
+
+                            cmap = ListedColormap(CMD.ViirsAeroQualFillColours[byte][dSet])
+
+                            numCats = np.array(CMD.ViirsAeroQualFillColours[byte][dSet]).size
+                            numBounds = numCats + 1
+
+                            tickPos = np.arange(float(numBounds))/float(numCats)
+                            tickPos = tickPos[0 :-1] + tickPos[1]/2.
+
+                            print "numCats = ",numCats
+                            print "tickPos = ",tickPos
+
+                            # Set the plot and colourbar titles...
+                            plotTitle = '%s : orbit %s %s (Byte %d)' % (shortName,orbitNumber,annotation,byte)
+                            cbTitle = CMD.ViirsAeroQualBitMaskNames[byte][dSet]
+
+                            # Create figure with default size, and create canvas to draw on
+                            passRows = float(data.shape[0])
+                            passCols = float(data.shape[1])
+                            aspect = passRows/passCols
+                            scale = 5.
+                            fig = Figure(figsize=(scale*1.,scale*aspect))
+                            canvas = FigureCanvas(fig)
+
+                            # Create main axes instance, leaving room for colorbar at bottom,
+                            # and also get the Bbox of the axes instance
+                            ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
+                            ax = fig.add_axes(ax_rect,axis_bgcolor='lightgray')
+
+                            # Granule axis title
+                            ax_title = ppl.setp(ax,title=plotTitle)
+                            ppl.setp(ax_title,fontsize=12)
+                            ppl.setp(ax_title,family="sans-serif")
+
+                            # Remove the ticks and ticklabels on the main axis
+                            ppl.setp(ax.get_xticklabels(), visible=False)
+                            ppl.setp(ax.get_yticklabels(), visible=False)
+                            ppl.setp(ax.get_xticklines(),visible=False)
+                            ppl.setp(ax.get_yticklines(),visible=False)
+
+                            # Mask the data
+                            if (data.dtype.kind =='i' or data.dtype.kind =='u'):
+                                print "%s is of kind %r" % (shortName,data.dtype.kind)
+                                data = ma.masked_greater(data,247)
+                            else:
+                                print "%s is of kind %r" % (shortName,data.dtype.kind)
+                                data = ma.masked_less(data,-800.)
+
+                            # Plot the dataset on the main plotting axis
+                            im = ax.imshow(data,interpolation='nearest',vmin=vmin,vmax=vmax,cmap=cmap)
+
+                            # add a colorbar axis
+                            cax_rect = [0.05 , 0.05, 0.9 , 0.08 ] # [left,bottom,width,height]
+                            cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
+
+                            # Plot the colorbar.
+                            cb = fig.colorbar(im, cax=cax, orientation='horizontal')
+                            ppl.setp(cax.get_xticklabels(),fontsize=9)
+                            ppl.setp(cax.get_xticklines(),visible=False)
+
+                            # Set the colourbar tick locations and ticklabels
+                            #ppl.setp(cb.ax,xticks=CMD.ViirsCMTickPos) # In colorbar axis coords (0..1)
+                            cb.set_ticks(vmax*tickPos) # In data coords (0..3)
+                            ppl.setp(cb.ax,xticklabels=CMD.ViirsAeroQualTickNames[byte][dSet])
+
+                            # Colourbar title
+                            cax_title = ppl.setp(cax,title=cbTitle)
+                            ppl.setp(cax_title,fontsize=10)
+
+                            # Turn off the tickmarks on the colourbar
+                            ppl.setp(cb.ax.get_xticklines(),visible=False)
+                            ppl.setp(cb.ax.get_xticklabels(),fontsize=7)
+
+                            # Redraw the figure
+                            canvas.draw()
+
+                            # Save the figure to a png file...
+                            pngFile = path.join(pngDir,'%s%s_b%s_QF%s_%d.png' % (pngPrefix,shortName,orbitNumber,str(byte+1),dSet))
+                            canvas.print_figure(pngFile,dpi=dpi)
+                            print "Writing to %s..." % (pngFile)
+
+                            ppl.close('all')
+
+                        del(byteData)
+
 
 
 ###################################################
@@ -451,6 +840,10 @@ def main():
                       default=string.split(__version__," ")[2],
                       type="string",
                       help="The Subversion revision number/tag of this script")
+    optionalGroup.add_option('--pass',
+                      action="store_true",
+                      dest="plotPass",
+                      help="Concatenate the granules")
     optionalGroup.add_option('--plotMin',
                       action="store",
                       type="float",
@@ -535,6 +928,7 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     pngPrefix = options.outputFilePrefix
     dpi = options.dpi
     plotProduct = options.plotProduct
+    plotPass = options.plotPass
 
     plotEDR = False
     plotQF = False
@@ -559,18 +953,25 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     if plotEDR :
         try :
             AOTobj = AOTclass(hdf5Path)
-            AOTobj.plot_AOT_granules(plotProd=edrPlotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+            if plotPass :
+                AOTobj.plot_AOT_pass(plotProd=edrPlotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+            else:
+                AOTobj.plot_AOT_granules(plotProd=edrPlotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+
             pytables.file.close_open_files()
         except Exception, err:
-            print "%s" % (str(err))
+            traceback.print_exc(file=sys.stdout)
             pytables.file.close_open_files()
 
     if plotQF :
         try :
             AOTobj = AOTclass(hdf5Path)
-            AOTobj.plot_AOT_tests(plotProd=qfPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+            if plotPass :
+                AOTobj.plot_AOT_pass_tests(plotProd=qfPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
+            else:
+                AOTobj.plot_AOT_tests(plotProd=qfPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
         except Exception, err:
-            print "%s" % (str(err))
+            traceback.print_exc(file=sys.stdout)
             pytables.file.close_open_files()
 
 
