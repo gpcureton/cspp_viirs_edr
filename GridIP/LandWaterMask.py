@@ -474,6 +474,22 @@ class LandWaterMask() :
         # Convert granulated data back to original type...
         data = data.astype(self.dataType)
 
+        # Convert any "inland water" to "sea water"
+        shallowInlandWaterValue = self.DEM_dict['DEM_SHALLOW_INLAND_WATER']
+        shallowOceanValue = self.DEM_dict['DEM_SHALLOW_OCEAN']
+        deepInlandWaterValue = self.DEM_dict['DEM_DEEP_INLAND_WATER']
+        deepOceanValue = self.DEM_dict['DEM_DEEP_OCEAN']
+
+        shallowInlandWaterMask = ma.masked_equal(data,shallowInlandWaterValue).mask
+        shallowOceanMask = ma.masked_equal(data,shallowOceanValue).mask
+        deepInlandWaterMask = ma.masked_equal(data,deepInlandWaterValue).mask
+        
+        totalWaterMask = shallowInlandWaterMask #+ shallowOceanMask + deepInlandWaterMask
+
+        data = ma.array(data,mask=totalWaterMask,fill_value=deepOceanValue)
+        data = data.filled()
+
+
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
