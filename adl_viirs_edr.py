@@ -1525,6 +1525,14 @@ def main():
     else :
         LOG.info('Skipping SDR GEO unpacking, assuming all VIIRS SDR blob and asc files are present.')
 
+    # Check geolocation SDR metadata for wrong N_Granule_Version, and fix...
+    geo_blob_names = glob(path.join(work_dir,"*.*GEO-TC"))
+    for geo_blob_name in geo_blob_names:
+        ascName = corresponding_asc_path(geo_blob_name)
+        fileChanged = _strReplace(ascName,'("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
+        if fileChanged :
+            LOG.info("Fixed N_Granule_Version in %s metadata" % (path.basename(geo_blob_name)))
+
     # Unpack HDF5 VIIRS radiometric SDRs in the input directory to the work directory
     radio_unpacking_problems = 0
     unpacking_problems = 0
@@ -1584,17 +1592,6 @@ def main():
             break
         else :
             LOG.info("\tNo %s geolocation granules for VIIRS ancillary" % (geoType))
-
-    # Check geolocation metadata for wrong N_Granule_Version, and fix...
-    if anc_granules_to_process :
-        for grans in anc_granules_to_process:
-            fileChanged=0
-            if grans["N_Granule_Version"] == "A2" :
-                LOG.info("In %s (%s): N_Granule_Version=%s, fixing..." % \
-                        (path.basename(grans["_filename"]),grans["N_Granule_ID"],grans["N_Granule_Version"]))
-                fileChanged = _strReplace(grans["_filename"],\
-                        '("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
-
 
     # Determine the candidate geolocation granules for which we can generate VIIRS products.
     for alg in algorithms :

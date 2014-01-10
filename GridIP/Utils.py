@@ -25,10 +25,13 @@ import string
 import uuid
 from datetime import datetime,timedelta
 
+from subprocess import CalledProcessError
+
 import numpy as np
 from bisect import bisect_left,bisect_right
 
 import adl_blob
+from adl_common import sh, env
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
 # every module should have a LOG object
@@ -112,6 +115,16 @@ def getURID() :
     URID_dict['URID'] = URID
     
     return URID_dict
+
+
+def check_exe(exeName):
+    ''' Check that a required executable is in the path...'''
+    try:
+        retVal = sh(['which',exeName])
+        LOG.info("{} is in the PATH...".format(exeName))
+    except CalledProcessError:
+        LOG.error("Required executable {} is not in the path or is not installed, aborting.".format(exeName))
+        sys.exit(1)
 
 
 def getAscLine(fileObj,searchString):

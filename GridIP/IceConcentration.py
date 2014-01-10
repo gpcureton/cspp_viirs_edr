@@ -25,7 +25,7 @@ import string
 import re
 import uuid
 import shlex, subprocess
-from subprocess import CalledProcessError, call
+#from subprocess import CalledProcessError, call
 from glob import glob
 from time import time
 from datetime import datetime,timedelta
@@ -59,7 +59,7 @@ try :
 except :
     LOG = logging.getLogger('IceConcentration')
 
-from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
+from Utils import check_exe, getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
 #from Utils import plotArr
 
@@ -321,6 +321,16 @@ class IceConcentration() :
 
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
 
+        # Check that we have access to the c-shell...
+        check_exe('csh')
+
+        # Check that we have access to the GRIB retrieval scripts...
+        scriptNames = ['get_anc_cspp_icec.csh']
+        for scriptName in scriptNames:
+            scriptPath = path.join(ANC_SCRIPTS_PATH,scriptName)
+            if not path.exists(scriptPath):
+                LOG.error('Ice Concentration ancillary retrieval script {} can not be found, aborting.'.format(scriptPath))
+                sys.exit(1)
         mmabFiles = []
 
         geoDict = self.geoDict

@@ -28,9 +28,13 @@ from datetime import datetime,timedelta
 import numpy as np
 from numpy import ma
 
+import shlex, subprocess
+from subprocess import CalledProcessError, call
+
 import pygrib
 
 import adl_blob
+from adl_common import sh, env
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE, env, JPSS_REMOTE_ANC_DIR
 
 # Plotting stuff
@@ -336,13 +340,36 @@ def shipOutToFile(ANCobj):
     return URID
 
 
+def check_exe(exeName):
+    ''' Check that a required executable is in the path...'''    
+    try:
+        retVal = sh(['which',exeName])
+        LOG.info("{} is in the PATH...".format(exeName))
+    except CalledProcessError:
+        LOG.error("Required executable {} is not in the path or is not installed, aborting.".format(exeName))
+        sys.exit(1)
+
+
 def retrieve_NCEP_grib_files(geoDicts):
     ''' Download the GRIB files which cover the dates of the geolocation files.'''
 
-    import shlex, subprocess
-    from subprocess import CalledProcessError, call
-
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+
+    # Check that we have access to the c-shell...
+    check_exe('csh')
+
+    # Check that we have access to the GRIB retrieval scripts...
+    scriptNames = [
+                    'jpss_before_and_after_time.csh',
+                    'get_anc_cspp_gdas_gfs.csh',
+                    'cspp_retrieve_gdas_gfs.csh'
+                  ]
+    for scriptName in scriptNames:
+        scriptPath = path.join(ANC_SCRIPTS_PATH,scriptName)
+        if not path.exists(scriptPath):
+            LOG.error('GRIB ancillary retrieval script {} can not be found, aborting.'.format(scriptPath))
+            sys.exit(1)
+
 
     gribFiles = []
 
@@ -366,19 +393,6 @@ def retrieve_NCEP_grib_files(geoDicts):
         granuleName = "GMODO_npp_d%s_t%s_e%s_b00014_c%s.h5" % (dateStamp,startTimeStamp,endTimeStamp,unpackTimeStamp)
 
         try :
-            scriptNames = [
-                            'jpss_before_and_after_time.csh',
-                            'get_anc_cspp_gdas_gfs.csh',
-                            'cspp_retrieve_gdas_gfs.csh'
-                          ]
-            # TODO: Check that we have c-shell...
-            for scriptName in scriptNames:
-                scriptPath = path.join(ANC_SCRIPTS_PATH,scriptName)
-                #scriptPath = '{}/cspp_retrieve_gdas_gfs.csh'.format(ANC_SCRIPTS_PATH)
-                if not path.exists(scriptPath):
-                    LOG.error('GRIB ancillary retrieval script {} can not be found, aborting.'.format(scriptPath))
-                    sys.exit(1)
-
             LOG.info('Retrieving NCEP files for {} ...'.format(granuleName))
             cmdStr = '{} {}'.format(scriptPath,granuleName)
             LOG.debug('\t{}'.format(cmdStr))
