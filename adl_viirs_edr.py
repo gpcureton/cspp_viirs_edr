@@ -1449,7 +1449,6 @@ def _argparse():
 
 def main():
 
-    #options,work_dir = _optparse()
     options,work_dir,log_dir = _argparse()
 
     LOG.info("Starting CSPP VIIRS EDR...")
