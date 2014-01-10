@@ -105,6 +105,7 @@ def getAscLine(fileObj,searchString):
 
     except Exception, err:
         LOG.error('Exception: %r' % (err))
+        LOG.debug(traceback.format_exc())
         fileObj.close()
 
     return dataStr
@@ -140,6 +141,7 @@ def getAscStructs(fileObj,searchString,linesOfContext):
 
     except Exception, err:
         LOG.error('Exception: %r' % (err))
+        LOG.debug(traceback.format_exc())
         fileObj.close()
         return -1
 
@@ -307,6 +309,7 @@ def shipOutToFile(ANCobj):
         ascFile = open(ascFileName,"wt") # create a new text file
     except Exception, err :
         LOG.error("%s, aborting." % (err))
+        LOG.debug(traceback.format_exc())
         sys.exit(1)
 
     LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
@@ -363,9 +366,22 @@ def retrieve_NCEP_grib_files(geoDicts):
         granuleName = "GMODO_npp_d%s_t%s_e%s_b00014_c%s.h5" % (dateStamp,startTimeStamp,endTimeStamp,unpackTimeStamp)
 
         try :
-            LOG.info('Retrieving NCEP files for %s ...' % (granuleName))
-            cmdStr = '%s/cspp_retrieve_gdas_gfs.csh %s' % (ANC_SCRIPTS_PATH,granuleName)
-            LOG.debug('\t%s' % (cmdStr))
+            scriptNames = [
+                            'jpss_before_and_after_time.csh',
+                            'get_anc_cspp_gdas_gfs.csh',
+                            'cspp_retrieve_gdas_gfs.csh'
+                          ]
+            # TODO: Check that we have c-shell...
+            for scriptName in scriptNames:
+                scriptPath = path.join(ANC_SCRIPTS_PATH,scriptName)
+                #scriptPath = '{}/cspp_retrieve_gdas_gfs.csh'.format(ANC_SCRIPTS_PATH)
+                if not path.exists(scriptPath):
+                    LOG.error('GRIB ancillary retrieval script {} can not be found, aborting.'.format(scriptPath))
+                    sys.exit(1)
+
+            LOG.info('Retrieving NCEP files for {} ...'.format(granuleName))
+            cmdStr = '{} {}'.format(scriptPath,granuleName)
+            LOG.debug('\t{}'.format(cmdStr))
             args = shlex.split(cmdStr)
 
             procRetVal = 0
@@ -388,18 +404,20 @@ def retrieve_NCEP_grib_files(geoDicts):
 
             # TODO : On error, jump to a cleanup routine
             if not (procRetVal == 0) :
-                LOG.error('Retrieval of ancillary files failed for %s.' % (granuleName))
+                LOG.error('Retrieval of ancillary files failed for {}.'.format(granuleName))
                 #sys.exit(procRetVal)
 
         except Exception, err:
-            LOG.warn( "%s" % (str(err)))
+            LOG.warn( "{}".format(str(err)))
+            LOG.debug(traceback.format_exc())
+
 
     # Uniqify the list of GRIB files
     gribFiles = list(set(gribFiles))
     gribFiles.sort()
 
     for gribFile in gribFiles :
-        LOG.info('Retrieved GRIB file: %r' % (gribFile))
+        LOG.info('Retrieved GRIB file: {}'.format(gribFile))
 
     return gribFiles
 
@@ -525,6 +543,7 @@ def create_NCEP_grid_blobs(gribFile):
 
         except Exception, err:
             LOG.warn( "%s" % (str(err)))
+            LOG.debug(traceback.format_exc())
     else :
         LOG.info('NCEP global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
 
@@ -581,6 +600,7 @@ def create_NAAPS_grid_blobs(gribFile):
 
         except Exception, err:
             LOG.warn( "NAAPS: %s" % (str(err)))
+            LOG.debug(traceback.format_exc())
     else :
         LOG.info('NAAPS global GRIB blob file %s exists, skipping.' % (path.basename(gribBlob)))
 
