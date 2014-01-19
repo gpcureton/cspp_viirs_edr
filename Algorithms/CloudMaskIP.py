@@ -255,7 +255,7 @@ def submit_granule(additional_env):
     # Specify the command line to execute.
     cmd = [ADL_VIIRS_MASKS_EDR, xml]
     #cmd = ['/bin/sleep','0.2']
-    #cmd = ['/usr/bin/gdb', ADL_VIIRS_MASKS_EDR] # for debugging with gdb...
+    #cmd = ['/usr/bin/gdb','-x','../.gdb_commands','--args',ADL_VIIRS_MASKS_EDR,xml] # for debugging with gdb...
 
     LOG.info('executing "{}"'.format(' '.join(cmd)))
     LOG.debug('additional environment variables: {}'.format(additional_env))

@@ -18,6 +18,7 @@ unset CSPP_RT_ANC_HOME
 unset CSPP_RT_HOME
 unset DCONFIG
 export DCONFIG=${CSPP_EDR_HOME}/common/ADL/cfg
+#export DCONFIG=${CSPP_EDR_HOME}/common/cspp_cfg/cfg
 unset JPSS_REMOTE_ANC_DIR
 export DPE_VER=CSPP_EDR_1_2
 

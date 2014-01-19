@@ -98,7 +98,7 @@ import adl_blob
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
 from adl_common import check_and_convert_path
-from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, ADL_VARS, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 from adl_post_process import repack_products, aggregate_products
 import adl_log
 
@@ -597,6 +597,8 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
     patternDict['EFFECTIVEDATETIME'] = PAT_EFFECTIVEDATETIME
     patternDict['OBSERVEDDATETIME']  = PAT_OBSERVEDDATETIME
     patternDict['CREATEDATETIME']    = PAT_CREATEDATETIME
+
+    DCONFIG=ADL_VARS['DCONFIG']
 
     patternRe = {}
     for key in patternDict.keys():
