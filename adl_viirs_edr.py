@@ -97,7 +97,7 @@ from multiprocessing import Pool, Lock, Value, cpu_count
 import adl_blob
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
-from adl_common import check_and_convert_path
+from adl_common import check_and_convert_path,check_existing_env_var
 from adl_common import ADL_HOME, ADL_VARS, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 from adl_post_process import repack_products, aggregate_products
 import adl_log
@@ -1452,6 +1452,8 @@ def _argparse():
 def main():
 
     options,work_dir,log_dir = _argparse()
+    dpe_version = check_existing_env_var( 'DPE_VER',default_value=None )
+    LOG.info("product version: DPE_VER for VIIRS EDR  %s"%dpe_version)
 
     LOG.info("Starting CSPP VIIRS EDR...")
 

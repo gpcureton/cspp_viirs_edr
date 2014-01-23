@@ -20,7 +20,7 @@ unset DCONFIG
 export DCONFIG=${CSPP_EDR_HOME}/common/ADL/cfg
 #export DCONFIG=${CSPP_EDR_HOME}/common/cspp_cfg/cfg
 unset JPSS_REMOTE_ANC_DIR
-export DPE_VER=CSPP_EDR_1_2
+export DPE_VER=CSPP_EDR_1_2_1
 
 #
 # derived CSPP default locations (site installs may move these under some circumstances)
