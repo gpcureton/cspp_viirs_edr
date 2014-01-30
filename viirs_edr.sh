@@ -1,6 +1,8 @@
 #!/bin/bash
 # $Id$
-# Wrapper environment script for VIIRS EDR components from ADL 3.1
+#
+# Wrapper script for adl_viirs_edr.py, which runs the 
+# CSPP VIIRS EDR package.
 #
 # Environment settings:
 # CSPP_RT_HOME : the location of the CSPP_RT directory
