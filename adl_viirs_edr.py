@@ -1445,7 +1445,7 @@ def _argparse():
         LOG.debug('creating directory %s' % (log_dir))
         os.makedirs(log_dir)
 
-    return args,work_dir,log_dir
+    return args,work_dir ,log_dir
 
 
 
