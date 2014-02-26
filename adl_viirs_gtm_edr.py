@@ -48,7 +48,7 @@ from adl_asc import skim_dir, skim_dir_collections, contiguous_granule_groups, R
 
 import adl_log
 import adl_geo_ref
-import adl_anc_retrieval
+# import adl_anc_retrieval
 
 from adl_common import status_line, configure_logging, get_return_code,  check_and_convert_path
 
@@ -448,28 +448,28 @@ def populate_static_ancillary_links(anc_dir, ancillary_cns, geo_granules):
     link_ancillary_to_work_dir(anc_dir, anc_files_for_collections(ancillary_cns, search_dirs, geo_granules))
 
 
-def populate_dynamic_ancillary_links(anc_dir, work_dir, granules_to_process, allow_cache_update=True):
-    """
-    search for dynamic ancillary data (polar wander and TLE) for the granules we intend to process
-    if it's not in the cache already, download it
-    softlink those into the workspace
-    :param anc_dir: ancillary directory to link files into
-    :param work_dir: where to download ancillary files in the case that cache is unavailable
-    :param granules_to_process: list of granule metadata dictionaries, provide time ranges etc
-    :param allow_cache_update: whether or not to allow the helper scripts to download from Internet
-    FUTURE: originally in adl_atms_sdr.py, consider promoting common routine to adl_common
-    """
-    LOG.info("downloading TLE and PolarWander ancillary into cache and linking into workspace")
-    polar_files = adl_anc_retrieval.service_remote_ancillary(work_dir, granules_to_process,
-                                                             adl_anc_retrieval.kPOLAR,
-                                                             allow_cache_update=allow_cache_update)
-    tle_files = adl_anc_retrieval.service_remote_ancillary(work_dir, granules_to_process,
-                                                           adl_anc_retrieval.kTLE,
-                                                           allow_cache_update=allow_cache_update)
-    all_dyn_anc = list(polar_files) + list(tle_files)
-    LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
-    LOG.info("Link the required ancillary data into the workspace")
-    link_ancillary_to_work_dir(anc_dir, all_dyn_anc)
+# def populate_dynamic_ancillary_links(anc_dir, work_dir, granules_to_process, allow_cache_update=True):
+#     """
+#     search for dynamic ancillary data (polar wander and TLE) for the granules we intend to process
+#     if it's not in the cache already, download it
+#     softlink those into the workspace
+#     :param anc_dir: ancillary directory to link files into
+#     :param work_dir: where to download ancillary files in the case that cache is unavailable
+#     :param granules_to_process: list of granule metadata dictionaries, provide time ranges etc
+#     :param allow_cache_update: whether or not to allow the helper scripts to download from Internet
+#     FUTURE: originally in adl_atms_sdr.py, consider promoting common routine to adl_common
+#     """
+#     LOG.info("downloading TLE and PolarWander ancillary into cache and linking into workspace")
+#     polar_files = adl_anc_retrieval.service_remote_ancillary(work_dir, granules_to_process,
+#                                                              adl_anc_retrieval.kPOLAR,
+#                                                              allow_cache_update=allow_cache_update)
+#     tle_files = adl_anc_retrieval.service_remote_ancillary(work_dir, granules_to_process,
+#                                                            adl_anc_retrieval.kTLE,
+#                                                            allow_cache_update=allow_cache_update)
+#     all_dyn_anc = list(polar_files) + list(tle_files)
+#     LOG.debug('dynamic ancillary files: %s' % repr(all_dyn_anc))
+#     LOG.info("Link the required ancillary data into the workspace")
+#     link_ancillary_to_work_dir(anc_dir, all_dyn_anc)
 
 
 def generate_gtm_edr_xml(kind, gran, work_dir):
@@ -668,8 +668,8 @@ def herd_viirs_gtm_edr_tasks(work_dir, anc_dir, input_dir, nprocs=1, allow_cache
     # FUTURE: consider doing this at a finer granularity
     LOG.debug('expect to need these static ancillary collections: %s' % repr(all_anc_cns))
     populate_static_ancillary_links(anc_dir, all_anc_cns, all_geo_grans)
-    LOG.debug('fetching dynamic ancillary for %d granules' % len(all_geo_grans))
-    populate_dynamic_ancillary_links(anc_dir, work_dir, all_geo_grans, allow_cache_update)
+    # LOG.debug('fetching dynamic ancillary for %d granules' % len(all_geo_grans))
+    # populate_dynamic_ancillary_links(anc_dir, work_dir, all_geo_grans, allow_cache_update)
 
     LOG.debug('building task list for parallel processing')
     for kind, geo_granule, sdr_cns, edr_cns, anc_cns in all_info:
