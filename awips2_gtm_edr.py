@@ -325,7 +325,7 @@ CHANNEL_INFO_LUT = {
     'VM04O': ('24', 'BrightnessTemperatureOrReflectance', 'VIIRS_M14_EDR'),
     'VM05O': ('25', 'BrightnessTemperatureOrReflectance', 'VIIRS_M15_EDR'),
     'VM06O': ('26', 'BrightnessTemperatureOrReflectance', 'VIIRS_M16_EDR'),
-    'VNCCO': ('27', 'Albedo', 'VIIRS_NCC_EDR'),
+    'VNCCO': ('10', 'Albedo', 'VIIRS_NCC_EDR'),
 }
 
 
