@@ -2717,6 +2717,8 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
     '''
 
     reload(viirs_edr_data)
+    SeaSurfaceTempProduct = viirs_edr_data.SeaSurfaceTempProdData.SeaSurfaceTempProd()
+    cmap = SeaSurfaceTempProduct.cmap
 
     # The plot range...
     print "vmin,vmax = ",vmin,vmax 
@@ -2840,7 +2842,7 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
 
 
 def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
-        vmin=-1.,vmax=1.,scale=1.3, \
+        vmin=0.,vmax=1.,scale=1.3, \
         lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,mapRes='c',cmap=None, \
         prodFileName='',outFileName='VIVIO.png',dpi=300,titleStr='VIIRS VI EDR'):
     '''
@@ -2848,6 +2850,8 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     '''
 
     reload(viirs_edr_data)
+    VegetationIndexProduct = viirs_edr_data.VegetationIndexProdData.VegetationIndexProd()
+    cmap = VegetationIndexProduct.cmap
 
     # The plot range...
     print "vmin,vmax = ",vmin,vmax 
@@ -2910,7 +2914,6 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     #m.bluemarble()
 
     # Plot the granule data
-    cmap = cm.YlGn
     if scatterPlot:
         cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
     else:
@@ -3639,7 +3642,7 @@ def main():
         stride = stride_IP if options.stride==None else options.stride
         ipProd = options.ipProd
 
-        vmin = -1. if (vmin==None) else vmin
+        vmin = 0. if (vmin==None) else vmin
         vmax = 1.  if (vmax==None) else vmax
 
         lats,lons,ndviData,gran_lat_0,gran_lon_0,ModeGran = gran_NDVI(geoList,prodList,prodName=ipProd,shrink=stride)
