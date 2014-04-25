@@ -10,15 +10,53 @@ test -n "$CSPP_EDR_HOME" || echo "CSPP_EDR_HOME is not set. Please set this envi
 
 # the adl-common.py module will assign defaults
 # these variables should only be set for custom installations
-unset CSPP_RT_ANC_CACHE_DIR
-unset CSPP_RT_ANC_PATH
-unset CSPP_RT_ANC_HOME
-unset CSPP_RT_ANC_TILE_PATH
-unset CSPP_RT_ANC_HOME
-unset CSPP_RT_HOME
-unset DCONFIG
-export DCONFIG=${CSPP_EDR_HOME}/common/cspp_cfg/cfg
-unset JPSS_REMOTE_ANC_DIR
+
+if [ ! -z "${CSPP_RT_ANC_CACHE_DIR}" ];
+then
+    echo "Warning overridden default: CSPP_RT_ANC_CACHE_DIR="${CSPP_RT_ANC_CACHE_DIR}
+fi
+
+if [ ! -z "${CSPP_RT_ANC_PATH}" ];
+then
+    echo "Warning overridden default: CSPP_RT_ANC_PATH="${CSPP_RT_ANC_PATH}
+fi
+
+if [ ! -z "${CSPP_RT_ANC_HOME}" ];
+then
+    echo "Warning overridden default: CSPP_RT_ANC_HOME="${CSPP_RT_ANC_HOME}
+
+fi
+
+if [ ! -z "${CSPP_RT_ANC_TILE_PATH}" ];
+then
+    echo "Warning overridden default: CSPP_RT_ANC_TILE_PATH="${CSPP_RT_ANC_TILE_PATH}
+
+fi
+
+if [ ! -z "${CSPP_RT_ANC_HOME}" ];
+then
+    echo "Warning overridden default: CSPP_RT_ANC_HOME="${CSPP_RT_ANC_HOME}
+
+fi
+
+if [ ! -z "${CSPP_RT_HOME}" ];
+then
+    echo "Warning overridden default: CSPP_RT_HOME="${CSPP_RT_HOME}
+
+fi
+
+if [ ! -z "${DCONFIG}" ];
+then
+      echo "Warning overridden default: DCONFIG="${DCONFIG}
+
+fi
+
+if [ ! -z "${JPSS_REMOTE_ANC_DIR}" ];
+then
+     echo "Warning overridden default: JPSS_REMOTE_ANC_DIR="${JPSS_REMOTE_ANC_DIR}
+fi
+
+
 export DPE_VER=CSPP_EDR_1_2_1
 
 #
