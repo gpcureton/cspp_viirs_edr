@@ -924,64 +924,69 @@ def _create_input_file_globs(inputFiles):
     return input_dir,inputGlob
 
 
-def _create_ndvi_object_pytables(input_files,output_file):
-    ''' Create a new output file and populate the attributes. '''
-
-    LOG.debug("Opening the min/max NDVI file {}".format(path.basename(output_file)))
-
-    f = pytables.open_file(output_file,'w',title="Min/Max Average NDVI")
-
-    f.setNodeAttr('/','Author','Geoff Cureton')
-    f.setNodeAttr('/','email','<geoff.cureton@ssec.wisc.edu>')
-    f.setNodeAttr('/','input 16-day NDVI files',np.array(input_files))
-
-    LOG.debug(input_files)
-    
-    LOG.debug("Closing HDF5 file")
-
-    f.close()
-
 def _create_ndvi_object_h5py(input_files,dset_dicts,output_file):
     ''' Create a new output file and populate the attributes. '''
 
-    LOG.debug("Opening the min/max NDVI file {}".format(path.basename(output_file)))
+    LOG.info("Opening the min/max NDVI file {}".format(path.basename(output_file)))
 
     f = h5py.File(output_file,'w')
 
-    f.attrs['Author'] = "Geoff Cureton"
-    f.attrs['email'] = "<geoff.cureton@ssec.wisc.edu>"
+    # Set some global attributes on the output file
+    f.attrs['Author'] = __author__
+    f.attrs['Source'] = file_HeadURL
+    f.attrs['Version'] = __version__
     f.attrs['input 16-day NDVI files'] = np.array(input_files)
 
     # Copy the datasets and their associated attributes to the 
     # hdf5 file.
     for dset in ['Latitude','Longitude','min_ndvi','max_ndvi']:
         LOG.debug(dset)
-        #dset_obj = f[dset]
         f[dset] = dset_dicts[dset]['data']
         attr_list = dset_dicts[dset].keys()
         attr_list.remove('data')
         LOG.debug(attr_list)
         for attr_key in attr_list:
-            #dset_obj.attrs[attr_key] = dset_dicts[dset][attr_key]
             f[dset].attrs[attr_key] = dset_dicts[dset][attr_key]
-
-    #f['Latitude'] = dset_dicts['Latitude']['data']
-    #f['Longitude'] = dset_dicts['Longitude']['data']
-    #f['min_ndvi'] = dset_dicts['min_ndvi']['data']
-    #f['max_ndvi'] = dset_dicts['max_ndvi']['data']
-
-    #for dset in ['Latitude','Longitude','min_ndvi','max_ndvi']:
-        #LOG.debug(dset)
-        #for attr_key in dset_dicts[dset].keys():
-            #LOG.debug('\t{} = {}'.format(attr_key,dset_dicts[dset][attr_key]))
-
     
     LOG.debug("Closing HDF5 file")
 
     f.close()
 
 
-def _plot_ndvi(dset_dicts,dset,title=None):
+def _read_ndvi_object_h5py(input_file):
+    ''' Create a new output file and populate the attributes. '''
+
+    LOG.info("Opening the min/max NDVI file {}".format(path.basename(input_file)))
+
+    f = h5py.File(input_file,'r')
+
+    dset_dicts = {}
+
+    for dset in ['Latitude','Longitude','min_ndvi','max_ndvi']:
+        LOG.debug(dset)
+
+        dset_dicts[dset] = {}
+
+        # Get the list of attributes for this dataset
+        attr_list = f[dset].attrs.keys()
+        LOG.debug(attr_list)
+        for attr_key in attr_list:
+            dset_dicts[dset][attr_key] = f[dset].attrs[attr_key]
+
+        # Get the array data for this dataset
+        dset_dicts[dset]['data'] = f[dset].value
+
+    for dset in dset_dicts.keys():
+        LOG.debug(dset)
+        for attr_key in dset_dicts[dset].keys():
+            LOG.debug('\t{} = {}'.format(attr_key,dset_dicts[dset][attr_key]))
+
+    f.close()
+
+    return dset_dicts
+
+
+def _plot_ndvi(dset_dicts,dset,title=None,png_name=None,dpi=200):
 
         Latitude  = dset_dicts['Latitude']['data']
         Longitude = dset_dicts['Longitude']['data']
@@ -1047,10 +1052,11 @@ def _plot_ndvi(dset_dicts,dset,title=None):
         # Redraw the figure
         canvas.draw()
 
-        # save image 
-        pngFile = "{}.png".format(dset)
-        print "Writing file to {}".format(pngFile)
-        canvas.print_figure(pngFile,dpi=300)
+        # save image
+        if png_name == None:
+            png_name = "{}.png".format(dset)
+        LOG.info("Writing image file to {}".format(png_name))
+        canvas.print_figure(png_name,dpi=dpi)
 
         del(m)
         return 0
@@ -1063,15 +1069,15 @@ def _argparse():
 
     import argparse
 
-    optChoices=['choice1','choice2','choice3']
+    ndvi_choices=['min_ndvi','max_ndvi']
 
     defaults = {
                 'input_file' : None,
-                'optChoice'  : 'choice1',
-                'setTrue'    : False,
-                'floatVar'   : 1.23,
+                'plot_ndvi'  : False,
                 'stride'     : 1,
-                'strVar'     : 'Hello Joe'
+                'output_file': 'ann_min_max_ndvi.h5',
+                'ndvi_choice': 'min_ndvi',
+                'dpi'        : 200.
                 }
 
     description = '''Boilerplate code which shows how to use argparse, and tries to exercise
@@ -1093,31 +1099,30 @@ most of the input types.'''
 
     # Optional arguments 
 
-    parser.add_argument('--optChoice',
+    parser.add_argument('--which_ndvi',
                       action="store",
-                      dest="optChoice",
-                      default=defaults["optChoice"],
+                      dest="ndvi_choice",
+                      default=defaults["ndvi_choice"],
                       type=str,
-                      choices=optChoices,
-                      help='''An example of an option which can take one of\n
-                              several values. Possible options here are...\n
+                      choices=ndvi_choices,
+                      help='''Which Annual min/max NDVI dataset to plot. Possible options here are...\n
                               {}.
-                           '''.format(optChoices.__str__()[1:-1])
+                           '''.format(ndvi_choices.__str__()[1:-1])
                       )
 
-    parser.add_argument('--setTrue',
+    parser.add_argument('--plot_ndvi',
                       action="store_true",
-                      dest="setTrue",
-                      default=defaults["setTrue"],
-                      help="An example of a flag option, the giving of which sets a boolean variable to 'true' [default: {}]".format(defaults["setTrue"])
+                      dest="plot_ndvi",
+                      default=defaults["plot_ndvi"],
+                      help="Plot the annual min and max NDVI from a HDF5 file generated previously [default: {}]".format(defaults["plot_ndvi"])
                       )
 
-    parser.add_argument('--setFloatVar',
+    parser.add_argument('--dpi',
                       action="store",
-                      dest="floatVar",
-                      default=defaults["floatVar"],
+                      dest="dpi",
+                      default=defaults["dpi"],
                       type=float,
-                      help="An example of an option to set a float variable [default: {}]".format(defaults["floatVar"])
+                      help="An example of an option to set a float variable [default: {}]".format(defaults["dpi"])
                       )
 
     parser.add_argument('--stride',
@@ -1128,12 +1133,12 @@ most of the input types.'''
                       help="An example of an option to set a int variable [default: {}]".format(defaults["stride"])
                       )
 
-    parser.add_argument('--setStrVar',
+    parser.add_argument('--output_file',
                       action="store",
-                      dest="strVar",
-                      default=defaults["strVar"],
+                      dest="output_file",
+                      default=defaults["output_file"],
                       type=str,
-                      help="An example of an option to set a str variable [default: {}]".format(defaults["strVar"])
+                      help="The filename of the output annual min/max NDVI HDF5 file [default: {}]".format(defaults["output_file"])
                       )
 
     parser.add_argument("-v", "--verbose",
@@ -1166,24 +1171,19 @@ def main():
     options = _argparse()
 
     input_file = options.input_file
-    optChoice  = options.optChoice
-    setTrue  = options.setTrue
-    floatVar = options.floatVar
+    plot_ndvi  = options.plot_ndvi
     stride = options.stride
-    strVar = options.strVar
+    output_file = options.output_file
+    dpi = options.dpi
+    ndvi_choice  = options.ndvi_choice
 
 
-    #LOG.error("This is an ERROR message.")
-    #LOG.warn("This is a WARNING message.")
-    #LOG.info("This is an INFO message.")
-    #LOG.debug("This is a DEBUG message.")
-
-    LOG.info("Input option 'input_file'   =  {} ".format(input_file))
-    LOG.info("Input option 'optChoice'    =  {} ".format(optChoice))
-    LOG.info("Input option 'setTrue'      =  {} ".format(setTrue))
-    LOG.info("Input option 'floatVar'     =  {} ".format(floatVar))
-    LOG.info("Input option 'stride'       =  {} ".format(stride))
-    LOG.info("Input option 'strVar'       =  {} ".format(strVar))
+    LOG.info("Input option 'input_file'  = {} ".format(input_file))
+    LOG.info("Input option 'plot_ndvi'   = {} ".format(plot_ndvi))
+    LOG.info("Input option 'stride'      = {} ".format(stride))
+    LOG.info("Input option 'output_file' = {} ".format(output_file))
+    LOG.info("Input option 'dpi'         = {} ".format(dpi))
+    LOG.info("Input option 'ndvi_choice'   =  {} ".format(ndvi_choice))
 
     input_dir,input_glob = _create_input_file_globs(input_file)
 
@@ -1201,7 +1201,19 @@ def main():
     for idx in range(len(input_files)):
         input_files[idx] = path.basename(input_files[idx])
 
-    LOG.debug(input_files)
+    LOG.info(input_files)
+
+    # Plot the NDVI climatology and exit
+    if plot_ndvi :
+        for files in input_files:
+            dset_dicts = _read_ndvi_object_h5py(files)
+            
+            plotTitle = {'min_ndvi':'Minimum Annual NDVI','max_ndvi':'Maximum Annual NDVI'}
+            png_name = "{}_{}.png".format(string.split(files,'.h5')[:-1][0],ndvi_choice)
+            _plot_ndvi(dset_dicts,ndvi_choice,title=plotTitle[ndvi_choice],png_name=png_name,dpi=dpi)
+
+        return 0
+
 
     # Do some file operations with h5py
 
@@ -1224,6 +1236,7 @@ def main():
     fileObj.close()
 
     # Create some dictionaries
+
     dset_dicts['min_ndvi'] = {}
     dset_dicts['max_ndvi'] = {}
 
@@ -1238,9 +1251,8 @@ def main():
 
     # Create the man and max NDVI arrays
 
-
     for ndvi_file in input_files:
-        LOG.debug('Opening NDVI file {}...'.format(ndvi_file))
+        LOG.info('Opening NDVI file {}...'.format(ndvi_file))
         fileObj = h5py.File(path.join(input_dir,ndvi_file),"r")
         ndvi = fileObj['NDVI'].value[::stride,::stride]
         LOG.debug('NDVI shape is = {}'.format(ndvi.shape))
@@ -1271,10 +1283,8 @@ def main():
     dset_dicts['min_ndvi']['data'] = min_ndvi
     dset_dicts['max_ndvi']['data'] = max_ndvi
 
-    _create_ndvi_object_h5py(input_files,dset_dicts,"min_max_ndvi_h5py.h5")
+    _create_ndvi_object_h5py(input_files,dset_dicts,output_file)
 
-    _plot_ndvi(dset_dicts,'min_ndvi',title='Minimum Annual NDVI')
-    _plot_ndvi(dset_dicts,'max_ndvi',title='Maximum Annual NDVI')
 
     return 0
 
