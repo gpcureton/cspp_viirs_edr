@@ -1277,7 +1277,8 @@ def _argparse():
     import argparse
 
     endianChoices = ['little','big']
-    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','ATMOS','LAND','OCEAN','ALL','MPC']
+    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','ST',
+            'ATMOS','LAND','OCEAN','ALL','MPC']
 
     defaults = {'work_dir':'.',
                 'skipSdrUnpack':False,
@@ -1307,7 +1308,8 @@ def _argparse():
                       dest="inputFiles",
                       type=str,
                       required=True,
-                      help="The fully qualified path to the input files. May be a directory or a file glob."
+                      help='''The fully qualified path to the input files. May be
+                            a directory or a file glob.'''
                       )
 
     parser.add_argument('--alg',
@@ -1329,56 +1331,68 @@ def _argparse():
                       dest="work_dir",
                       type=str,
                       default=defaults['work_dir'],
-                      help="The directory which all activity will occur in, defaults to the current directory. [default: {}]".format(defaults['work_dir'])
+                      help='''The directory which all activity will occur in, 
+                      defaults to the current directory. 
+                      [default: {}]'''.format(defaults['work_dir'])
                       )
     
     parser.add_argument('--skip_sdr_unpack',
                       action="store_true",
                       dest="skipSdrUnpack",
                       default=defaults['skipSdrUnpack'],
-                      help="Skip the unpacking of the VIIRS SDR HDF5 files. [default: {}]".format(defaults['skipSdrUnpack'])
+                      help='''Skip the unpacking of the VIIRS SDR HDF5 files. 
+                      [default: {}]'''.format(defaults['skipSdrUnpack'])
                       )
 
     parser.add_argument('--skip_aux_linking',
                       action="store_true",
                       dest="skipAuxLinking",
                       default=defaults['skipAuxLinking'],
-                      help="Skip the the linking to auxillary files. [default: {}]".format(defaults['skipAuxLinking'])
+                      help='''Skip the the linking to auxillary files. 
+                      [default: {}]'''.format(defaults['skipAuxLinking'])
                       )
 
     parser.add_argument('--skip_ancillary',
                       action="store_true",
                       dest="skipAncillary",
                       default=defaults['skipAncillary'],
-                      help="Skip the retrieval and granulation of ancillary data. [default: {}]".format(defaults['skipAncillary'])
+                      help='''Skip the retrieval and granulation of ancillary 
+                              data. 
+                              [default: {}]'''.format(defaults['skipAncillary'])
                       )
 
     parser.add_argument('--skip_algorithm',
                       action="store_true",
                       dest="skipAlgorithm",
                       default=defaults['skipAlgorithm'],
-                      help="Skip running the VIIRS EDR algorithm(s). [default: {}]".format(defaults['skipAlgorithm'])
+                      help='''Skip running the VIIRS EDR algorithm(s). 
+                      [default: {}]'''.format(defaults['skipAlgorithm'])
                       )
 
     parser.add_argument('--debug',
                       action="store_true",
                       dest="cspp_debug",
                       default=defaults['cspp_debug'],
-                      help="Enable debug mode on ADL and avoid cleaning workspace. [default: {}]".format(defaults['cspp_debug'])
+                      help='''Enable debug mode on ADL and avoid cleaning 
+                      workspace. 
+                      [default: {}]'''.format(defaults['cspp_debug'])
                       )
 
     parser.add_argument('--no_chain',
                       action="store_true",
                       dest="noAlgChain",
                       default=defaults['noAlgChain'],
-                      help="Do not run prerequisite algorithms. [default: {}]".format(defaults['noAlgChain'])
+                      help='''Do not run prerequisite algorithms. 
+                      [default: {}]'''.format(defaults['noAlgChain'])
                       )
 
     parser.add_argument('--no_dummy_granules',
                       action="store_true",
                       dest="noDummyGranules",
                       default=defaults['noDummyGranules'],
-                      help="Do not generate dummy SDR or ancillary cross granules. [default: {}]".format(defaults['noDummyGranules'])
+                      help='''Do not generate dummy SDR or ancillary 
+                      cross granules. 
+                      [default: {}]'''.format(defaults['noDummyGranules'])
                       )
 
     parser.add_argument('-p','--processors',
@@ -1386,7 +1400,8 @@ def _argparse():
                       dest="processors",
                       default=defaults['processors'],
                       type=int,
-                      help="Number of cpus to use for granule processing. [default: {}]".format(defaults['processors'])
+                      help='''Number of cpus to use for granule processing. 
+                      [default: {}]'''.format(defaults['processors'])
                       )
 
     parser.add_argument('--sdr_endianness',
@@ -1398,7 +1413,8 @@ def _argparse():
                       help='''The input VIIRS SDR endianness.\n\n
                               Possible values are...
                               {}. [default: '{}']
-                           '''.format(endianChoices.__str__()[1:-1],defaults['sdr_Endianness'])
+                           '''.format(endianChoices.__str__()[1:-1],
+                               defaults['sdr_Endianness'])
                       )
     
     parser.add_argument('--anc_endianness',
@@ -1410,28 +1426,32 @@ def _argparse():
                       help='''The input VIIRS ancillary endianness.\n\n
                               Possible values are...
                               {}. [default: '{}']
-                           '''.format(endianChoices.__str__()[1:-1],defaults['anc_Endianness'])
+                           '''.format(endianChoices.__str__()[1:-1],
+                               defaults['anc_Endianness'])
                       )
 
     parser.add_argument('-z', '--zip',
                       action="store_true",
                       dest="compress",
                       default=defaults['compress'],
-                      help="Enable product compression. [default: {}]".format(defaults['compress'])
+                      help='''Enable product compression. 
+                      [default: {}]'''.format(defaults['compress'])
                       )
 
     parser.add_argument('-a', '--aggregate',
                       action="store_true",
                       dest="aggregate",
                       default=defaults['aggregate'],
-                      help="Enable product nagg aggregation. [default: {}]".format(defaults['aggregate'])
+                      help='''Enable product nagg aggregation. 
+                      [default: {}]'''.format(defaults['aggregate'])
                       )
 
     parser.add_argument('-v', '--verbose',
                       dest='verbosity',
                       action="count",
                       default=0,
-                      help='each occurrence increases verbosity 1 level from INFO: -v=DEBUG'
+                      help='''Each occurrence increases 
+                      verbosity 1 level from INFO: -v=DEBUG'''
                       )
 
 
