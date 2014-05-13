@@ -7,33 +7,40 @@ Purpose: Run one or more of the VIIRS EDR Controllers using ADL.
 
 Input:
     * One or more HDF5 VIIRS SDR input files, aggregated or single-granule.
-      You need one granule before and one granule after a given granule to process.
+      You need one granule before and one granule after a given granule to 
+      process.
     * Static IGBP,LWM,NDVI files.
-    * A work directory, typically, empty, in which to unpack the granules and generate the output.
-      If the work directory specified does not exist, it will be created.
+    * A work directory, typically, empty, in which to unpack the granules and 
+      generate the output. If the work directory specified does not exist, it 
+      will be created.
 
 Output:
-    * ADL VIIRS Cloud Mask Intermediate Product (IP) blob files, and associated HDF5 output files
-    * ADL VIIRS Active Fires Intermediate Product (IP) blob files, and associated HDF5 output files 
+    * ADL VIIRS Cloud Mask Intermediate Product (IP) blob files, and associated 
+      HDF5 output files
+    * ADL VIIRS Active Fires Intermediate Product (IP) blob files, and 
+      associated HDF5 output files 
     * Associated .asc metadata files.
-    * Unless --debug is specified, all blob and asc files, and the log, perf and ancillary directories 
-      will be deleted.
+    * Unless --debug is specified, all blob and asc files, and the log, perf 
+      and ancillary directories will be deleted.
 
 Details:
-    * If you input a series of granules, the software will scan the work directory.
-      Thus, for N input SDR granules, you may get up to N-2 or less output EDR granules if 
+    * If you input a series of granules, the software will scan the work 
+      directory.
+      Thus, for N input SDR granules, you may get up to N-2 or less output EDR 
+      granules if 
       they are all contiguous, depending on the algorithm.
     * It is ambiguous to provide several copies of the same granule in the work 
       directory; this will result in an error abort.
 
 Preconditions:
-    * Requires ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR environment variables are set.
+    * Requires ADL_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR environment 
+      variables are set.
     * Requires that any needed LD_LIBRARY_PATH is set.
     * Requires that DSTATICDATA is set.
 
 Optional:
-    * Environment variables CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, if static ancillary data is not 
-      placed within ADL_HOME.
+    * Environment variables CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, if static 
+      ancillary data is not placed within ADL_HOME.
 
 Minimum commandline:
 
@@ -41,7 +48,8 @@ Minimum commandline:
 
 where...
 
-    INPUTFILES: The fully qualified path to the input files. May be a directory or a file glob.
+    INPUTFILES: The fully qualified path to the input files. May be a directory 
+    or a file glob.
 
 
 Created by Geoff Cureton <geoff.cureton@ssec.wisc.edu> on 2011-09-30.
@@ -95,10 +103,14 @@ from multiprocessing import Pool, Lock, Value, cpu_count
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
-from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
-from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, env, h5_xdr_inventory, get_return_code, check_env
+from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, 
+    effective_anc_contains,_eliminate_duplicates,_is_contiguous, 
+    corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
+from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, 
+    env, h5_xdr_inventory, get_return_code, check_env
 from adl_common import check_and_convert_path,check_existing_env_var
-from adl_common import ADL_HOME, ADL_VARS, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, ADL_VARS, CSPP_RT_HOME, CSPP_RT_ANC_PATH, 
+    CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 from adl_post_process import repack_products, aggregate_products
 import adl_log
 
@@ -110,10 +122,12 @@ from adl_common import _test_logging as test_logging
 
 import Algorithms
 
-# we're not likely to succeed in processing using geolocation smaller than this many bytes
+# we're not likely to succeed in processing using geolocation smaller than this 
+# many bytes
 MINIMUM_SDR_BLOB_SIZE = 81000000
 
-# maximum delay between granule end time and next granule start time to consider them contiguous
+# maximum delay between granule end time and next granule start time to 
+# consider them contiguous
 MAX_CONTIGUOUS_DELTA=timedelta(seconds = 5)
 
 
@@ -135,7 +149,8 @@ def set_sdr_endian(inputEndianness) :
     elif inputEndianness=='little' :
         sdrEndian = adl_blob.LITTLE_ENDIAN
     else :
-        LOG.error('Invalid value for the VIIRS SDR endianness : %s ' % (inputEndianness))
+        LOG.error('Invalid value for the VIIRS SDR endianness : %s ' 
+                % (inputEndianness))
 
 
 def set_anc_endian(inputEndianness) :
@@ -148,7 +163,8 @@ def set_anc_endian(inputEndianness) :
     elif inputEndianness=='little' :
         ancEndian = adl_blob.LITTLE_ENDIAN
     else :
-        LOG.error('Invalid value for the VIIRS ancillary endianness : %s ' % (inputEndianness))
+        LOG.error('Invalid value for the VIIRS ancillary endianness : %s ' 
+                % (inputEndianness))
 
 
 def _create_input_file_globs(inputFiles):
