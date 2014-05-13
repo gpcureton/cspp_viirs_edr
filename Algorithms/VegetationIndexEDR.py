@@ -277,7 +277,7 @@ def submit_granule(additional_env):
 
 
 def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPRESS=False,AGGREGATE=False, **additional_env):
-    """Run each VIIRS Sea Surface Temperature EDR xml input in sequence.
+    """Run each VIIRS Vegetation Index EDR xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
     """
