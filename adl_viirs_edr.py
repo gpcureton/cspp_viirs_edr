@@ -103,14 +103,15 @@ from multiprocessing import Pool, Lock, Value, cpu_count
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
-from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, 
-    effective_anc_contains,_eliminate_duplicates,_is_contiguous, 
-    corresponding_asc_path, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
-from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, 
-    env, h5_xdr_inventory, get_return_code, check_env
+from adl_asc import skim_dir, contiguous_granule_groups, \
+        granule_groups_contain, effective_anc_contains,_eliminate_duplicates, \
+        _is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, \
+        POLARWANDER_REQUIRED_KEYS
+from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, \
+        env, h5_xdr_inventory, get_return_code, check_env
 from adl_common import check_and_convert_path,check_existing_env_var
-from adl_common import ADL_HOME, ADL_VARS, CSPP_RT_HOME, CSPP_RT_ANC_PATH, 
-    CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, ADL_VARS, CSPP_RT_HOME, CSPP_RT_ANC_PATH, \
+        CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 from adl_post_process import repack_products, aggregate_products
 import adl_log
 
@@ -442,6 +443,9 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
                 gran['N_Granule_ID_next'] = granId_next
                 granIdx = granIdx + 1
                 LOG.debug("Granule IDs are ({},{},{})".format(gran['N_Granule_ID_prev'],gran['N_Granule_ID'],gran['N_Granule_ID_next']))
+            else:
+                gran['N_Granule_ID_prev'] = startGran
+                gran['N_Granule_ID_next'] = endGran
 
             LOG.debug('Processing opportunity: {} at {} with uuid {}'.format(gran['N_Granule_ID'], gran['StartTime'], gran['URID']))
             yield gran
@@ -916,78 +920,7 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-    # Download the required NCEP grib files
-    LOG.info("Downloading NCEP GRIB ancillary into cache...")
-    gribFiles = ANC.retrieve_NCEP_grib_files(geoDicts)
-    LOG.debug('dynamic ancillary GRIB files: %s' % repr(gribFiles))
-    if (gribFiles == []) :
-        LOG.error('Failed to find or retrieve any GRIB files, aborting.')
-        sys.exit(1)
-
-    # Transcode the NCEP GRIB files into ADL NCEP-ANC-Int
-    ncepGridBlobFiles = []
-    for gribFile in gribFiles:
-        gridBlobFile = ANC.create_NCEP_grid_blobs(gribFile)
-        ncepGridBlobFiles.append(gridBlobFile)
-
-    if (ncepGridBlobFiles == []) :
-        LOG.error('Failed to convert NCEP GRIB  files to blobs, aborting.')
-        sys.exit(1)
-
-    LOG.debug("NCEP ncepGridBlobFiles = %r" % (ncepGridBlobFiles))
-
-    # Open the NCEP gridded blob file
-
-    ncepXmlFile = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
-    endian = adl_blob.LITTLE_ENDIAN
-    ncepBlobArrObjs = []
-
-    for gridBlobFile in ncepGridBlobFiles :
-        timeObj = gridBlobFile[0]
-        ncepBlobFile = gridBlobFile[1]
-        ncepBlobObj = adl_blob.map(ncepXmlFile, ncepBlobFile, endian=endian)
-        ncepBlobArrObj = ncepBlobObj.as_arrays()
-        ncepBlobArrObjs.append([timeObj,ncepBlobArrObj])
-        LOG.debug("%s...\n%r" % (ncepBlobFile,[field for field in ncepBlobArrObj._fields]))
-    
-    # Get the NAAPS AOT if required...
-    if 'AOT' in algList :
-        # Download the required NCEP grib files
-        #LOG.info("Downloading NAAPS GRIB ancillary into cache...")
-        #gribFiles = ANC.retrieve_NAAPS_grib_files(geoDicts)
-        #LOG.debug('Dynamic ancillary GRIB files: %s' % repr(gribFiles))
-        #if (gribFiles == []) :
-            #LOG.error('Failed to find or retrieve any GRIB files, aborting.')
-            #sys.exit(1)
-
-        gribFiles = glob(path.join(CSPP_RT_ANC_CACHE_DIR,'NAAPS-ANC-Int/NAAPS.*.grib2'))
-        LOG.info("We are using for NAAPS grib2 :%r" %(gribFiles))
-
-        # Transcode the NAAPS GRIB files into ADL NAAPS-ANC-Int
-        naapsGridBlobFiles = []
-        for gribFile in gribFiles:
-            gridBlobFile = ANC.create_NAAPS_grid_blobs(gribFile)
-            naapsGridBlobFiles.append(gridBlobFile)
-
-        if (naapsGridBlobFiles == []) :
-            LOG.error('Failed to convert NAAPS GRIB  files to blobs, aborting.')
-            sys.exit(1)
-
-        LOG.debug("NAAPS naapsGridBlobFiles = %r" % (naapsGridBlobFiles))
-
-        naapsXmlFile = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
-        endian = adl_blob.LITTLE_ENDIAN
-        naapsBlobArrObjs = []
-
-        for gridBlobFile in naapsGridBlobFiles :
-            timeObj = gridBlobFile[0]
-            naapsBlobFile = gridBlobFile[1]
-            naapsBlobObj = adl_blob.map(naapsXmlFile, naapsBlobFile, endian=endian)
-            naapsBlobArrObj = naapsBlobObj.as_arrays()
-            naapsBlobArrObjs.append([timeObj,naapsBlobArrObj])
-            LOG.debug("%s...\n%r" % (naapsBlobFile,[field for field in naapsBlobArrObj._fields]))
-
-
+    ###############################################
     # Create a list of algorithm module "pointers"
     algorithms = []
     for alg in algList :
@@ -1005,6 +938,106 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
     # Remove duplicate shortNames
     collectionShortNames = list(set(collectionShortNames))
     LOG.info("collectionShortNames = %r" %(collectionShortNames))
+
+    # If there are ancillary types to process, proceed...
+    if collectionShortNames != []:
+
+    ###############################################
+
+        # Download the required NCEP grib files
+        LOG.info("Downloading NCEP GRIB ancillary into cache...")
+        gribFiles = ANC.retrieve_NCEP_grib_files(geoDicts)
+        LOG.debug('dynamic ancillary GRIB files: %s' % repr(gribFiles))
+        if (gribFiles == []) :
+            LOG.error('Failed to find or retrieve any GRIB files, aborting.')
+            sys.exit(1)
+
+        # Transcode the NCEP GRIB files into ADL NCEP-ANC-Int
+        ncepGridBlobFiles = []
+        for gribFile in gribFiles:
+            gridBlobFile = ANC.create_NCEP_grid_blobs(gribFile)
+            ncepGridBlobFiles.append(gridBlobFile)
+
+        if (ncepGridBlobFiles == []) :
+            LOG.error('Failed to convert NCEP GRIB  files to blobs, aborting.')
+            sys.exit(1)
+
+        LOG.debug("NCEP ncepGridBlobFiles = %r" % (ncepGridBlobFiles))
+
+        # Open the NCEP gridded blob file
+
+        ncepXmlFile = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
+        endian = adl_blob.LITTLE_ENDIAN
+        ncepBlobArrObjs = []
+
+        for gridBlobFile in ncepGridBlobFiles :
+            timeObj = gridBlobFile[0]
+            ncepBlobFile = gridBlobFile[1]
+            ncepBlobObj = adl_blob.map(ncepXmlFile, ncepBlobFile, endian=endian)
+            ncepBlobArrObj = ncepBlobObj.as_arrays()
+            ncepBlobArrObjs.append([timeObj,ncepBlobArrObj])
+            LOG.debug("%s...\n%r" % (ncepBlobFile,[field for field in ncepBlobArrObj._fields]))
+        
+        # Get the NAAPS AOT if required...
+        if 'AOT' in algList :
+            # Download the required NCEP grib files
+            #LOG.info("Downloading NAAPS GRIB ancillary into cache...")
+            #gribFiles = ANC.retrieve_NAAPS_grib_files(geoDicts)
+            #LOG.debug('Dynamic ancillary GRIB files: %s' % repr(gribFiles))
+            #if (gribFiles == []) :
+                #LOG.error('Failed to find or retrieve any GRIB files, aborting.')
+                #sys.exit(1)
+
+            gribFiles = glob(path.join(CSPP_RT_ANC_CACHE_DIR,'NAAPS-ANC-Int/NAAPS.*.grib2'))
+            LOG.info("We are using for NAAPS grib2 :%r" %(gribFiles))
+
+            # Transcode the NAAPS GRIB files into ADL NAAPS-ANC-Int
+            naapsGridBlobFiles = []
+            for gribFile in gribFiles:
+                gridBlobFile = ANC.create_NAAPS_grid_blobs(gribFile)
+                naapsGridBlobFiles.append(gridBlobFile)
+
+            if (naapsGridBlobFiles == []) :
+                LOG.error('Failed to convert NAAPS GRIB  files to blobs, aborting.')
+                sys.exit(1)
+
+            LOG.debug("NAAPS naapsGridBlobFiles = %r" % (naapsGridBlobFiles))
+
+            naapsXmlFile = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
+            endian = adl_blob.LITTLE_ENDIAN
+            naapsBlobArrObjs = []
+
+            for gridBlobFile in naapsGridBlobFiles :
+                timeObj = gridBlobFile[0]
+                naapsBlobFile = gridBlobFile[1]
+                naapsBlobObj = adl_blob.map(naapsXmlFile, naapsBlobFile, endian=endian)
+                naapsBlobArrObj = naapsBlobObj.as_arrays()
+                naapsBlobArrObjs.append([timeObj,naapsBlobArrObj])
+                LOG.debug("%s...\n%r" % (naapsBlobFile,[field for field in naapsBlobArrObj._fields]))
+
+    else:
+        LOG.info("No ancillary required, so no NCEP or NAAPS gridding...")
+
+    '''
+    # Create a list of algorithm module "pointers"
+    algorithms = []
+    for alg in algList :
+        algName = Algorithms.modules[alg]
+        algorithms.append(getattr(Algorithms,algName))
+
+    # Obtain the required ANC collection shortnames for each algorithm
+    collectionShortNames = []
+    for alg in algorithms :
+        for shortName in alg.ANC_collectionShortNames :
+            LOG.info("Adding %s to the list of required collection short names..." \
+                    %(shortName))
+            collectionShortNames.append(shortName)
+
+    # Remove duplicate shortNames
+    collectionShortNames = list(set(collectionShortNames))
+    LOG.info("collectionShortNames = %r" %(collectionShortNames))
+    '''
+    ###############################################
 
     # Create a dict of ANC class instances, which will handle ingest and granulation
     ANC_objects = {}
@@ -1510,9 +1543,9 @@ def main():
     else :
         LOG.info("We are NOT chaining algorithms...")
 
-    LOG.info("Required algorithms: %r" % (algList))
+    LOG.info("List of required algorithm keys: {}".format(algList))
 
-    # Create a list of algorithm module "pointers"
+    # Create a list of algorithm class references
     algorithms = []
     for alg in algList :
         if alg in Algorithms.meta_algorithms:
@@ -1521,7 +1554,7 @@ def main():
             algName = Algorithms.modules[alg]
             algorithms.append(getattr(Algorithms,algName))
 
-    LOG.debug("Algorithm Pointers: %r"%(algorithms))
+    LOG.info("List of required algorithm class references: {}".format(algorithms))
 
     # Determine the number of VIIRS SDR cross granules required to 
     # process the algorithm chain.
@@ -1537,7 +1570,7 @@ def main():
         except:
             pass
 
-    LOG.info("Required algorithms: %r" % (algList))
+    LOG.info("meta-updated list of required algorithm keys: {}".format(algList))
 
     # Determine what geolocation types are required for each algorithm
     requiredGeoShortname,requiredGeoPrefix = _get_geo_prefixes(algorithms)
@@ -1569,9 +1602,12 @@ def main():
     geo_blob_names = glob(path.join(work_dir,"*.*GEO-TC"))
     for geo_blob_name in geo_blob_names:
         ascName = corresponding_asc_path(geo_blob_name)
-        fileChanged = _strReplace(ascName,'("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
+        fileChanged = _strReplace(ascName,
+                '("N_Granule_Version" STRING EQ "A2")',
+                '("N_Granule_Version" STRING EQ "A1")')
         if fileChanged :
-            LOG.info("Fixed N_Granule_Version in %s metadata" % (path.basename(geo_blob_name)))
+            LOG.info("Fixed N_Granule_Version in %s metadata" 
+                    % (path.basename(geo_blob_name)))
 
     # Unpack HDF5 VIIRS radiometric SDRs in the input directory to the work directory
     radio_unpacking_problems = 0
@@ -1585,7 +1621,8 @@ def main():
             radio_unpacking_problems = _unpack_sdr(work_dir,input_dir,fileGlob)
 
         unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
-        LOG.debug("Total VIIRS SDR unpacking problems = %d" % (unpacking_problems))
+        LOG.debug("Total VIIRS SDR unpacking problems = %d" 
+                % (unpacking_problems))
     else :
         LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
         unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
@@ -1594,9 +1631,12 @@ def main():
     sdr_blob_names = glob(path.join(work_dir,"*.*SDR"))
     for sdr_blob_name in sdr_blob_names:
         ascName = corresponding_asc_path(sdr_blob_name)
-        fileChanged = _strReplace(ascName,'("N_Granule_Version" STRING EQ "A2")','("N_Granule_Version" STRING EQ "A1")')
+        fileChanged = _strReplace(ascName,
+                '("N_Granule_Version" STRING EQ "A2")',
+                '("N_Granule_Version" STRING EQ "A1")')
         if fileChanged :
-            LOG.info("Fixed N_Granule_Version in %s metadata" % (path.basename(sdr_blob_name)))
+            LOG.info("Fixed N_Granule_Version in %s metadata" 
+                    % (path.basename(sdr_blob_name)))
 
     # Set the VIIRS SDR endianness from the input option...
     global sdrEndian
@@ -1606,8 +1646,9 @@ def main():
     dummy_granule_dict = {}
 
     if not options.noDummyGranules:
-        dummy_granule_dict = _create_dummy_sdr(work_dir,requiredGeoShortname,requiredSdrShortname,\
-                cumulativeCrossGranules[options.algorithm])
+        LOG.info("Creating dummy geolocation and radiometric granules...")
+        dummy_granule_dict = _create_dummy_sdr(work_dir,requiredGeoShortname,
+                requiredSdrShortname,cumulativeCrossGranules[options.algorithm])
 
         requiredShortnames = requiredGeoShortname + requiredSdrShortname
 
@@ -1638,6 +1679,8 @@ def main():
         for geoType in requiredGeoShortname :
             LOG.info("Searching for candidate %s geolocation granules for VIIRS %s ..." % (geoType,alg.AlgorithmName))
             crossGranules = cumulativeCrossGranules[alg.AlgorithmString]
+            LOG.info("We need {} cross granules for {}".format(crossGranules,
+                alg.AlgorithmString))
             alg.granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(geoType, \
                     crossGran=crossGranules,work_dir=work_dir)))
             if alg.granules_to_process :
@@ -1651,6 +1694,7 @@ def main():
     # A key for sorting lists of granule dictionaries according to N_Granule_ID
     granIdKey = lambda x: (x['N_Granule_ID'])
 
+    # List ancillary processing candidate granule IDs
     if anc_granules_to_process :
         LOG.info("We have {} candidate granules for ancillary.".format(len(anc_granules_to_process)))
         LOG.info("{:^19}{:^30}{:^30}{:^20}{:^30}{:^30}{:^20}".format('N_Granule_ID',\
@@ -1671,6 +1715,7 @@ def main():
                                                       (dicts['EndTime']-dicts['StartTime'])
                                                       ))
 
+    # List algorithm processing candidate granule IDs
     for alg in algorithms :
         if alg.granules_to_process :
             LOG.info("")

@@ -34,8 +34,8 @@ import multiprocessing
 from Utils import check_log_files, _setupAuxillaryFiles
 
 from adl_common import sh, unpack, env, h5_xdr_inventory
-from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, 
-    CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, \
+        CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 from adl_post_process import repack_products, aggregate_products
 import adl_log
 
@@ -54,10 +54,7 @@ GEO_collectionShortNames = [
                             'VIIRS-MOD-GEO-TC'
                           ]
 
-SDR_collectionShortNames = [
-                            #'VIIRS-I1-SDR',
-                            #'VIIRS-I2-SDR'
-                          ]
+SDR_collectionShortNames = []
 
 ANC_collectionShortNames = []
 
@@ -99,11 +96,15 @@ algorithmLWxml = 'edr_viirs_st'
 
 # Attribute paths for Vegetation Index EDR
 attributePaths = {}
-attributePaths['MOD_GEO_TC'] = 'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
-attributePaths['ST_EDR'] = 'Data_Products/VIIRS-ST-EDR/VIIRS-ST-EDR_Gran_0/N_Granule_ID'
+attributePaths['MOD_GEO_TC'] = \
+        'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
+attributePaths['ST_EDR'] = \
+        'Data_Products/VIIRS-ST-EDR/VIIRS-ST-EDR_Gran_0/N_Granule_ID'
 
-MOD_GEO_TC_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
-SURFTYPE_EDR_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-ST-EDR/VIIRS-ST-EDR_Gran_0/N_Granule_ID'
+MOD_GEO_TC_GRANULE_ID_ATTR_PATH = \
+        'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
+SURFTYPE_EDR_GRANULE_ID_ATTR_PATH = \
+        'Data_Products/VIIRS-ST-EDR/VIIRS-ST-EDR_Gran_0/N_Granule_ID'
 
 # XML template for ProEdrViirsSurfTypeController.exe
 # from ADL/cfg/dynamic/withMetadata/ProEdrViirsVILwFile.xml
@@ -219,7 +220,7 @@ def submit_granule(additional_env):
 
     # Specify the command line to execute.
     #cmd = [ADL_VIIRS_ST_EDR, xml]
-    cmd = ['/bin/sleep','0.2']
+    cmd = ['/bin/sleep','0.5']
     #cmd = ['/usr/bin/gdb', ADL_VIIRS_ST_EDR] # for debugging with gdb...
 
     LOG.info('executing "{}"'.format(' '.join(cmd)))

@@ -40,15 +40,16 @@ from numpy.ctypeslib import ndpointer
 
 import tables as pytables
 from tables import exceptions as pyEx
+import h5py
 
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
 import adl_asc
-from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, 
-    effective_anc_contains,_eliminate_duplicates,_is_contiguous, 
-    RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
+from adl_asc import skim_dir, contiguous_granule_groups, \
+        granule_groups_contain, effective_anc_contains,_eliminate_duplicates, \
+        _is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_HOME
 
 # every module should have a LOG object
@@ -58,8 +59,8 @@ try :
 except :
     LOG = logging.getLogger('AnnMinMaxNdvi')
 
-from Utils import getURID, getAscLine, getAscStructs, 
-    findDatelineCrossings, shipOutToFile
+from Utils import getURID, getAscLine, getAscStructs, \
+        findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
 
 
@@ -69,6 +70,7 @@ class AnnMinMaxNdvi() :
         self.collectionShortName = 'VIIRS-GridIP-VIIRS-Ann-Max-Min-Ndvi-Mod-Gran'
         self.xmlName = 'VIIRS_GRIDIP_VIIRS_ANN_MAX_MIN_NDVI_MOD_GRAN.xml'
         self.blobDatasetName = ['minNdvi','maxNdvi']
+        #self.blobDatasetName = 'minNdvi'
         self.dataType = 'float32'
         self.sourceType = 'NDVI'
         self.sourceList = ['']
@@ -130,12 +132,14 @@ class AnnMinMaxNdvi() :
             LOG.debug("We have short form geolocation names")
             longFormGeoNames = False
         else :
-            LOG.error("Invalid geolocation shortname: %s" %(geo_Collection_ShortName))
+            LOG.error("Invalid geolocation shortname: %s" %
+                    (geo_Collection_ShortName))
             return -1
 
         # Get the geolocation xml file
 
-        geoXmlFile = "%s.xml" % (string.replace(geo_Collection_ShortName,'-','_'))
+        geoXmlFile = "%s.xml" % \
+                (string.replace(geo_Collection_ShortName,'-','_'))
         geoXmlFile = path.join(ADL_HOME,'xml/VIIRS',geoXmlFile)
         if path.exists(geoXmlFile):
             LOG.debug("We are using for %s: %s,%s" %(geo_Collection_ShortName,
@@ -202,11 +206,13 @@ class AnnMinMaxNdvi() :
 
         # Restore fill values to masked pixels in geolocation
 
-        geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][latitude.dtype.name]
+        geoFillValue = self.trimObj. \
+                sdrTypeFill['VDNE_FLOAT64_FILL'][latitude.dtype.name]
         latitude = ma.array(latitude,mask=latMask,fill_value=geoFillValue)
         self.latitude = latitude.filled()
 
-        geoFillValue = self.trimObj.sdrTypeFill['VDNE_FLOAT64_FILL'][longitude.dtype.name]
+        geoFillValue = self.trimObj. \
+                sdrTypeFill['VDNE_FLOAT64_FILL'][longitude.dtype.name]
         longitude = ma.array(longitude,mask=lonMask,fill_value=geoFillValue)
         self.longitude = longitude.filled()
 
@@ -325,7 +331,7 @@ class AnnMinMaxNdvi() :
             #NDVI_fillValue = NDVI_node.attrs['_FillValue']
             NDVI_scaleFactor = min_ndvi_node.attrs['scale_factor']
             NDVI_offset = min_ndvi_node.attrs['add_offset']
-            NDVI_fillValue = int(NDVI_node.attrs['_FillValue'])
+            NDVI_fillValue = int(min_ndvi_node.attrs['_FillValue'])
 
 
             latMin = self.latMin
@@ -358,8 +364,10 @@ class AnnMinMaxNdvi() :
 
                 # We have a dateline crossing, so subset the positude and negative
                 # longitude grids and sandwich them together.
-                posLonCrn = np.min(ma.masked_less_equal(np.array(self.lonCrnList),0.))
-                negLonCrn = np.max(ma.masked_outside(np.array(self.lonCrnList),-800.,0.))
+                posLonCrn = np.min(ma.masked_less_equal(
+                    np.array(self.lonCrnList),0.))
+                negLonCrn = np.max(ma.masked_outside(
+                    np.array(self.lonCrnList),-800.,0.))
                 posIdx = index(NDVI_gridLons,find_lt(NDVI_gridLons,posLonCrn))
                 negIdx = index(NDVI_gridLons,find_gt(NDVI_gridLons,negLonCrn))
 
@@ -367,35 +375,58 @@ class AnnMinMaxNdvi() :
                 negLons_subset = NDVI_gridLons[:negIdx]
                 lon_subset = np.concatenate((posLons_subset,negLons_subset))
 
-                # Do the same with the NDVI data
-                posBlock = NDVI_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,posIdx:]
-                negBlock = NDVI_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,:negIdx]
-                NDVI_subset = np.concatenate((posBlock,negBlock),axis=1)
+                # Do the same with the minimum NDVI data
+                posBlock = min_ndvi_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,posIdx:]
+                negBlock = min_ndvi_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,:negIdx]
+                min_NDVI_subset = np.concatenate((posBlock,negBlock),axis=1)
+
+                # Do the same with the maximum NDVI data
+                posBlock = max_ndvi_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,posIdx:]
+                negBlock = max_ndvi_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,:negIdx]
+                max_NDVI_subset = np.concatenate((posBlock,negBlock),axis=1)
 
             else :
 
-                NDVI_subset = NDVI_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,
+                min_NDVI_subset = min_ndvi_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,
+                        NDVI_lonMinIdx:NDVI_lonMaxIdx+1]
+                max_NDVI_subset = max_ndvi_node[NDVI_latMinIdx:NDVI_latMaxIdx+1,
                         NDVI_lonMinIdx:NDVI_lonMaxIdx+1]
                 lon_subset = NDVI_gridLons[NDVI_lonMinIdx:NDVI_lonMaxIdx+1]
 
             self.gridLon = lon_subset
 
             # Unscale the NDVI data, and copy to the GridIP object
-            NDVI_mask = ma.masked_equal(NDVI_subset,NDVI_fillValue).mask
-            NDVI_subset = NDVI_subset * NDVI_scaleFactor + NDVI_offset
-            NDVI_subset = ma.array(NDVI_subset,mask=NDVI_mask,fill_value=-999.9)
-            NDVI_subset = NDVI_subset.filled()
-            self.gridData = NDVI_subset.astype(self.dataType)
+            self.gridData = []
 
-            NDVI_node.close()
-            NDVIobj.close()
+            min_NDVI_mask = ma.masked_equal(min_NDVI_subset,NDVI_fillValue).mask
+            min_NDVI_subset = min_NDVI_subset * NDVI_scaleFactor + NDVI_offset
+            min_NDVI_subset = ma.array(min_NDVI_subset,mask=min_NDVI_mask,
+                    fill_value=-999.9)
+            min_NDVI_subset = min_NDVI_subset.filled()
+            LOG.debug("min_NDVI_subset.shape = {}".format(min_NDVI_subset.shape))
+            self.gridData.append(min_NDVI_subset.astype(self.dataType))
+
+            max_NDVI_mask = ma.masked_equal(max_NDVI_subset,NDVI_fillValue).mask
+            max_NDVI_subset = max_NDVI_subset * NDVI_scaleFactor + NDVI_offset
+            max_NDVI_subset = ma.array(max_NDVI_subset,mask=max_NDVI_mask,
+                    fill_value=-999.9)
+            max_NDVI_subset = max_NDVI_subset.filled()
+            LOG.debug("max_NDVI_subset.shape = {}".format(max_NDVI_subset.shape))
+            self.gridData.append(max_NDVI_subset.astype(self.dataType))
+
+            #NDVI_node.close()
+            #NDVIobj.close()
+            NDVI_fileObj.close()
 
         except Exception, err :
 
             LOG.debug("EXCEPTION: %s" % (err))
+            LOG.debug(traceback.format_exc())
+            #NDVI_node.close()
+            #NDVIobj.close()
+            NDVI_fileObj.close()
 
-            NDVI_node.close()
-            NDVIobj.close()
+        LOG.debug("self.gridData.shape = {}".format(np.shape(self.gridData)))
 
 
     def _grid2Gran(self, dataLat, dataLon, gridData, gridLat, gridLon):
@@ -466,9 +497,14 @@ class AnnMinMaxNdvi() :
         Granulate the GridIP NDVI dataset.
         '''
 
-        # Generate the lat and lon grids, and flip them and the data over latitude
+        # Generate the lat and lon grids, and flip them and the data 
+        # over latitude
         gridLon,gridLat = np.meshgrid(self.gridLon,self.gridLat[::-1])
-        gridData = self.gridData[::-1,:]
+        gridData = self.gridData
+        LOG.debug("gridData.shape = {}".format(np.shape(gridData)))
+        gridData[0] = gridData[0][::-1,:]
+        gridData[1] = gridData[1][::-1,:]
+        LOG.debug("gridData.shape = {}".format(np.shape(gridData)))
 
         latitude = self.latitude
         longitude = self.longitude
@@ -482,53 +518,189 @@ class AnnMinMaxNdvi() :
             longitude[longitudeNegIdx] += 360.
 
         LOG.info("Granulating %s ..." % (self.collectionShortName))
-        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape) , str(longitude.shape)))
-        LOG.debug("gridData.shape = %s" % (str(gridData.shape)))
+        LOG.debug("latitide,longitude shapes: %s, %s"%(str(latitude.shape),
+            str(longitude.shape)))
+        LOG.debug("gridData.shape = {}".format(np.shape(gridData)))
         LOG.debug("gridLat.shape = %s" % (str(gridLat.shape)))
         LOG.debug("gridLon.shape = %s" % (str(gridLon.shape)))
 
-        LOG.debug("min of gridData  = %r"%(np.min(gridData)))
-        LOG.debug("max of gridData  = %r"%(np.max(gridData)))
+        LOG.debug("min of gridData  = {}, {}".format(np.min(gridData[0]),
+            np.min(gridData[1])))
+        LOG.debug("max of gridData  = {}, {}".format(np.max(gridData[0]),
+            np.max(gridData[1])))
 
-        t1 = time()
-        data,dataIdx = self._grid2Gran(np.ravel(latitude),
-                                  np.ravel(longitude),
-                                  gridData.astype(np.float64),
-                                  gridLat.astype(np.float64),
-                                  gridLon.astype(np.float64))
-        t2 = time()
-        elapsedTime = t2-t1
-        LOG.info("Granulation took %f seconds for %d points" % (elapsedTime,latitude.size))
+        self.data = []
 
-        data = data.reshape(latitude.shape)
-        dataIdx = dataIdx.reshape(latitude.shape)
+        for idx in range(2):
+            t1 = time()
+            data,dataIdx = self._grid2Gran(np.ravel(latitude),
+                                      np.ravel(longitude),
+                                      gridData[idx].astype(np.float64),
+                                      gridLat.astype(np.float64),
+                                      gridLon.astype(np.float64))
+            t2 = time()
+            elapsedTime = t2-t1
+            LOG.info("Granulation took %f seconds for %d points" % 
+                    (elapsedTime,latitude.size))
 
-        # Convert granulated data back to original type...
-        data = data.astype(self.dataType)
+            data = data.reshape(latitude.shape)
+            dataIdx = dataIdx.reshape(latitude.shape)
 
-        LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
-        LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
+            # Convert granulated data back to original type...
+            data = data.astype(self.dataType)
 
-        # Explicitly restore geolocation fill to the granulated data...
-        fillMask = ma.masked_less(self.latitude,-800.).mask
-        fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
-        data = ma.array(data,mask=fillMask,fill_value=fillValue)
-        data = data.filled()
+            LOG.debug("Shape of granulated %s data is %s" % 
+                    (self.collectionShortName,np.shape(data)))
+            LOG.debug("Shape of granulated %s dataIdx is %s" % 
+                    (self.collectionShortName,np.shape(dataIdx)))
 
-        # Moderate resolution trim table arrays. These are 
-        # bool arrays, and the trim pixels are set to True.
-        modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
+            # Explicitly restore geolocation fill to the granulated data...
+            fillMask = ma.masked_less(self.latitude,-800.).mask
+            fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
+            data = ma.array(data,mask=fillMask,fill_value=fillValue)
+            data = data.filled()
 
-        # Fill the required pixel trim rows in the granulated GridIP data with 
-        # the ONBOARD_PT_FILL value for the correct data type
+            # What value are the bowtie deletion pixels
+            ongroundPixelTrimValue = self.trimObj \
+                    .sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
+            LOG.debug("Onground Pixel Trim value is {}".
+                    format(ongroundPixelTrimValue))
+            onboardPixelTrimValue = self.trimObj \
+                    .sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]
+            LOG.debug("Onboard Pixel Trim value is {}"
+                    .format(onboardPixelTrimValue))
 
-        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
-        data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
-        self.data = data.filled()
+            onboardTrimMask = self.trimObj.createOnboardModTrimArray(nscans=48,
+                    trimType=bool)
+            ongroundTrimMask = self.trimObj.createModTrimArray(nscans=48,
+                    trimType=bool)
+
+            # FIXME: Get correct order of application of the on-board and 
+            # on-ground pixel trim.
+
+            # Apply the On-board pixel trim
+            data = ma.array(data,mask=onboardTrimMask,
+                    fill_value=ongroundPixelTrimValue)
+            data = data.filled() # Substitute for the masked values with 
+                                 # ongroundPixelTrimValue
+
+            # Apply the On-ground pixel trim
+            data = ma.array(data,mask=ongroundTrimMask,
+                    fill_value=onboardPixelTrimValue)
+            data = data.filled() # Substitute for the masked values with 
+                                 # onboardPixelTrimValue
+
+            self.data.append(data)
 
 
     def shipOutToFile(self):
-        ''' Pass the current class instance to this Utils method to generate 
-            a blob/asc file pair from the input ancillary data object.'''
+        '''
+        Generate a blob/asc file pair from the input ancillary data object.
+        '''
 
-        return shipOutToFile(self)
+        # Set some environment variables and paths
+        ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+        ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
+
+        # Create new GridIP ancillary blob, and copy granulated data to it
+
+        endian = self.ancEndian
+        if endian is adl_blob.LITTLE_ENDIAN :
+            endianString = "LE"
+        else :
+            endianString = "BE"
+
+        xmlName = path.join(ADL_HOME,'xml/VIIRS',self.xmlName)
+
+        # Create a new URID to be used in making the asc filenames
+
+        URID_dict = getURID()
+
+        URID = URID_dict['URID']
+        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+        creationDateStr = URID_dict['creationDateStr']
+
+        # Create a new directory in the input directory for the new ancillary
+        # asc and blob files
+
+        blobDir = self.inDir
+
+        ascFileName = path.join(blobDir,URID+'.asc')
+        blobName = path.join(blobDir,URID+'.'+self.collectionShortName)
+
+        LOG.debug("ascFileName : %s" % (ascFileName))
+        LOG.debug("blobName : %s" % (blobName))
+
+        # Create a new ancillary blob, and copy the data to it.
+        newGridIPblobObj = adl_blob.create(xmlName, blobName, endian=endian, 
+                overwrite=True)
+        newGridIPblobArrObj = newGridIPblobObj.as_arrays()
+
+        for idx in range(2):
+            blobData = getattr(newGridIPblobArrObj,self.blobDatasetName[idx])
+            blobData[:,:] = self.data[idx][:,:]
+
+        # Make a new GridIP asc file from the template, and substitute for the 
+        # various tags
+
+        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,
+                "VIIRS-GridIP-VIIRS_Template.asc")
+
+        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % 
+                (ascFileName,ascTemplateFileName))
+        
+        ANC_fileList = self.sourceList
+        for idx in range(len(ANC_fileList)) :
+            ANC_fileList[idx] = path.basename(ANC_fileList[idx])
+        ANC_fileList.sort()
+        ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
+        ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) 
+            for files in ANC_fileList])
+
+        LOG.debug("RangeDateTimeStr = %s\n" % (self.RangeDateTimeStr))
+        LOG.debug("GRingLatitudeStr = \n%s\n" % (self.GRingLatitudeStr))
+        LOG.debug("GRingLongitudeStr = \n%s\n" % (self.GRingLongitudeStr))
+
+        try:
+            # Open template file for reading
+            ascTemplateFile = open(ascTemplateFileName,"rt") 
+            # create a new text file
+            ascFile = open(ascFileName,"wt") 
+        except Exception, err :
+            LOG.error("%s, aborting." % (err))
+            sys.exit(1)
+
+        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,
+            'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
+
+        LOG.debug("New file %s is %r with mode %s" %(ascFileName,
+            'not open' if ascFile.closed else 'open',ascFile.mode))
+
+        for line in ascTemplateFile.readlines():
+           line = line.replace("CSPP_URID",URID)
+           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",
+                   creationDate_nousecStr)
+           line = line.replace("CSPP_ANC_BLOB_FULLPATH",path.basename(blobName))
+           line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",
+                   self.collectionShortName)
+           line = line.replace("CSPP_GRANULE_ID",self.geoDict['N_Granule_ID'])
+           line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
+           line = line.replace("  CSPP_RANGE_DATE_TIME",self.RangeDateTimeStr)
+           line = line.replace("  CSPP_GRINGLATITUDE",self.GRingLatitudeStr)
+           line = line.replace("  CSPP_GRINGLONGITUDE",self.GRingLongitudeStr)
+           line = line.replace("CSPP_NORTH_BOUNDING_COORD",
+                   self.North_Bounding_Coordinate_Str)
+           line = line.replace("CSPP_SOUTH_BOUNDING_COORD",
+                   self.South_Bounding_Coordinate_Str)
+           line = line.replace("CSPP_EAST_BOUNDING_COORD",
+                   self.East_Bounding_Coordinate_Str)
+           line = line.replace("CSPP_WEST_BOUNDING_COORD",
+                   self.West_Bounding_Coordinate_Str)
+           line = line.replace("CSPP_ANC_ENDIANNESS",endianString)       
+           #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
+           ascFile.write(line) 
+
+        ascFile.close()
+        ascTemplateFile.close()
+
+        return URID
