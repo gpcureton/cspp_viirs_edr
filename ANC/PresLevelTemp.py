@@ -47,7 +47,7 @@ from NCEPtoBlob import NCEPclass
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
 import adl_asc
-from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,_eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
+from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 
 # every module should have a LOG object
 sourcename= __name__.split(" ")

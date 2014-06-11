@@ -103,15 +103,15 @@ from multiprocessing import Pool, Lock, Value, cpu_count
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
-from adl_asc import skim_dir, contiguous_granule_groups, \
-        granule_groups_contain, effective_anc_contains,_eliminate_duplicates, \
+from adl_asc import skim_dir, contiguous_granule_groups,eliminate_duplicates, \
+        granule_groups_contain, effective_anc_contains, \
         _is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, \
         POLARWANDER_REQUIRED_KEYS
 from adl_common import anc_files_needed, link_ancillary_to_work_dir, unpack, \
         env, h5_xdr_inventory, get_return_code, check_env
 from adl_common import check_and_convert_path,check_existing_env_var
 from adl_common import ADL_HOME, ADL_VARS, CSPP_RT_HOME, CSPP_RT_ANC_PATH, \
-        CSPP_RT_ANC_HOME, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
+         CSPP_RT_ANC_CACHE_DIR
 from adl_post_process import repack_products, aggregate_products
 import adl_log
 
@@ -131,6 +131,8 @@ MINIMUM_SDR_BLOB_SIZE = 81000000
 # consider them contiguous
 MAX_CONTIGUOUS_DELTA=timedelta(seconds = 5)
 
+ADL_VIIRS_ANC_GLOBS = (
+    '*VIIRS-CM-IP-AC*','*VIIRS-AF-EDR-AC*','*VIIRS-AF-EDR-DQTT*',)
 
 
 ###################################################
@@ -351,7 +353,7 @@ def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_
     # FUTURE: is lex-compare sufficient for A2/A1/etc
     #start_time_key = lambda x: (x['StartTime'], x.get('N_Granule_Version', None))
     start_time_key = lambda x: (x['ObservedStartTime'], x.get('N_Granule_Version', None))
-    granlist = _eliminate_duplicates(sorted(granules, key = start_time_key),larger_granules_preferred=larger_granules_preferred)
+    granlist = eliminate_duplicates(sorted(granules, key = start_time_key),larger_granules_preferred=larger_granules_preferred)
     granset = set(x['N_Granule_ID'] for x in granlist)
 
     # it's ambiguous if we have a work directory with multiple different blobs for any given granule
@@ -403,7 +405,7 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
 
     work_dir = path.abspath(work_dir)
 
-    geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)))
+    geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, required_keys=RDR_REQUIRED_KEYS, N_Collection_Short_Name=collectionShortName)))
 
     LOG.debug('geoGroupList : {}'.format(geoGroupList))
 
@@ -1693,6 +1695,13 @@ def main():
         
     # A key for sorting lists of granule dictionaries according to N_Granule_ID
     granIdKey = lambda x: (x['N_Granule_ID'])
+
+    search_dirs = [CSPP_RT_ANC_CACHE_DIR if CSPP_RT_ANC_CACHE_DIR is not None else anc_dir] + [CSPP_RT_ANC_PATH]
+
+    ancillary_files_neeeded = anc_files_needed(ADL_VIIRS_ANC_GLOBS, search_dirs)
+    # link all the ancillary files to the ancillary directory.
+    link_ancillary_to_work_dir(work_dir, ancillary_files_neeeded)
+
 
     # List ancillary processing candidate granule IDs
     if anc_granules_to_process :
