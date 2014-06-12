@@ -57,7 +57,7 @@ then
 fi
 
 
-export DPE_VER=CSPP_EDR_1_2_1
+export DPE_VER=CSPP_EDR_2_0
 
 #
 # derived CSPP default locations (site installs may move these under some circumstances)
