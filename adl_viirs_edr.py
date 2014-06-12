@@ -131,9 +131,6 @@ MINIMUM_SDR_BLOB_SIZE = 81000000
 # consider them contiguous
 MAX_CONTIGUOUS_DELTA=timedelta(seconds = 5)
 
-ADL_VIIRS_ANC_GLOBS = (
-    '*VIIRS-CM-IP-AC*','*VIIRS-AF-EDR-AC*','*VIIRS-AF-EDR-DQTT*',)
-
 
 ###################################################
 #                  Global Data                    #
@@ -330,30 +327,37 @@ def _skim_viirs_sdr(collectionShortName,work_dir):
 
 def __is_contiguous(grana, granb, tolerance=MAX_CONTIGUOUS_DELTA):
     """
-    This is a custom version of adl_asc._is_contiguous(), which keys off of 'StartTime' and 'EndTime', rather than
-    'ObservedStartTime' and 'ObservedEndTime' as is done here.
+    This is a custom version of adl_asc._is_contiguous(), which keys off of 
+    'StartTime' and 'EndTime', rather than 'ObservedStartTime' and 
+    'ObservedEndTime' as is done here.
     """
     delta = granb['ObservedStartTime'] - grana['ObservedEndTime']
-    LOG.debug('delta of %s between %r and %r' % (delta, grana['N_Granule_ID'], granb['N_Granule_ID']))
+    LOG.debug('delta of %s between %r and %r' % (delta, grana['N_Granule_ID'], 
+        granb['N_Granule_ID']))
     if (delta >= tolerance) :
-        LOG.info( "Granule gap of %s sec end %s to start %s  " % (str(delta),grana['ObservedStartTime'].isoformat(),granb['ObservedEndTime'].isoformat()))
+        LOG.info( "Granule gap of %s sec end %s to start %s  " % (str(delta),
+            grana['ObservedStartTime'].isoformat(),
+            granb['ObservedEndTime'].isoformat()))
     return (delta < tolerance)
 
 
 def _contiguous_granule_groups(granules, tolerance=MAX_CONTIGUOUS_DELTA, larger_granules_preferred=False):
     """
-    given a sequence of granule dictionaries, yield a sequence of contiguous granule groups as tuples
-    tolerance, if provided, is a datetime.timedelta object representing max differance between endtime and starttime
+    given a sequence of granule dictionaries, yield a sequence of contiguous 
+    granule groups as tuples tolerance, if provided, is a datetime.timedelta 
+    object representing max differance between endtime and starttime
 
-    This is a custom version of adl_asc.contiguous_granule_groups(), which keys off of 'StartTime', rather than
-    'ObservedStartTime' as is done here.
+    This is a custom version of adl_asc.contiguous_granule_groups(), which keys 
+    off of 'StartTime', rather than 'ObservedStartTime' as is done here.
     """
     
     # sort granules into start time order and eliminate exact duplicates
     # FUTURE: is lex-compare sufficient for A2/A1/etc
     #start_time_key = lambda x: (x['StartTime'], x.get('N_Granule_Version', None))
-    start_time_key = lambda x: (x['ObservedStartTime'], x.get('N_Granule_Version', None))
-    granlist = eliminate_duplicates(sorted(granules, key = start_time_key),larger_granules_preferred=larger_granules_preferred)
+    start_time_key = lambda x: (x['ObservedStartTime'], 
+            x.get('N_Granule_Version', None))
+    granlist = eliminate_duplicates(sorted(granules, key = start_time_key),
+            larger_granules_preferred=larger_granules_preferred)
     granset = set(x['N_Granule_ID'] for x in granlist)
 
     # it's ambiguous if we have a work directory with multiple different blobs for any given granule
@@ -405,7 +409,8 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
 
     work_dir = path.abspath(work_dir)
 
-    geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, required_keys=RDR_REQUIRED_KEYS, N_Collection_Short_Name=collectionShortName)))
+    geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, 
+        N_Collection_Short_Name=collectionShortName)))
 
     LOG.debug('geoGroupList : {}'.format(geoGroupList))
 
@@ -414,7 +419,8 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
         return
 
     # Loop through the contigous granule groups 
-    for group in _contiguous_granule_groups(skim_dir(work_dir, N_Collection_Short_Name=collectionShortName)):
+    for group in _contiguous_granule_groups(skim_dir(work_dir, 
+        N_Collection_Short_Name=collectionShortName)):
         ##- for VIIRS, we can process everything but the first and last granule
         ##- for CrIS, use [4:-4]
         LOG.debug('Contiguous granule group of length: {}'.format(len(group),))
@@ -1312,7 +1318,7 @@ def _argparse():
     import argparse
 
     endianChoices = ['little','big']
-    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','ST',
+    algorithmChoices = ['VCM','AOT','SST','SRFREF','VI','ST','LST',
             'ATMOS','LAND','OCEAN','ALL','MPC']
 
     defaults = {'work_dir':'.',
@@ -1334,7 +1340,11 @@ def _argparse():
     usage = "usage: %prog [mandatory args] [options]"
     version = __version__
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+                                     #usage=usage,
+                                     #version=version,
+                                     description=description
+                                     )
 
     # Mandatory arguments
 
@@ -1489,6 +1499,12 @@ def _argparse():
                       verbosity 1 level from INFO: -v=DEBUG'''
                       )
 
+    #parser.add_argument('-V','--version',
+                      #action='version',
+                      #version='''{}\n
+                                 #%(prog)s (myprog version 0.1)'''.format(version)
+                      ##version='''%(prog)s (myprog version 0.1)'''
+                      #)
 
     args = parser.parse_args()
 
@@ -1695,13 +1711,6 @@ def main():
         
     # A key for sorting lists of granule dictionaries according to N_Granule_ID
     granIdKey = lambda x: (x['N_Granule_ID'])
-
-    search_dirs = [CSPP_RT_ANC_CACHE_DIR if CSPP_RT_ANC_CACHE_DIR is not None else anc_dir] + [CSPP_RT_ANC_PATH]
-
-    ancillary_files_neeeded = anc_files_needed(ADL_VIIRS_ANC_GLOBS, search_dirs)
-    # link all the ancillary files to the ancillary directory.
-    link_ancillary_to_work_dir(work_dir, ancillary_files_neeeded)
-
 
     # List ancillary processing candidate granule IDs
     if anc_granules_to_process :

@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-SurfaceTypeEDR.py
+LandSurfaceTemperatureEDR.py
 
- * DESCRIPTION:  Class containing data relevent to the VIIRS Surface Type EDR. 
+ * DESCRIPTION:  Class containing data relevent to the VIIRS Land Surface Temperature EDR. 
 
-Created by Geoff Cureton on 2014-05-13.
+Created by Geoff Cureton on 2014-06-11.
 Copyright (c) 2014 University of Wisconsin SSEC. All rights reserved.
 """
 
@@ -44,72 +44,80 @@ try :
     sourcename= file_Id.split(" ")
     LOG = logging.getLogger(sourcename[1])
 except :
-    LOG = logging.getLogger('SurfaceTypeEDR')
+    LOG = logging.getLogger('LandSurfaceTemperatureEDR')
 
-AlgorithmString = 'ST'
+AlgorithmString = 'LST'
 
-AlgorithmName = 'Surface Type EDR'
+AlgorithmName = 'Land Surface Temperature EDR'
 
 GEO_collectionShortNames = [
                             'VIIRS-MOD-GEO-TC'
                           ]
 
-SDR_collectionShortNames = []
+SDR_collectionShortNames = [
+                              'VIIRS-M12-SDR',
+                              'VIIRS-M13-SDR',
+                              'VIIRS-M15-SDR',
+                              'VIIRS-M16-SDR'
+                          ]
 
-ANC_collectionShortNames = []
+ANC_collectionShortNames = [
+                           ]
 
 GridIP_collectionShortNames = [
-                               'VIIRS-GridIP-VIIRS-Qst-Mod-Gran',
-                               'VIIRS-SCD-BINARY-SNOW-FRAC-FEDR',
-                               'VIIRS-GridIP-VIIRS-Ann-Max-Min-Ndvi-Mod-Gran'
                               ]
 
 AUX_collectionShortNames = [
-                           'VIIRS-ST-EDR-AC-Int',
-                           'VIIRS-ST-EDR-DQTT-Int'
+                            'VIIRS-LST-EDR-AC-Int',
+                            'VIIRS-LST-EDR-DQTT-Int',
+                            'VIIRS-LST-Coef-LUT'
                            ]
 
 AUX_ascTemplateFile = [
-                        'VIIRS-ST-EDR-AC-Int_Template.asc',
-                        'VIIRS-ST-EDR-DQTT-Int_Template.asc'
+                        'VIIRS-LST-EDR-AC-Int_Template.asc',
+                        'VIIRS-LST-EDR-DQTT-Int_Template.asc',
+                        'VIIRS-LST-Coef-LUT_Template.asc'
                       ]
 
+
 AUX_blobTemplateFile = [
-                         'template.VIIRS-ST-EDR-AC-Int',
-                         'template.VIIRS-ST-EDR-DQTT-Int'
+                        'template.VIIRS-LST-EDR-AC-Int',
+                        'template.VIIRS-LST-EDR-DQTT-Int',
+                        'template.VIIRS-LST-Coef-LUT'
                        ]
 
 AUX_Paths = [
              'luts/viirs',
-             'luts/viirs'
+             'luts/viirs',
+             'luts/viirs',
             ]
 
 EDR_collectionShortNames = [
-                           'VIIRS-ST-EDR'
+                           'VIIRS-LST-EDR'
                           ]
 
-controllerName = 'ProEdrViirsSurfTypeController'
+controllerName = 'ProEdrViirsLstController'
 controllerBinary = '{}.exe'.format(controllerName)
-ADL_VIIRS_ST_EDR=path.abspath(path.join(ADL_HOME, 'bin', controllerBinary))
+ADL_VIIRS_LST_EDR=path.abspath(path.join(ADL_HOME, 'bin', controllerBinary))
 
-algorithmLWxml = 'edr_viirs_st'
+algorithmLWxml = 'edr_viirs_lst'
 
-# Attribute paths for Vegetation Index EDR
+# Attribute paths for LST EDR
 attributePaths = {}
-attributePaths['MOD_GEO_TC'] = \
-        'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
-attributePaths['ST_EDR'] = \
-        'Data_Products/VIIRS-ST-EDR/VIIRS-ST-EDR_Gran_0/N_Granule_ID'
+attributePaths['MOD_GEO_TC'] = 'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
+attributePaths['CM_IP'] = 'Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0/N_Granule_ID'
+attributePaths['AOT_IP'] = 'Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0/N_Granule_ID'
+attributePaths['LST_EDR'] = 'Data_Products/VIIRS-LST-EDR/VIIRS-LST-EDR_Gran_0/N_Granule_ID'
 
-MOD_GEO_TC_GRANULE_ID_ATTR_PATH = \
-        'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
-SURFTYPE_EDR_GRANULE_ID_ATTR_PATH = \
-        'Data_Products/VIIRS-ST-EDR/VIIRS-ST-EDR_Gran_0/N_Granule_ID'
+MOD_GEO_TC_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-MOD-GEO-TC/VIIRS-MOD-GEO-TC_Gran_0/N_Granule_ID'
+CM_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0/N_Granule_ID'
+AOT_IP_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-Aeros-Opt-Thick-IP/VIIRS-Aeros-Opt-Thick-IP_Gran_0/N_Granule_ID'
+LST_GRANULE_ID_ATTR_PATH = 'Data_Products/VIIRS-LST-EDR/VIIRS-LST-EDR_Gran_0/N_Granule_ID'
 
-# XML template for ProEdrViirsSurfTypeController.exe
-# from ADL/cfg/dynamic/withMetadata/ProEdrViirsSurfTypeControllerLwFile.xml
+# XML template for ProEdrViirsSstController.exe
+# from ADL/cfg/dynamic/withMetadata/ProEdrViirsLstControllerLwFile.xml
 xmlTemplate = """<InfTkConfig>
-  <idpProcessName>ProEdrViirsSurfTypeController.exe</idpProcessName>
+  <idpProcessName>ProEdrViirsLstController.exe</idpProcessName>
   <siSoftwareId></siSoftwareId>
   <isRestart>FALSE</isRestart>
   <useExtSiWriter>FALSE</useExtSiWriter>
@@ -136,7 +144,7 @@ xmlTemplate = """<InfTkConfig>
   <previousActualScans>0</previousActualScans>
   <nextActualScans>0</nextActualScans> 
   <usingMetadata>TRUE</usingMetadata>
-  <configGuideName>ProEdrViirsSurfTypeController_GuideList.cfg</configGuideName>
+  <configGuideName>ProEdrViirsLstController_GuideList.cfg</configGuideName>
 
   <task>
     <taskType>EDR</taskType>
@@ -160,7 +168,7 @@ def setupAuxillaryFiles(Alg_objects,workDir):
 
 
 def generate_viirs_edr_xml(work_dir, granule_seq):
-    "generate XML files for VIIRS Vegetation Index EDR granule generation"
+    "generate XML files for VIIRS Masks EDR granule generation"
     to_process = []
     for gran in granule_seq:
         name = gran['N_Granule_ID']
@@ -179,11 +187,12 @@ def move_products_to_work_directory(work_dir):
     """
     dest = path.dirname(work_dir)
 
-    h5Files        = glob(path.join(work_dir, "*.h5"))
-    viEdrBlobFiles = glob(path.join(work_dir, "*.VIIRS-ST-EDR"))
-    ascFiles       = glob(path.join(work_dir, "*.asc"))
+    h5Files          = glob(path.join(work_dir, "*.h5"))
+    lstEdrBlobFiles  = glob(path.join(work_dir, "*.VIIRS-LST-EDR"))
+    lstFSdrBlobFiles = glob(path.join(work_dir, "*.VIIRS-LST-FEDR"))
+    ascFiles         = glob(path.join(work_dir, "*.asc"))
 
-    files = h5Files + viEdrBlobFiles + ascFiles
+    files = h5Files + lstEdrBlobFiles + lstFSdrBlobFiles + ascFiles
 
     for file in files:
         try :
@@ -205,23 +214,22 @@ def submit_granule(additional_env):
     compress = additional_env['COMPRESS']
 
     # Pattern for expected output
-    surfTypeEdrPattern = path.join(granule_output_dir, 'VSTYO*.h5')
+    lstPattern = path.join(granule_output_dir, 'VLSTO*.h5')
 
     # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
     # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
     
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Cloud Mask IP files
-    surfTypeEdr_prior_granules, surfTypeEdr_ID = h5_xdr_inventory(surfTypeEdrPattern, SURFTYPE_EDR_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing VSTYO granules in {}... {}'.format(granule_output_dir, 
-        surfTypeEdr_prior_granules))
+    lst_prior_granules, lst_ID = h5_xdr_inventory(lstPattern, LST_GRANULE_ID_ATTR_PATH)
+    LOG.debug('Existing VLSTO granules in {}... {}'.format(granule_output_dir, lst_prior_granules))
 
-    surfTypeEdr_prior_granules = set(surfTypeEdr_prior_granules.keys())
-    LOG.debug('Set of existing VSTYO granules in {}... {}'.format(granule_output_dir, surfTypeEdr_prior_granules))
+    lst_prior_granules = set(lst_prior_granules.keys())
+    LOG.debug('Set of existing VLSTO granules in {}... {}'.format(granule_output_dir, lst_prior_granules))
 
     # Specify the command line to execute.
-    cmd = [ADL_VIIRS_ST_EDR, xml]
-    #cmd = ['/bin/sleep','0.5']
-    #cmd = ['/usr/bin/gdb', ADL_VIIRS_ST_EDR] # for debugging with gdb...
+    cmd = [ADL_VIIRS_LST_EDR, xml]
+    #cmd = ['/bin/sleep','0.2']
+    #cmd = ['/usr/bin/gdb', ADL_VIIRS_LST_EDR] # for debugging with gdb...
 
     LOG.info('executing "{}"'.format(' '.join(cmd)))
     LOG.debug('additional environment variables: {}'.format(additional_env))
@@ -256,19 +264,19 @@ def submit_granule(additional_env):
 
     try :
 
-        # check new ST output granules
-        surfTypeEdr_new_granules, surfTypeEdr_ID = h5_xdr_inventory(surfTypeEdrPattern, SURFTYPE_EDR_GRANULE_ID_ATTR_PATH, state=surfTypeEdr_ID)
+        # check new LST output granules
+        lst_new_granules, lst_ID = h5_xdr_inventory(lstPattern, LST_GRANULE_ID_ATTR_PATH, state=lst_ID)
 
-        if granule_id not in surfTypeEdr_new_granules:
-            LOG.warning('no VSTYO HDF5 output for {}'.format(granule_id))
+        if granule_id not in lst_new_granules:
+            LOG.warning('no VLSTO HDF5 output for {}'.format(granule_id))
             granule_diagnostic['no_output'].append(True)
             granule_diagnostic['output_file'].append(None)
         else :
-            LOG.info('New VSTYO granule: {}'.format(repr(surfTypeEdr_new_granules)))
-            surfTypeEdr_granules_made = set(surfTypeEdr_ID.values()) - surfTypeEdr_prior_granules
-            LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(surfTypeEdr_granules_made))))
+            LOG.info('New VLSTO granule: {}'.format(repr(lst_new_granules)))
+            lst_granules_made = set(lst_ID.values()) - lst_prior_granules
+            LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(lst_granules_made))))
             granule_diagnostic['no_output'].append(False)
-            granule_diagnostic['output_file'].append(path.basename(surfTypeEdr_new_granules[granule_id]))
+            granule_diagnostic['output_file'].append(path.basename(lst_new_granules[granule_id]))
 
     except Exception:
         LOG.warn(traceback.format_exc())
@@ -284,7 +292,7 @@ def submit_granule(additional_env):
 
 
 def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPRESS=False,AGGREGATE=False, **additional_env):
-    """Run each VIIRS Surface Type EDR xml input in sequence.
+    """Run each VIIRS Sea Surface Temperature EDR xml input in sequence.
        Return the list of granule IDs which crashed, 
        and list of granule IDs which did not create output.
     """
@@ -314,17 +322,17 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
         argument_dictionaries.append(additional_envs)
 
     # Pattern for expected output in the root working directory
-    surfTypeEdrPattern = path.join(work_dir, 'VSTYO*.h5')
+    lstPattern = path.join(work_dir, 'VLSTO*.h5')
 
     # prior_granules dicts contain (N_GranuleID,HDF5File) key,value pairs.
     # *ID dicts contain (HDF5File,N_GranuleID) key,value pairs.
     
     # Get the (N_GranuleID,hdfFileName) pairs for the existing Cloud Mask IP files
-    surfTypeEdr_prior_granules, surfTypeEdr_ID = h5_xdr_inventory(surfTypeEdrPattern, SURFTYPE_EDR_GRANULE_ID_ATTR_PATH)
-    LOG.debug('Existing VSTYO granules in {}... {}'.format(granule_output_dir, surfTypeEdr_prior_granules))
+    lst_prior_granules, lst_ID = h5_xdr_inventory(lstPattern, LST_GRANULE_ID_ATTR_PATH)
+    LOG.debug('Existing VLSTO granules in {}... {}'.format(granule_output_dir, lst_prior_granules))
 
-    surfTypeEdr_prior_granules = set(surfTypeEdr_prior_granules.keys())
-    LOG.debug('Set of existing VSTYO granules in {}... {}'.format(work_dir, surfTypeEdr_prior_granules))
+    lst_prior_granules = set(lst_prior_granules.keys())
+    LOG.debug('Set of existing VLSTO granules in {}... {}'.format(work_dir, lst_prior_granules))
 
     results = []
 
@@ -353,16 +361,15 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
             sys.exit(1)
 
 
-    # check new VSTYO output granules
-    surfTypeEdr_new_granules, surfTypeEdr_ID = h5_xdr_inventory(surfTypeEdrPattern,
-            SURFTYPE_EDR_GRANULE_ID_ATTR_PATH, state=surfTypeEdr_ID)
+    # check new VLSTO output granules
+    lst_new_granules, lst_ID = h5_xdr_inventory(lstPattern, LST_GRANULE_ID_ATTR_PATH, state=lst_ID)
 
-    LOG.debug("surfTypeEdr_ID.values() = {}".format(surfTypeEdr_ID.values()))
-    LOG.debug("set(surfTypeEdr_ID.values()) = {}".format(set(surfTypeEdr_ID.values())))
-    LOG.debug("surfTypeEdr_prior_granules = {}".format(surfTypeEdr_prior_granules))
-    surfTypeEdr_granules_made = set(surfTypeEdr_ID.values()) - surfTypeEdr_prior_granules
+    LOG.debug("lst_ID.values() = {}".format(lst_ID.values()))
+    LOG.debug("set(lst_ID.values()) = {}".format(set(lst_ID.values())))
+    LOG.debug("lst_prior_granules = {}".format(lst_prior_granules))
+    lst_granules_made = set(lst_ID.values()) - lst_prior_granules
 
-    LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(surfTypeEdr_granules_made))))
+    LOG.info('{} granules created: {}'.format(AlgorithmName,', '.join(list(lst_granules_made))))
 
     crashed_runs = set()
     no_output_runs = set()
@@ -384,7 +391,7 @@ def run_xml_files(work_dir, xml_files_to_process, nprocs=1, CLEANUP="True",COMPR
         LOG.warning('Granules that crashed ADL: %s' % (', '.join(crashed_runs)))
     if bad_log_runs:
         LOG.warning('Granules that produced logs indicating problems: %s' % (', '.join(bad_log_runs)))
-    if not surfTypeEdr_granules_made:
+    if not lst_granules_made:
         LOG.warning('No {} HDF5 files were created'.format(AlgorithmName))
 
     LOG.debug('no_output_runs : {}'.format(no_output_runs))
@@ -431,3 +438,4 @@ def aggregate(fileGlob):
     Aggregate the files given by the input file glob.
     '''
     pass
+

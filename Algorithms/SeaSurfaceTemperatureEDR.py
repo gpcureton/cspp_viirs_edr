@@ -60,15 +60,6 @@ SDR_collectionShortNames = [
                           ]
 
 ANC_collectionShortNames = [
-                           'VIIRS-ANC-Preci-Wtr-Mod-Gran',
-                           'VIIRS-ANC-Temp-Surf2M-Mod-Gran',
-                           'VIIRS-ANC-Wind-Speed-Mod-Gran',
-                           'VIIRS-ANC-Wind-Direction-Mod-Gran',
-                           'VIIRS-ANC-Tot-Col-Mod-Gran',
-                           'VIIRS-ANC-Press-Surf-Mod-Gran',
-                           'VIIRS-ANC-Optical-Depth-Mod-Gran'
-                          ]
-ANC_collectionShortNames = [
                              'VIIRS-ANC-Temp-Skin-Mod-Gran'
                            ]
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # encoding: utf-8
 """
-SnowIceCover.py
+SnowCoverDepth.py
 
- * DESCRIPTION:  Class to granulate the SnowIceCover data product 
+ * DESCRIPTION:  Class to granulate the SnowCoverDepth data product 
 
 Created by Geoff Cureton on 2013-02-27.
 Copyright (c) 2013 University of Wisconsin SSEC. All rights reserved.
@@ -59,19 +59,19 @@ try :
     sourcename= file_Id.split(" ")
     LOG = logging.getLogger(sourcename[1])
 except :
-    LOG = logging.getLogger('SnowIceCover')
+    LOG = logging.getLogger('SnowCoverDepth')
 
 from Utils import check_exe, getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile, plotArr
 from Utils import index, find_lt, find_le, find_gt, find_ge
 
 
-class SnowIceCover() :
+class SnowCoverDepth() :
 
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
-        self.collectionShortName = 'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'
-        self.xmlName = 'VIIRS_GRIDIP_VIIRS_SNOW_ICE_COVER_MOD_GRAN.xml'
-        self.blobDatasetName = 'snowIceCover'
-        self.dataType = 'uint8'
+        self.collectionShortName = 'VIIRS-SCD-BINARY-SNOW-FRAC-FEDR'
+        self.xmlName = 'VIIRS_SCD_BINARY_SNOW_FRAC_FEDR.xml'
+        self.blobDatasetName = 'scdFractionFromBinaryMap'
+        self.dataType = 'float32'
         self.sourceType = 'NISE'
         self.sourceList = ['']
         self.trimObj = ViirsData.ViirsTrimTable()
@@ -374,7 +374,7 @@ class SnowIceCover() :
     def granulate(self,GridIP_objects):
         '''Granulates the NISE Snow and Ice files.'''
 
-        #import GridIP
+        import GridIP
 
         # Get the geolocation information
         geoDict = self.geoDict
@@ -557,15 +557,18 @@ class SnowIceCover() :
         wetSnowMask = ma.masked_equal(nise_val,104).mask
 
         # Land and Coastal
-        LSM_Land_Coastal = (ma.masked_equal(LSM,CM_LAND) * ma.masked_equal(LSM,CM_COASTAL)).mask
+        LSM_Land_Coastal = (ma.masked_equal(LSM,CM_LAND) 
+                * ma.masked_equal(LSM,CM_COASTAL)).mask
 
         # Sea Water and Inland Water
-        LSM_SeaWater_InlandWater = (ma.masked_equal(LSM,CM_SEA_WATER) * ma.masked_equal(LSM,CM_IN_WATER)).mask
+        LSM_SeaWater_InlandWater = (ma.masked_equal(LSM,CM_SEA_WATER) 
+                * ma.masked_equal(LSM,CM_IN_WATER)).mask
 
         # Transient sea ice > 25% concentration, AND (Land OR Coastal)
         transSeaIceCoastalMask = ma.masked_inside(nise_val,(25+1),(101-1)).mask
         
-        # Transient sea ice > 25% concentration, AND Permanent Ice AND (Sea OR Inland Water)
+        # Transient sea ice > 25% concentration, AND Permanent Ice AND (Sea OR 
+        # Inland Water)
         transSeaIceOceanMask = ma.masked_inside(nise_val,(25+1),(102-1)).mask
 
         snowMask = permIceMask + drySnowMask + wetSnowMask \
@@ -581,6 +584,18 @@ class SnowIceCover() :
         fillMask = ma.masked_less(self.latitude,-800.).mask
         fillValue = self.trimObj.sdrTypeFill['MISS_FILL'][self.dataType]        
         data = ma.array(snowIceMask,mask=fillMask,fill_value=fillValue)
+        data = data.filled()
+
+        # Explicitly mask out the water values...
+        fillValue = self.trimObj.sdrTypeFill['NA_FILL'][self.dataType]
+        LSM_Water = np.zeros(data.shape,dtype='bool')
+        LSM_types = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict
+        for water_types in ['DEM_SHALLOW_OCEAN','DEM_SHALLOW_INLAND_WATER',
+                'DEM_DEEP_INLAND_WATER','DEM_MOD_CONT_OCEAN','DEM_DEEP_OCEAN']:
+            LSM_Water = LSM_Water + ma.masked_equal(
+                    LSM,LSM_types[water_types]).mask 
+
+        data = ma.array(data,mask=LSM_Water,fill_value=fillValue)
         data = data.filled()
 
         # Moderate resolution trim table arrays. These are 

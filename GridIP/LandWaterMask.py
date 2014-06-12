@@ -46,7 +46,8 @@ from tables import exceptions as pyEx
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
+#import adl_blob
+import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_HOME
@@ -89,7 +90,9 @@ class LandWaterMask() :
             self.ancEndian = ancEndian
 
         # Digital Elevation Model (DEM) land sea mask types
-        self.DEM_list = ['DEM_SHALLOW_OCEAN','DEM_LAND','DEM_COASTLINE','DEM_SHALLOW_INLAND_WATER','DEM_EPHEMERAL_WATER','DEM_DEEP_INLAND_WATER','DEM_MOD_CONT_OCEAN','DEM_DEEP_OCEAN']
+        self.DEM_list = ['DEM_SHALLOW_OCEAN','DEM_LAND','DEM_COASTLINE',
+                'DEM_SHALLOW_INLAND_WATER','DEM_EPHEMERAL_WATER',
+                'DEM_DEEP_INLAND_WATER','DEM_MOD_CONT_OCEAN','DEM_DEEP_OCEAN']
         self.DEM_dict = {
             'DEM_SHALLOW_OCEAN'        : 0,
             'DEM_LAND'                 : 1,
@@ -155,11 +158,10 @@ class LandWaterMask() :
         endian = self.sdrEndian
 
         geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobArrObj = geoBlobObj.as_arrays()
 
         # Get scan_mode to find any bad scans
 
-        scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = geoBlobObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
@@ -167,11 +169,11 @@ class LandWaterMask() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
-            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+            latitude = getattr(geoBlobObj,'latitude').astype('float')
+            longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
-            latitude = getattr(geoBlobArrObj,'lat').astype('float')
-            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+            latitude = getattr(geoBlobObj,'lat').astype('float')
+            longitude = getattr(geoBlobObj,'lon').astype('float')
 
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)

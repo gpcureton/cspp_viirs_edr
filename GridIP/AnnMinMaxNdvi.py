@@ -45,7 +45,8 @@ import h5py
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
+#import adl_blob
+import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, \
         granule_groups_contain, effective_anc_contains,eliminate_duplicates, \
@@ -149,12 +150,12 @@ class AnnMinMaxNdvi() :
 
         endian = self.sdrEndian
 
-        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobArrObj = geoBlobObj.as_arrays()
+        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=adl_blob.LITTLE_ENDIAN)
 
         # Get scan_mode to find any bad scans
 
-        scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = geoBlobObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
@@ -163,11 +164,17 @@ class AnnMinMaxNdvi() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
-            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+            if endian==adl_blob.BIG_ENDIAN:
+                latitude = getattr(geoBlobObj,'latitude').byteswap()
+                longitude = getattr(geoBlobObj,'longitude').byteswap()
+                latitude = latitude.astype('float')
+                longitude = longitude.astype('float')
+            else:
+                latitude = getattr(geoBlobObj,'latitude').astype('float')
+                longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
-            latitude = getattr(geoBlobArrObj,'lat').astype('float')
-            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+            latitude = getattr(geoBlobObj,'lat').astype('float')
+            longitude = getattr(geoBlobObj,'lon').astype('float')
 
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
@@ -634,10 +641,9 @@ class AnnMinMaxNdvi() :
         # Create a new ancillary blob, and copy the data to it.
         newGridIPblobObj = adl_blob.create(xmlName, blobName, endian=endian, 
                 overwrite=True)
-        newGridIPblobArrObj = newGridIPblobObj.as_arrays()
 
         for idx in range(2):
-            blobData = getattr(newGridIPblobArrObj,self.blobDatasetName[idx])
+            blobData = getattr(newGridIPblobObj,self.blobDatasetName[idx])
             blobData[:,:] = self.data[idx][:,:]
 
         # Make a new GridIP asc file from the template, and substitute for the 

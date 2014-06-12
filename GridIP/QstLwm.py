@@ -43,7 +43,8 @@ from numpy.ctypeslib import ndpointer
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
+#import adl_blob
+import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains
 from adl_asc import eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
@@ -191,11 +192,10 @@ class QstLwm() :
         endian = self.sdrEndian
 
         geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobArrObj = geoBlobObj.as_arrays()
 
         # Get scan_mode to find any bad scans
 
-        scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = geoBlobObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
@@ -204,11 +204,11 @@ class QstLwm() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
-            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+            latitude = getattr(geoBlobObj,'latitude').astype('float')
+            longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
-            latitude = getattr(geoBlobArrObj,'lat').astype('float')
-            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+            latitude = getattr(geoBlobObj,'lat').astype('float')
+            longitude = getattr(geoBlobObj,'lon').astype('float')
 
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
@@ -441,7 +441,6 @@ class QstLwm() :
 
             # Granulate the gridded data in this ancillary object for the current granule...
             GridIP_objects[shortName].granulate(GridIP_objects)
-            GridIP_objects[shortName].shipOutToFile()
 
         # Combine the LWM and IGBP to make the QSTLWM
         data = self.__QSTLWM(GridIP_objects)

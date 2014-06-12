@@ -46,7 +46,8 @@ from tables import exceptions as pyEx
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
+#import adl_blob
+import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_HOME
@@ -67,7 +68,7 @@ class QuarterlySurfaceType() :
     def __init__(self,inDir=None, sdrEndian=None, ancEndian=None):
         self.collectionShortName = 'VIIRS-GridIP-VIIRS-Qst-Mod-Gran'
         self.xmlName = 'VIIRS_GRIDIP_VIIRS_QST_MOD_GRAN.xml'
-        self.blobDatasetName = 'igbp'
+        self.blobDatasetName = ['igbp','confidence']
         self.dataType = 'uint8'
         self.sourceType = 'IGBP'
         self.sourceList = ['']
@@ -166,12 +167,12 @@ class QuarterlySurfaceType() :
 
         endian = self.sdrEndian
 
-        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobArrObj = geoBlobObj.as_arrays()
+        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=adl_blob.LITTLE_ENDIAN)
 
         # Get scan_mode to find any bad scans
 
-        scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = geoBlobObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
@@ -179,11 +180,17 @@ class QuarterlySurfaceType() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
-            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+            if endian==adl_blob.BIG_ENDIAN:
+                latitude = getattr(geoBlobObj,'latitude').byteswap()
+                longitude = getattr(geoBlobObj,'longitude').byteswap()
+                latitude = latitude.astype('float')
+                longitude = longitude.astype('float')
+            else:
+                latitude = getattr(geoBlobObj,'latitude').astype('float')
+                longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
-            latitude = getattr(geoBlobArrObj,'lat').astype('float')
-            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+            latitude = getattr(geoBlobObj,'lat').astype('float')
+            longitude = getattr(geoBlobObj,'lon').astype('float')
 
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
@@ -498,6 +505,13 @@ class QuarterlySurfaceType() :
         data = ma.array(data,mask=fillMask,fill_value=fillValue)
         data = data.filled()
 
+        # Generate the QST confidence.
+        dataConf = 0.5*data[:,:].astype('float')/float(self.IGBP_dict['IGBP_MAX'])
+        dataConf = dataConf*255.
+        mask = ma.masked_equal(data,self.IGBP_dict['IGBP_WATERBODIES']).mask
+        dataConf = ma.array(dataConf,mask=mask,fill_value=1.*255.)
+        dataConf = dataConf.filled()
+
         # Moderate resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
         modTrimMask = self.trimObj.createModTrimArray(nscans=48,trimType=bool)
@@ -509,10 +523,114 @@ class QuarterlySurfaceType() :
         data = ma.array(data,mask=modTrimMask,fill_value=fillValue)
         self.data = data.filled()
 
+        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL']['float32']        
+        dataConf = ma.array(dataConf,mask=modTrimMask,fill_value=fillValue)
+        self.dataConf = dataConf.filled()
+
+
+    def __shipOutToFile(self):
+        '''
+        Generate a blob/asc file pair from the input ancillary data object.
+        This is a custom method for the quarterly surface type, which has more than 
+        one blob dataset.
+        '''
+
+        # Set some environment variables and paths
+        ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
+        ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
+
+        # Create new GridIP ancillary blob, and copy granulated data to it
+
+        endian = self.ancEndian
+        if endian is adl_blob.LITTLE_ENDIAN :
+            endianString = "LE"
+        else :
+            endianString = "BE"
+
+        xmlName = path.join(ADL_HOME,'xml/VIIRS',self.xmlName)
+
+        # Create a new URID to be used in making the asc filenames
+
+        URID_dict = getURID()
+
+        URID = URID_dict['URID']
+        creationDate_nousecStr = URID_dict['creationDate_nousecStr']
+        creationDateStr = URID_dict['creationDateStr']
+
+        # Create a new directory in the input directory for the new ancillary
+        # asc and blob files
+
+        blobDir = self.inDir
+
+        ascFileName = path.join(blobDir,URID+'.asc')
+        blobName = path.join(blobDir,URID+'.'+self.collectionShortName)
+
+        LOG.debug("ascFileName : %s" % (ascFileName))
+        LOG.debug("blobName : %s" % (blobName))
+
+        # Create a new ancillary blob, and copy the data to it.
+        newGridIPblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
+
+        blobData = getattr(newGridIPblobObj,self.blobDatasetName[0])
+        blobData[:,:] = self.data[:,:]
+        blobConfData = getattr(newGridIPblobObj,self.blobDatasetName[1])
+        blobConfData[:,:] = self.dataConf[:,:]
+
+        # Make a new GridIP asc file from the template, and substitute for the various tags
+
+        ascTemplateFileName = path.join(ADL_ASC_TEMPLATES,"VIIRS-GridIP-VIIRS_Template.asc")
+
+        LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
+        
+        ANC_fileList = self.sourceList
+        for idx in range(len(ANC_fileList)) :
+            ANC_fileList[idx] = path.basename(ANC_fileList[idx])
+        ANC_fileList.sort()
+        ancGroupRecipe = '    ("N_Anc_Filename" STRING EQ "%s")'
+        ancFileStr = "%s" % ("\n").join([ancGroupRecipe % (str(files)) for files in ANC_fileList])
+
+        LOG.debug("RangeDateTimeStr = %s\n" % (self.RangeDateTimeStr))
+        LOG.debug("GRingLatitudeStr = \n%s\n" % (self.GRingLatitudeStr))
+        LOG.debug("GRingLongitudeStr = \n%s\n" % (self.GRingLongitudeStr))
+
+        try:
+            ascTemplateFile = open(ascTemplateFileName,"rt") # Open template file for reading
+            ascFile = open(ascFileName,"wt") # create a new text file
+        except Exception, err :
+            LOG.error("%s, aborting." % (err))
+            sys.exit(1)
+
+        LOG.debug("Template file %s is %r with mode %s" %(ascTemplateFileName,'not open' if ascTemplateFile.closed else 'open',ascTemplateFile.mode))
+
+        LOG.debug("New file %s is %r with mode %s" %(ascFileName,'not open' if ascFile.closed else 'open',ascFile.mode))
+
+        for line in ascTemplateFile.readlines():
+           line = line.replace("CSPP_URID",URID)
+           line = line.replace("CSPP_CREATIONDATETIME_NOUSEC",creationDate_nousecStr)
+           line = line.replace("CSPP_ANC_BLOB_FULLPATH",path.basename(blobName))
+           line = line.replace("CSPP_ANC_COLLECTION_SHORT_NAME",self.collectionShortName)
+           line = line.replace("CSPP_GRANULE_ID",self.geoDict['N_Granule_ID'])
+           line = line.replace("CSPP_CREATIONDATETIME",creationDateStr)
+           line = line.replace("  CSPP_RANGE_DATE_TIME",self.RangeDateTimeStr)
+           line = line.replace("  CSPP_GRINGLATITUDE",self.GRingLatitudeStr)
+           line = line.replace("  CSPP_GRINGLONGITUDE",self.GRingLongitudeStr)
+           line = line.replace("CSPP_NORTH_BOUNDING_COORD",self.North_Bounding_Coordinate_Str)
+           line = line.replace("CSPP_SOUTH_BOUNDING_COORD",self.South_Bounding_Coordinate_Str)
+           line = line.replace("CSPP_EAST_BOUNDING_COORD",self.East_Bounding_Coordinate_Str)
+           line = line.replace("CSPP_WEST_BOUNDING_COORD",self.West_Bounding_Coordinate_Str)
+           line = line.replace("CSPP_ANC_ENDIANNESS",endianString)       
+           #line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
+           ascFile.write(line) 
+
+        ascFile.close()
+        ascTemplateFile.close()
+
+        return URID
+
 
     def shipOutToFile(self):
         ''' Pass the current class instance to this Utils method to generate 
             a blob/asc file pair from the input ancillary data object.'''
 
-        #shipOutToFile(self)
-        pass
+        # Custom shipout routine to handle multiple output arrays.
+        return self.__shipOutToFile()

@@ -28,6 +28,7 @@ from NbarNdvi17Day        import NbarNdvi17Day
 from SnowIceCover         import SnowIceCover
 from IceConcentration     import IceConcentration
 from AnnMinMaxNdvi        import AnnMinMaxNdvi
+from SnowCoverDepth       import SnowCoverDepth
 
 classNames = {}
 classNames['VIIRS-MOD-GRC'] = 'GridRowColumn'
@@ -39,3 +40,4 @@ classNames['VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'] = 'NbarNdvi17Day'
 classNames['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = 'SnowIceCover'
 classNames['VIIRS-I-Conc-IP'] = 'IceConcentration'
 classNames['VIIRS-GridIP-VIIRS-Ann-Max-Min-Ndvi-Mod-Gran'] = 'AnnMinMaxNdvi'
+classNames['VIIRS-SCD-BINARY-SNOW-FRAC-FEDR'] = 'SnowCoverDepth'

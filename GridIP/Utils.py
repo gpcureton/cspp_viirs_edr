@@ -30,7 +30,8 @@ from subprocess import CalledProcessError
 import numpy as np
 from bisect import bisect_left,bisect_right
 
-import adl_blob
+#import adl_blob
+import adl_blob2 as adl_blob
 from adl_common import sh, env
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
 
@@ -317,9 +318,10 @@ def shipOutToFile(GridIPobj):
 
     # Create a new ancillary blob, and copy the data to it.
     newGridIPblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
-    newGridIPblobArrObj = newGridIPblobObj.as_arrays()
 
-    blobData = getattr(newGridIPblobArrObj,GridIPobj.blobDatasetName)
+    # TODO: This should be a loop, so we can cycle through any data and 
+    #       quality flag arrays.
+    blobData = getattr(newGridIPblobObj,GridIPobj.blobDatasetName)
     blobData[:,:] = GridIPobj.data[:,:]
 
     # Make a new GridIP asc file from the template, and substitute for the various tags

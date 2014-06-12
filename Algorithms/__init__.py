@@ -23,7 +23,7 @@ import SeaSurfaceTemperatureEDR
 import SurfaceReflectanceIP
 import VegetationIndexEDR
 import SurfaceTypeEDR
-#import LandSurfaceTemperatureEDR
+import LandSurfaceTemperatureEDR
 import dummy_multiprocessing
 
 modules = {}
@@ -33,7 +33,7 @@ modules['SST'] = 'SeaSurfaceTemperatureEDR'
 modules['SRFREF'] = 'SurfaceReflectanceIP'
 modules['VI'] = 'VegetationIndexEDR'
 modules['ST'] = 'SurfaceTypeEDR'
-#modules['LST'] = 'LandSurfaceTemperatureEDR'
+modules['LST'] = 'LandSurfaceTemperatureEDR'
 modules['ALL'] = 'VegetationIndexEDR'
 modules['MPC'] = 'dummy_multiprocessing'
 
@@ -47,7 +47,7 @@ crossGranules['SST'] = 0
 crossGranules['SRFREF'] = 0
 crossGranules['VI'] = 0
 crossGranules['ST'] = 0
-#crossGranules['LST'] = 1
+crossGranules['LST'] = 0
 crossGranules['MPC'] = 1
 crossGranules['ALL'] = 0
 crossGranules['ATMOS'] = 0
@@ -61,12 +61,12 @@ prerequisites['AOT'] = ['VCM']
 prerequisites['SST'] = ['VCM','AOT']
 prerequisites['SRFREF'] = ['VCM','AOT']
 prerequisites['VI'] = ['VCM','AOT','SRFREF']
-prerequisites['ST'] = []
-#prerequisites['LST'] = []
+prerequisites['ST'] = ['VCM','AOT','SRFREF']
+prerequisites['LST'] = ['VCM','AOT','SRFREF','ST']
 prerequisites['ATMOS'] = ['VCM','AOT']
-prerequisites['LAND'] = ['VCM','AOT','SRFREF','VI']
+prerequisites['LAND'] = ['VCM','AOT','SRFREF','VI','ST','LST']
 prerequisites['OCEAN'] = ['VCM','AOT','SST']
-prerequisites['ALL'] = ['VCM','AOT','SST','SRFREF','VI']
+prerequisites['ALL'] = ['VCM','AOT','SST','SRFREF','VI','ST','LST']
 prerequisites['MPC'] = []
 
 geo_hdf5_prefix={}
@@ -105,7 +105,7 @@ edr_hdf5_prefix['SST'] = ['VSSTO']
 edr_hdf5_prefix['SRFREF'] = ['IVISR']
 edr_hdf5_prefix['VI'] = ['VIVIO']
 edr_hdf5_prefix['ST'] = ['VSTYO']
-#edr_hdf5_prefix['LST'] = ['VLSTO']
+edr_hdf5_prefix['LST'] = ['VLSTO']
 edr_hdf5_prefix['MPC'] = ['MPC']
 
 edr_hdf5_Gran_0={}
@@ -120,5 +120,5 @@ edr_hdf5_Gran_0['SST']    = ['/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0'
 edr_hdf5_Gran_0['SRFREF'] = ['/Data_Products/VIIRS-Surf-Refl-IP/VIIRS-Surf-Refl-IP_Gran_0']
 edr_hdf5_Gran_0['VI']     = ['/Data_Products/VIIRS-VI-EDR/VIIRS-VI-EDR_Gran_0']
 edr_hdf5_Gran_0['ST']     = ['/Data_Products/VIIRS-ST-EDR/VIIRS-ST-EDR_Gran_0']
-#edr_hdf5_Gran_0['LST']    = ['/Data_Products/VIIRS-LST-EDR/VIIRS-LST-EDR_Gran_0']
+edr_hdf5_Gran_0['LST']    = ['/Data_Products/VIIRS-LST-EDR/VIIRS-LST-EDR_Gran_0']
 edr_hdf5_Gran_0['MPC']    = ['/Data_Products/VIIRS-DUMMY/VIIRS-DUMMY_Gran_0']
