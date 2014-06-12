@@ -312,6 +312,94 @@ def _unpack_sdr(work_dir,input_dir,inputGlob):
     return unpacking_problems
 
 
+def _get_sdr_blobs(inputFiles,work_dir,skipSdrUnpack,
+        requiredShortname,requiredPrefix):
+    """
+    Unpack HDF5 SDR files from the inputFiles into the working directory, or 
+    link the blob/asc pairs from inputFiles to the working directory.
+    """
+
+    if skipSdrUnpack :
+        # Assume there are blobs at the input directory...
+        unpacking_problems = 0
+
+        # Determine the correct input file path and glob
+        input_dir,_ = _create_input_file_globs(inputFiles)
+        LOG.info("input_dir = {}".format(input_dir))
+
+        # Link the VIIRS SDR blob/asc pairs in the input directory 
+        # to the work directory
+
+        for shortName in requiredShortname :
+            LOG.info("shortName = {}".format(shortName))
+            file_glob = path.join(input_dir,"*.{}".format(shortName))
+            blob_files = glob(file_glob)
+
+            for files in blob_files:
+                local_blob_file = path.basename(files)
+                local_asc_file = string.replace(
+                        local_blob_file,shortName,'asc')
+
+                blob_file = path.join(input_dir,local_blob_file)
+                asc_file = path.join(input_dir,local_asc_file)
+
+                local_blob_file = path.join(work_dir,local_blob_file)
+                local_asc_file = path.join(work_dir,local_asc_file)
+
+                # Linking in the blob file
+                if not path.exists(local_blob_file):
+                    LOG.info("Creating the link {} -> {}"
+                            .format(local_blob_file,blob_file))
+                    os.symlink(blob_file, local_blob_file)
+                else:
+                    LOG.info('{} already exists; continuing'
+                            .format(local_blob_file))
+
+                try:
+                    LOG.debug('testing {}'.format(local_blob_file))
+                    s = os.stat(local_blob_file)
+                except OSError as oops:
+                    LOG.error("link at {} is broken"
+                            .format(local_blob_file))
+                    raise
+
+                # Linking in the asc file
+                if not path.exists(local_asc_file):
+                    LOG.info("Creating the link {} -> {}"
+                            .format(local_asc_file,asc_file))
+                    os.symlink(asc_file, local_asc_file)
+                else:
+                    LOG.info('{} already exists; continuing'
+                            .format(local_asc_file))
+
+                try:
+                    LOG.debug('testing {}'.format(local_asc_file))
+                    s = os.stat(local_asc_file)
+                except OSError as oops:
+                    LOG.error("link at {} is broken".format(local_asc_file))
+                    raise
+
+    else:
+
+        # Determine the correct input file path and glob
+        input_dir,inputGlob = _create_input_file_globs(inputFiles)
+
+        if inputGlob is None :
+            LOG.error("No input files found matching %s, aborting..."%(inputFiles))
+            sys.exit(1)
+
+        # Unpack HDF5 VIIRS SDRs in the input directory to the work directory
+        unpacking_problems = 0
+        for prefix in requiredPrefix:
+            LOG.info("prefix = {}".format(prefix))
+            LOG.info("inputGlob = {}".format(inputGlob))
+            fileGlob = "%s%s" % (prefix,inputGlob)
+            LOG.info("Unpacking files matching {}".format(fileGlob))
+            unpacking_problems += _unpack_sdr(work_dir,input_dir,fileGlob)
+
+    return unpacking_problems
+
+
 def _skim_viirs_sdr(collectionShortName,work_dir):
     """
     Skim for VIIRS SDR data meeting minimum requirements
@@ -1590,31 +1678,19 @@ def main():
 
     LOG.info("meta-updated list of required algorithm keys: {}".format(algList))
 
-    # Determine what geolocation types are required for each algorithm
+    # Determine what geolocation types are required for each algorithm, and 
+    # get the required blob/asc pairs
     requiredGeoShortname,requiredGeoPrefix = _get_geo_prefixes(algorithms)
+    geo_unpacking_problems = _get_sdr_blobs(options.inputFiles,work_dir,
+            options.skipSdrUnpack,requiredGeoShortname,requiredGeoPrefix)
 
-    # Determine what radiometric types are required for each algorithm
+    # Determine what radiometric types are required for each algorithm, and 
+    # get the required blob/asc pairs
     requiredSdrShortname,requiredSdrPrefix = _get_radio_prefixes(algorithms)
+    radio_unpacking_problems = _get_sdr_blobs(options.inputFiles,work_dir,
+            options.skipSdrUnpack,requiredSdrShortname,requiredSdrPrefix)
 
-    # Determine the correct input file path and glob
-    if not options.skipSdrUnpack :
-        input_dir,inputGlob = _create_input_file_globs(options.inputFiles)
-
-        if inputGlob is None :
-            LOG.error("No input files found matching %s, aborting..."%(options.inputFiles))
-            sys.exit(1)
-
-    # Unpack HDF5 VIIRS geolocation SDRs in the input directory to the work directory
-    geo_unpacking_problems = 0
-    if not options.skipSdrUnpack :
-        for prefix in requiredGeoPrefix:
-            LOG.info("prefix = {}".format(prefix))
-            LOG.info("inputGlob = {}".format(inputGlob))
-            fileGlob = "%s%s" % (prefix,inputGlob)
-            LOG.info("Unpacking files matching {}".format(fileGlob))
-            geo_unpacking_problems += _unpack_sdr(work_dir,input_dir,fileGlob)
-    else :
-        LOG.info('Skipping SDR GEO unpacking, assuming all VIIRS SDR blob and asc files are present.')
+    unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
 
     # Check geolocation SDR metadata for wrong N_Granule_Version, and fix...
     geo_blob_names = glob(path.join(work_dir,"*.*GEO-TC"))
@@ -1627,23 +1703,6 @@ def main():
             LOG.info("Fixed N_Granule_Version in %s metadata" 
                     % (path.basename(geo_blob_name)))
 
-    # Unpack HDF5 VIIRS radiometric SDRs in the input directory to the work directory
-    radio_unpacking_problems = 0
-    unpacking_problems = 0
-    if not options.skipSdrUnpack :
-        for prefix in requiredSdrPrefix:
-            LOG.info("prefix = {}".format(prefix))
-            LOG.info("inputGlob = {}".format(inputGlob))
-            fileGlob = "%s%s" % (prefix,inputGlob)
-            LOG.info("Unpacking files matching %r" % (fileGlob))
-            radio_unpacking_problems = _unpack_sdr(work_dir,input_dir,fileGlob)
-
-        unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
-        LOG.debug("Total VIIRS SDR unpacking problems = %d" 
-                % (unpacking_problems))
-    else :
-        LOG.info('Skipping SDR unpacking, assuming all VIIRS SDR blob and asc files are present.')
-        unpacking_problems = geo_unpacking_problems + radio_unpacking_problems
 
     # Check radiometric SDR metadata for wrong N_Granule_Version, and fix...
     sdr_blob_names = glob(path.join(work_dir,"*.*SDR"))
@@ -1655,6 +1714,11 @@ def main():
         if fileChanged :
             LOG.info("Fixed N_Granule_Version in %s metadata" 
                     % (path.basename(sdr_blob_name)))
+
+
+    ###########
+    #sys.exit(0)
+    ###########
 
     # Set the VIIRS SDR endianness from the input option...
     global sdrEndian
