@@ -89,9 +89,9 @@ GridIP_collectionShortNames = [
                           ]
 
 AUX_collectionShortNames = [
-#                            'VIIRS-CM-IP-AC-Int',
-#                            'VIIRS-AF-EDR-AC-Int',
-#                            'VIIRS-AF-EDR-DQTT-Int'
+                           'VIIRS-CM-IP-AC-Int',
+                           'VIIRS-AF-EDR-AC-Int',
+                           'VIIRS-AF-EDR-DQTT-Int'
                            ]
 
 AUX_ascTemplateFile = [
@@ -107,7 +107,6 @@ AUX_blobTemplateFile = [
                        ]
 
 AUX_Paths = [
-             'luts/viirs',
              'luts/viirs',
              'luts/viirs',
              'luts/viirs'

@@ -131,8 +131,6 @@ MINIMUM_SDR_BLOB_SIZE = 81000000
 # consider them contiguous
 MAX_CONTIGUOUS_DELTA=timedelta(seconds = 5)
 
-ADL_VIIRS_ANC_GLOBS = (
-    '*VIIRS-CM-IP-AC*','*VIIRS-AF-EDR-AC*','*VIIRS-AF-EDR-DQTT*',)
 
 ###################################################
 #                  Global Data                    #
@@ -1717,10 +1715,6 @@ def main():
                     % (path.basename(sdr_blob_name)))
 
 
-    ###########
-    #sys.exit(0)
-    ###########
-
     # Set the VIIRS SDR endianness from the input option...
     global sdrEndian
     set_sdr_endian(options.sdr_Endianness)
@@ -1776,12 +1770,6 @@ def main():
         
     # A key for sorting lists of granule dictionaries according to N_Granule_ID
     granIdKey = lambda x: (x['N_Granule_ID'])
-
-    search_dirs = [CSPP_RT_ANC_CACHE_DIR if CSPP_RT_ANC_CACHE_DIR is not None else anc_dir] + [CSPP_RT_ANC_PATH]
-
-    ancillary_files_neeeded = anc_files_needed(ADL_VIIRS_ANC_GLOBS, search_dirs)
-    # link all the ancillary files to the ancillary directory.
-    link_ancillary_to_work_dir(work_dir, ancillary_files_neeeded)
 
 
     # List ancillary processing candidate granule IDs
@@ -1839,8 +1827,8 @@ def main():
     set_anc_endian(options.anc_Endianness)
 
     # Expand any user specifiers in the various paths
-    LOG.debug("\nCSPP_RT_ANC_PATH:       %s" % (CSPP_RT_ANC_PATH))
-    LOG.debug("CSPP_RT_ANC_CACHE_DIR:  %s" % (CSPP_RT_ANC_CACHE_DIR))
+    LOG.info("CSPP_RT_ANC_PATH:       %s" % (CSPP_RT_ANC_PATH))
+    LOG.info("CSPP_RT_ANC_CACHE_DIR:  %s" % (CSPP_RT_ANC_CACHE_DIR))
     #LOG.debug("CSPP_RT_ANC_TILE_PATH:  %s" % (CSPP_RT_ANC_TILE_PATH))
     #LOG.debug("LD_LIBRARY_PATH:     %s" % (LD_LIBRARY_PATH))
     #LOG.debug("DSTATICDATA:         %s" % (DSTATICDATA))
@@ -1875,12 +1863,28 @@ def main():
             for shortName in sorted(dummy_granule_dict[granID].keys()):
                 LOG.info(formatStr.format(granID,shortName,dummy_granule_dict[granID][shortName]))
 
+
+
     # Link in auxillary files
     if not options.skipAuxLinking :
         LOG.info('Linking in the VIIRS EDR auxillary files...')
 
+        ADL_VIIRS_ANC_GLOBS = []
         for alg in algorithms :
-            alg.setupAuxillaryFiles(alg, work_dir)
+            for shortName in alg.AUX_collectionShortNames:
+                aux_glob = string.replace(shortName,'-Int','')
+                aux_glob = '*{}*'.format(aux_glob)
+                ADL_VIIRS_ANC_GLOBS.append(aux_glob)
+                LOG.info('Auxillary glob for {} = {}'.format(shortName,aux_glob))
+
+        search_dirs = [CSPP_RT_ANC_CACHE_DIR if 
+            CSPP_RT_ANC_CACHE_DIR is not None else anc_dir] \
+                    + [CSPP_RT_ANC_PATH]
+
+        LOG.info('Auxillary search directories = {}'.format(search_dirs))
+
+        ancillary_files_neeeded = anc_files_needed(ADL_VIIRS_ANC_GLOBS, search_dirs)
+        link_ancillary_to_work_dir(work_dir, ancillary_files_neeeded)
 
     else :
         LOG.info('Skipping linking in the VIIRS EDR auxillary files.')
