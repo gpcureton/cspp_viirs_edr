@@ -131,6 +131,8 @@ MINIMUM_SDR_BLOB_SIZE = 81000000
 # consider them contiguous
 MAX_CONTIGUOUS_DELTA=timedelta(seconds = 5)
 
+ADL_VIIRS_ANC_GLOBS = (
+    '*VIIRS-CM-IP-AC*','*VIIRS-AF-EDR-AC*','*VIIRS-AF-EDR-DQTT*',)
 
 ###################################################
 #                  Global Data                    #
@@ -497,8 +499,7 @@ def sift_metadata_for_viirs_sdr(collectionShortName, crossGran=None, work_dir='.
 
     work_dir = path.abspath(work_dir)
 
-    geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, 
-        N_Collection_Short_Name=collectionShortName)))
+    geoGroupList = list(_contiguous_granule_groups(skim_dir(work_dir, required_keys=RDR_REQUIRED_KEYS, N_Collection_Short_Name=collectionShortName)))
 
     LOG.debug('geoGroupList : {}'.format(geoGroupList))
 
@@ -1775,6 +1776,13 @@ def main():
         
     # A key for sorting lists of granule dictionaries according to N_Granule_ID
     granIdKey = lambda x: (x['N_Granule_ID'])
+
+    search_dirs = [CSPP_RT_ANC_CACHE_DIR if CSPP_RT_ANC_CACHE_DIR is not None else anc_dir] + [CSPP_RT_ANC_PATH]
+
+    ancillary_files_neeeded = anc_files_needed(ADL_VIIRS_ANC_GLOBS, search_dirs)
+    # link all the ancillary files to the ancillary directory.
+    link_ancillary_to_work_dir(work_dir, ancillary_files_neeeded)
+
 
     # List ancillary processing candidate granule IDs
     if anc_granules_to_process :

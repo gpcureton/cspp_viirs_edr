@@ -89,21 +89,21 @@ GridIP_collectionShortNames = [
                           ]
 
 AUX_collectionShortNames = [
-                            'VIIRS-CM-IP-AC-Int',
-                            'VIIRS-AF-EDR-AC-Int',
-                            'VIIRS-AF-EDR-DQTT-Int'
+#                            'VIIRS-CM-IP-AC-Int',
+#                            'VIIRS-AF-EDR-AC-Int',
+#                            'VIIRS-AF-EDR-DQTT-Int'
                            ]
 
 AUX_ascTemplateFile = [
-                        'VIIRS-CM-IP-AC-Int_Template.asc',
-                        'VIIRS-AF-EDR-AC-Int_Template.asc',
-                        'VIIRS-AF-EDR-DQTT-Int_Template.asc',
+#                        'VIIRS-CM-IP-AC-Int_Template.asc',
+#                        'VIIRS-AF-EDR-AC-Int_Template.asc',
+#                        'VIIRS-AF-EDR-DQTT-Int_Template.asc',
                       ]
 
 AUX_blobTemplateFile = [
-                         'template.VIIRS-CM-IP-AC-Int',
-                         'template.VIIRS-AF-EDR-AC-Int',
-                         'template.VIIRS-AF-EDR-DQTT-Int',
+#                         'template.VIIRS-CM-IP-AC-Int',
+#                         'template.VIIRS-AF-EDR-AC-Int',
+#                         'template.VIIRS-AF-EDR-DQTT-Int',
                        ]
 
 AUX_Paths = [
@@ -142,7 +142,7 @@ xmlTemplate = """<InfTkConfig>
   <isRestart>FALSE</isRestart>
   <useExtSiWriter>FALSE</useExtSiWriter>
   <debugLogLevel>HIGH</debugLogLevel>
-  <debugLevel>DBG_HIGH</debugLevel>
+  <debugLevel>DBG_LOW</debugLevel>
   <dbgDest>D_FILE</dbgDest>
   <enablePerf>FALSE</enablePerf>
   <perfPath>${WORK_DIR}/perf</perfPath>
