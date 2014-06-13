@@ -331,53 +331,72 @@ def _get_sdr_blobs(inputFiles,work_dir,skipSdrUnpack,
         # to the work directory
 
         for shortName in requiredShortname :
-            LOG.info("shortName = {}".format(shortName))
-            file_glob = path.join(input_dir,"*.{}".format(shortName))
-            blob_files = glob(file_glob)
 
-            for files in blob_files:
-                local_blob_file = path.basename(files)
-                local_asc_file = string.replace(
-                        local_blob_file,shortName,'asc')
+            # A key for sorting lists of granule dictionaries according to N_Granule_ID
+            granIdKey = lambda x: (x['N_Granule_ID'])
+            
+            sdr_granules_to_process = sorted(list(sift_metadata_for_viirs_sdr(
+                shortName,crossGran=None,work_dir=input_dir)))
 
-                blob_file = path.join(input_dir,local_blob_file)
-                asc_file = path.join(input_dir,local_asc_file)
-
-                local_blob_file = path.join(work_dir,local_blob_file)
-                local_asc_file = path.join(work_dir,local_asc_file)
-
-                # Linking in the blob file
-                if not path.exists(local_blob_file):
-                    LOG.info("Creating the link {} -> {}"
-                            .format(local_blob_file,blob_file))
-                    os.symlink(blob_file, local_blob_file)
+            for dicts in sorted(sdr_granules_to_process,key=granIdKey) :
+                if 'BlobPath' not in dicts.keys():
+                    dicts['BlobPath'] = None 
                 else:
-                    LOG.info('{} already exists; continuing'
-                            .format(local_blob_file))
+                    pass 
 
-                try:
-                    LOG.debug('testing {}'.format(local_blob_file))
-                    s = os.stat(local_blob_file)
-                except OSError as oops:
-                    LOG.error("link at {} is broken"
-                            .format(local_blob_file))
-                    raise
+                asc_file = dicts['_filename']
+                blob_file = dicts['BlobPath']
+                blob_file = path.join(input_dir,
+                        path.basename(dicts['BlobPath'])) \
+                                if dicts['BlobPath'] is not None else None
+
+                LOG.debug("asc_file = {}".format(asc_file))
+                LOG.debug("blob_file = {}".format(blob_file))
+
+                local_asc_file = path.join(work_dir,
+                        path.basename(asc_file))
+                local_blob_file = path.join(work_dir,
+                    path.basename(blob_file)) \
+                            if blob_file is not None else None
+
+                LOG.debug("local_asc_file = {}".format(local_asc_file))
+                LOG.debug("local_blob_file = {}".format(local_blob_file))
 
                 # Linking in the asc file
-                if not path.exists(local_asc_file):
-                    LOG.info("Creating the link {} -> {}"
-                            .format(local_asc_file,asc_file))
-                    os.symlink(asc_file, local_asc_file)
-                else:
-                    LOG.info('{} already exists; continuing'
-                            .format(local_asc_file))
+                if asc_file is not None and local_asc_file is not None:
+                    if not path.exists(local_asc_file):
+                        LOG.info("Creating the link {} -> {}"
+                                .format(local_asc_file,asc_file))
+                        os.symlink(asc_file, local_asc_file)
+                    else:
+                        LOG.info('{} already exists; continuing'
+                                .format(local_asc_file))
 
-                try:
-                    LOG.debug('testing {}'.format(local_asc_file))
-                    s = os.stat(local_asc_file)
-                except OSError as oops:
-                    LOG.error("link at {} is broken".format(local_asc_file))
-                    raise
+                    try:
+                        LOG.debug('testing {}'.format(local_asc_file))
+                        s = os.stat(local_asc_file)
+                    except OSError as oops:
+                        LOG.error("link at {} is broken".format(local_asc_file))
+                        raise
+
+                # Linking in the blob file
+                if blob_file is not None and local_blob_file is not None:
+
+                    if not path.exists(local_blob_file):
+                        LOG.info("Creating the link {} -> {}"
+                                .format(local_blob_file,blob_file))
+                        os.symlink(blob_file, local_blob_file)
+                    else:
+                        LOG.info('{} already exists; continuing'
+                                .format(local_blob_file))
+
+                    try:
+                        LOG.debug('testing {}'.format(local_blob_file))
+                        s = os.stat(local_blob_file)
+                    except OSError as oops:
+                        LOG.error("link at {} is broken"
+                                .format(local_blob_file))
+                        raise
 
     else:
 
@@ -1770,7 +1789,6 @@ def main():
         
     # A key for sorting lists of granule dictionaries according to N_Granule_ID
     granIdKey = lambda x: (x['N_Granule_ID'])
-
 
     # List ancillary processing candidate granule IDs
     if anc_granules_to_process :
