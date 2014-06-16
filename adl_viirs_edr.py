@@ -365,11 +365,11 @@ def _get_sdr_blobs(inputFiles,work_dir,skipSdrUnpack,
                 # Linking in the asc file
                 if asc_file is not None and local_asc_file is not None:
                     if not path.exists(local_asc_file):
-                        LOG.info("Creating the link {} -> {}"
+                        LOG.debug("Creating the link {} -> {}"
                                 .format(local_asc_file,asc_file))
                         os.symlink(asc_file, local_asc_file)
                     else:
-                        LOG.info('{} already exists; continuing'
+                        LOG.debug('{} already exists; continuing'
                                 .format(local_asc_file))
 
                     try:
@@ -383,11 +383,11 @@ def _get_sdr_blobs(inputFiles,work_dir,skipSdrUnpack,
                 if blob_file is not None and local_blob_file is not None:
 
                     if not path.exists(local_blob_file):
-                        LOG.info("Creating the link {} -> {}"
+                        LOG.debug("Creating the link {} -> {}"
                                 .format(local_blob_file,blob_file))
                         os.symlink(blob_file, local_blob_file)
                     else:
-                        LOG.info('{} already exists; continuing'
+                        LOG.debug('{} already exists; continuing'
                                 .format(local_blob_file))
 
                     try:
@@ -1309,7 +1309,7 @@ def __cleanup_dummy_files(work_dir, algList, noDummyGranules, dummy_granule_dict
                 dummyFiles = glob(path.join(work_dir,dummyGlob))
                 for files in dummyFiles:
                     if path.exists(files):
-                        LOG.info('Removing dummy {:15}:{:16} file -> {}'.format(granID,shortName,files))
+                        LOG.debug('Removing dummy {:15}:{:16} file -> {}'.format(granID,shortName,files))
                         os.unlink(files)
 
 
@@ -1363,12 +1363,12 @@ def __cleanup(work_dir, dirs_to_remove):
             URID = string.split(path.basename(blobFile),".")[0]
             ascFile = path.join(blobDir,"{}.asc".format(URID))
             try:
-                LOG.info('Removing {}'.format(blobFile))
+                LOG.debug('Removing {}'.format(blobFile))
                 os.unlink(blobFile)
             except Exception, err:
                 LOG.warn( "{}".format(str(err)))
             try:
-                LOG.info('Removing {}'.format(ascFile))
+                LOG.debug('Removing {}'.format(ascFile))
                 os.unlink(ascFile)
             except Exception, err:
                 LOG.warn( "{}".format(str(err)))
@@ -1384,12 +1384,12 @@ def __cleanup(work_dir, dirs_to_remove):
             URID = string.split(path.basename(blobFile),".")[0]
             ascFile = path.join(blobDir,"{}.asc".format(URID))
             try:
-                LOG.info('Removing {}'.format(blobFile))
+                LOG.debug('Removing {}'.format(blobFile))
                 os.unlink(blobFile)
             except Exception, err:
                 LOG.warn( "{}".format(str(err)))
             try:
-                LOG.info('Removing {}'.format(ascFile))
+                LOG.debug('Removing {}'.format(ascFile))
                 os.unlink(ascFile)
             except Exception, err:
                 LOG.warn( "{}".format(str(err)))
@@ -1400,7 +1400,7 @@ def __cleanup(work_dir, dirs_to_remove):
     if ascBlobFiles != [] :
         for ascBlobFile in ascBlobFiles:
             try:
-                LOG.info('Removing {}'.format(ascBlobFile))
+                LOG.debug('Removing {}'.format(ascBlobFile))
                 os.unlink(ascBlobFile)
             except Exception, err:
                 LOG.warn( "{}".format(str(err)))
@@ -1409,7 +1409,7 @@ def __cleanup(work_dir, dirs_to_remove):
     LOG.info("Removing other directories ...")
     for dirname in dirs_to_remove:
         fullDirName = path.join(work_dir,dirname)
-        LOG.info('Removing {}'.format(fullDirName))
+        LOG.debug('Removing {}'.format(fullDirName))
         try :
             rmtree(fullDirName, ignore_errors=False)
         except Exception, err:
