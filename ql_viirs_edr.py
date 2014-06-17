@@ -31,7 +31,7 @@ __author__ = 'G.P. Cureton <geoff.cureton@ssec.wisc.edu>'
 __version__ = '$Id$'
 __docformat__ = 'Epytext'
 
-import string, sys
+import string, sys, traceback
 from glob import glob
 from os import path, uname
 from time import time
@@ -63,6 +63,8 @@ import viirs_cloud_products as viirsCld
 import viirs_aerosol_products as viirsAero
 import viirs_sst_products as viirsSST
 import viirs_vi_products as viirsVI
+import viirs_st_products as viirsST
+import viirs_lst_products as viirsLST
 
 import tables as pytables
 from tables import exceptions as pyEx
@@ -2158,7 +2160,7 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
 
 def gran_SST(geoList,sstList,shrink=1):
     '''
-    Returns the granulated AOT
+    Returns the granulated SST
     '''
 
     try :
@@ -2405,6 +2407,240 @@ def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
         sys.exit(1)
 
     print "gran_NDVI ModeGran = ",ModeGran
+
+    return lats,lons,data,lat_0,lon_0,ModeGran
+
+
+def gran_ST(geoList,stList,shrink=1):
+    '''
+    Returns the granulated AOT
+    '''
+
+    try :
+        reload(viirsST)
+        reload(viirs_edr_data)
+        del(viirsSTObj)
+        del(latArr)
+        del(lonArr)
+        del(stArr)
+        del(qf1Arr)
+        del(qf2Arr)
+    except :
+        pass
+
+    print "Creating viirsSTObj..."
+    reload(viirsST)
+    viirsSTObj = viirsST.viirsST()
+    print "done"
+
+    # Determine the correct fillValue
+    trimObj = ViirsTrimTable()
+
+    # Build up the swath...
+    for grans in np.arange(len(geoList)):
+
+        print "\nIngesting granule %d ..." % (grans)
+        retList = viirsSTObj.ingest(geoList[grans],stList[grans],'st',shrink)
+
+        try :
+            latArr  = np.vstack((latArr,viirsSTObj.Lat[:,:]))
+            lonArr  = np.vstack((lonArr,viirsSTObj.Lon[:,:]))
+            ModeGran = viirsSTObj.ModeGran
+            print "subsequent geo arrays..."
+        except NameError :
+            latArr  = viirsSTObj.Lat[:,:]
+            lonArr  = viirsSTObj.Lon[:,:]
+            ModeGran = viirsSTObj.ModeGran
+            print "first geo arrays..."
+
+        try :
+            stArr  = np.vstack((stArr ,viirsSTObj.ViirsSTprodSDS[:,:]))
+            qf1Arr = np.vstack((qf1Arr,viirsSTObj.ViirsST_QF1[:,:]))
+            qf2Arr = np.vstack((qf2Arr,viirsSTObj.ViirsST_QF2[:,:]))
+            print "subsequent st arrays..."
+        except NameError :
+            stArr  = viirsSTObj.ViirsSTprodSDS[:,:]
+            qf1Arr = viirsSTObj.ViirsST_QF1[:,:]
+            qf2Arr = viirsSTObj.ViirsST_QF2[:,:]
+            print "first st arrays..."
+
+        print "Intermediate stArr.shape = %s" % (str(stArr.shape))
+        print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
+        print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
+
+    lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
+    lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
+
+    print "lat_0,lon_0 = ",lat_0,lon_0
+
+    try :
+        #Determine masks for each fill type, for the ST EDR
+        stFillMasks = {}
+        for fillType in trimObj.sdrTypeFill.keys() :
+            fillValue = trimObj.sdrTypeFill[fillType][stArr.dtype.name]
+            if 'float' in fillValue.__class__.__name__ :
+                stFillMasks[fillType] = ma.masked_inside(stArr,fillValue-eps,fillValue+eps).mask
+                if (stFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    stFillMasks[fillType] = None
+            elif 'int' in fillValue.__class__.__name__ :
+                stFillMasks[fillType] = ma.masked_equal(stArr,fillValue).mask
+                if (stFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    stFillMasks[fillType] = None
+            else :
+                print "Dataset was neither int not float... a worry"
+                pass
+
+        #Construct the total mask from all of the various fill values
+        fillMask = ma.array(np.zeros(stArr.shape,dtype=np.bool))
+        for fillType in trimObj.sdrTypeFill.keys() :
+            if stFillMasks[fillType] is not None :
+                fillMask = fillMask * ma.array(np.zeros(stArr.shape,dtype=np.bool),\
+                    mask=stFillMasks[fillType])
+
+        # Combine the fill mask and quality masks...
+        totalMask = fillMask.mask
+
+        try :
+            data = ma.array(stArr,mask=totalMask)
+            lats = ma.array(latArr,mask=totalMask)
+            lons = ma.array(lonArr,mask=totalMask)
+        except ma.core.MaskError :
+            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            sys.exit(1)
+
+    except Exception, err :
+        print ">> error: %s..." % (str(err))
+        sys.exit(1)
+
+    print "gran_ST ModeGran = ",ModeGran
+
+    return lats,lons,data,lat_0,lon_0,ModeGran
+
+
+    print "lat_0,lon_0 = %f,%f" % (lat_0,lon_0)
+    print "Shape of data is %s" % (repr(np.shape(data)))
+    print "Shape of lats is %s" % (repr(np.shape(lats)))
+    print "Shape of lons is %s" % (repr(np.shape(lons)))
+
+    return lats,lons,data,lat_0,lon_0,ModeGran
+
+
+def gran_LST(geoList,lstList,shrink=1):
+    '''
+    Returns the granulated LST
+    '''
+
+    try :
+        reload(viirsLST)
+        reload(viirs_edr_data)
+        del(viirsLSTObj)
+        del(latArr)
+        del(lonArr)
+        del(lstArr)
+        del(qf2Arr)
+    except :
+        pass
+
+    print "Creating viirsLSTObj..."
+    reload(viirsLST)
+    viirsLSTObj = viirsLST.viirsLST()
+    print "done"
+
+    # Determine the correct fillValue
+    trimObj = ViirsTrimTable()
+
+    # Build up the swath...
+    for grans in np.arange(len(geoList)):
+
+        print "\nIngesting granule %d ..." % (grans)
+        retList = viirsLSTObj.ingest(geoList[grans],lstList[grans],'lst',shrink)
+
+        try :
+            latArr  = np.vstack((latArr,viirsLSTObj.Lat[:,:]))
+            lonArr  = np.vstack((lonArr,viirsLSTObj.Lon[:,:]))
+            ModeGran = viirsLSTObj.ModeGran
+            print "subsequent geo arrays..."
+        except NameError :
+            latArr  = viirsLSTObj.Lat[:,:]
+            lonArr  = viirsLSTObj.Lon[:,:]
+            ModeGran = viirsLSTObj.ModeGran
+            print "first geo arrays..."
+
+        try :
+            lstArr  = np.vstack((lstArr ,viirsLSTObj.ViirsLSTprodSDS[:,:]))
+            qf1Arr = np.vstack((qf1Arr,viirsLSTObj.ViirsLST_QF1[:,:]))
+            qf2Arr = np.vstack((qf2Arr,viirsLSTObj.ViirsLST_QF2[:,:]))
+            #qf3Arr = np.vstack((qf3Arr,viirsLSTObj.ViirsLST_QF3[:,:]))
+            print "subsequent lst arrays..."
+        except NameError :
+            lstArr  = viirsLSTObj.ViirsLSTprodSDS[:,:]
+            qf1Arr = viirsLSTObj.ViirsLST_QF1[:,:]
+            qf2Arr = viirsLSTObj.ViirsLST_QF2[:,:]
+            #qf3Arr = viirsLSTObj.ViirsLST_QF3[:,:]
+            print "first lst arrays..."
+
+        print "Intermediate lstArr.shape = %s" % (str(lstArr.shape))
+        print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
+        print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
+        #print "Intermediate qf3Arr.shape = %s" % (str(qf3Arr.shape))
+
+    lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
+    lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
+
+    print "lat_0,lon_0 = ",lat_0,lon_0
+
+    try :
+        #Determine masks for each fill type, for the LST EDR
+        lstFillMasks = {}
+        for fillType in trimObj.sdrTypeFill.keys() :
+            fillValue = trimObj.sdrTypeFill[fillType][lstArr.dtype.name]
+            if 'float' in fillValue.__class__.__name__ :
+                lstFillMasks[fillType] = ma.masked_inside(lstArr,fillValue-eps,fillValue+eps).mask
+                if (lstFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    lstFillMasks[fillType] = None
+            elif 'int' in fillValue.__class__.__name__ :
+                lstFillMasks[fillType] = ma.masked_equal(lstArr,fillValue).mask
+                if (lstFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                    lstFillMasks[fillType] = None
+            else :
+                print "Dataset was neither int not float... a worry"
+                pass
+
+        #Construct the total mask from all of the various fill values
+        fillMask = ma.array(np.zeros(lstArr.shape,dtype=np.bool))
+        for fillType in trimObj.sdrTypeFill.keys() :
+            if lstFillMasks[fillType] is not None :
+                fillMask = fillMask * ma.array(np.zeros(lstArr.shape,dtype=np.bool),\
+                    mask=lstFillMasks[fillType])
+
+
+        # Unscale the LST dataset
+        lstArr =  lstArr * viirsLSTObj.lstFactors[0] + viirsLSTObj.lstFactors[1]
+
+        # LST quality mask
+        LSTqualFlag = np.bitwise_and(qf1Arr,3) >> 0
+        lstQualMask = ma.masked_equal(LSTqualFlag,3).mask
+
+        # LST valid range mask
+        LSTvalidRangFlag = np.bitwise_and(qf2Arr,2) >> 1
+        LSTvalidRangMask = ma.masked_equal(LSTvalidRangFlag,1).mask
+
+        # Combine the fill mask and quality masks...
+        totalMask = fillMask.mask + lstQualMask + LSTvalidRangMask
+
+        try :
+            data = ma.array(lstArr,mask=totalMask)
+            lats = ma.array(latArr,mask=totalMask)
+            lons = ma.array(lonArr,mask=totalMask)
+        except ma.core.MaskError :
+            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            sys.exit(1)
+
+    except Exception, err :
+        print ">> error: %s..." % (str(err))
+        sys.exit(1)
+
+    print "gran_LST ModeGran = ",ModeGran
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
@@ -2974,6 +3210,139 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     canvas.print_figure(outFileName,dpi=dpi)
 
 
+def orthoPlot_LST(gridLat,gridLon,gridData,ModeGran, \
+        vmin=270.,vmax=320.,scale=1.3, \
+        lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,mapRes='c',cmap=None, \
+        prodFileName='',outFileName='VSSTO.png',dpi=300,titleStr='VIIRS SST EDR'):
+    '''
+    Plots the VIIRS Sea Surface Temperature on an orthographic projection
+    '''
+
+    reload(viirs_edr_data)
+    SeaSurfaceTempProduct = viirs_edr_data.SeaSurfaceTempProdData.SeaSurfaceTempProd()
+    cmap = SeaSurfaceTempProduct.cmap
+
+    # The plot range...
+    print "vmin,vmax = ",vmin,vmax 
+
+    # If we have a zero size data array, make a dummy dataset
+    # to span the allowed data range, which will be plotted with 
+    # vanishing pointsize
+    if (np.shape(gridLon)[0]==0) :
+        print "We have no valid data, synthesising dummy data..."
+        gridLat = np.array([lat_0,lat_0])
+        gridLon = np.array([lon_0,lon_0])
+        gridData = np.array([0.,1.])
+        pointSize = 0.001
+
+    # Setup plotting data
+
+    figWidth = 5. # inches
+    figHeight = 4. # inches
+
+    # Create figure with default size, and create canvas to draw on
+    fig = Figure(figsize=((figWidth,figHeight)))
+    canvas = FigureCanvas(fig)
+
+    # Create main axes instance, leaving room for colorbar at bottom,
+    # and also get the Bbox of the axes instance
+    ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
+    ax = fig.add_axes(ax_rect)
+
+    # Granule axis title
+    ax_title = ppl.setp(ax,title=prodFileName)
+    ppl.setp(ax_title,fontsize=6)
+    ppl.setp(ax_title,family="monospace")
+
+    # Create Basemap instance
+    # set 'ax' keyword so pylab won't be imported.
+    windowWidth = scale *(0.35*12000000.)
+    windowHeight = scale *(0.50*9000000.)
+    m = Basemap(width=windowWidth,height=windowHeight,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(width=0.35*12000000.,height=0.65*9000000.,projection='lcc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=False,resolution=mapRes)
+    #m = Basemap(width=0.75*12000000.,height=9000000.,projection='merc',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,ax=ax,fix_aspect=True,resolution=mapRes)
+    #m = Basemap(projection='ortho',lon_0=lon_0,lat_0=lat_0,\
+        #ax=ax,fix_aspect=True,resolution=mapRes,\
+        #llcrnrx = -1. * scale * 3200. * 750./2.,\
+        #llcrnry = -1. * scale * 3200. * 750./2.,\
+        #urcrnrx =       scale * 3200. * 750./2.,\
+        #urcrnry =       scale * 3200. * 750./2.)
+
+
+    x,y=m(np.array(gridLon),np.array(gridLat))
+
+    # Some map style configuration stufff
+    #m.drawlsmask(ax=ax,land_color='gray',ocean_color='black',lakes=True)
+    m.drawmapboundary(ax=ax,linewidth=0.01,fill_color='black')
+    m.drawcoastlines(ax=ax,linewidth=0.3,color='white')
+    m.fillcontinents(ax=ax,color='gray',lake_color='black',zorder=0)
+    #m.drawparallels(np.arange(-90.,120.,30.),color='white')
+    #m.drawmeridians(np.arange(0.,420.,60.),color='white')
+
+    #m.bluemarble()
+
+    # Plot the granule data
+    if scatterPlot:
+        cs = m.scatter(x,y,s=pointSize,c=gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap)
+    else:
+        cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
+
+    print "orthoPlot_LST ModeGran = ",ModeGran
+    #if (ModeGran == 0) :
+        #print "Printing NIGHT text"
+        #fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
+
+    # add a colorbar axis
+    cax_rect = [0.05 , 0.05, 0.9 , 0.06 ] # [left,bottom,width,height]
+    cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
+
+    # Plot the colorbar.
+    cb = fig.colorbar(cs, cax=cax, orientation='horizontal')
+    ppl.setp(cax.get_xticklabels(),fontsize=9)
+
+    # Colourbar title
+    cax_title = ppl.setp(cax,title="Sea Surface Temperature ($\mathrm{K}$)")
+    ppl.setp(cax_title,fontsize=9)
+
+    #
+    # Add a small globe with the swath indicated on it #
+    #
+
+    # Create main axes instance, leaving room for colorbar at bottom,
+    # and also get the Bbox of the axes instance
+    glax_rect = [0.81, 0.75, 0.18, 0.20 ] # [left,bottom,width,height]
+    glax = fig.add_axes(glax_rect)
+
+    m_globe = Basemap(lat_0=0.,lon_0=0.,\
+        ax=glax,resolution='c',area_thresh=10000.,projection='robin')
+
+    # If we previously had a zero size data array, increase the pointSize
+    # so the data points are visible on the global plot
+    if (np.shape(gridLon)[0]==2) :
+        pointSize = 5.
+
+    x,y=m_globe(np.array(gridLon),np.array(gridLat))
+    swath = np.zeros(np.shape(x),dtype=int)
+
+    m_globe.drawmapboundary(linewidth=0.1)
+    m_globe.fillcontinents(ax=glax,color='gray',zorder=1)
+    m_globe.drawcoastlines(ax=glax,linewidth=0.1,zorder=3)
+
+    p_globe = m_globe.scatter(x,y,s=pointSize,c="red",axes=glax,edgecolors='none',zorder=2)
+
+    # Globe axis title
+    glax_xlabel = ppl.setp(glax,xlabel=titleStr)
+    ppl.setp(glax_xlabel,fontsize=6)
+
+    # Redraw the figure
+    canvas.draw()
+
+    # save image 
+    print "Writing file to ",outFileName
+    canvas.print_figure(outFileName,dpi=dpi)
+
+
 def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
         lat_0=0.,lon_0=0.,\
         abScale='log',pointSize=1.,scatterPlot=False,scale=1.3,mapRes='c',\
@@ -3370,7 +3739,7 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
 def main():
 
     #prodChoices=['VCM','VCP','COT','COT_EDR','EPS','EPS_EDR','CTT','CTT_EDR','CTH','CTH_EDR','CTP','CTP_EDR','AOT','AOT_EDR','SST_EDR','SDR']
-    prodChoices=['VCM','VCP','AOT','AOT_EDR','SST_EDR','NDVI','EVI']
+    prodChoices=['VCM','VCP','AOT','AOT_EDR','SST_EDR','NDVI','EVI','LST']
     mapRes = ['c','l','i']
 
     description = \
@@ -3567,7 +3936,7 @@ def main():
 
     # Call the granulation and plotting routine for the desired product...
 
-    if 'VCM' in options.ipProd  or 'VCP' in options.ipProd:
+    if options.ipProd == 'VCM' or options.ipProd == 'VCP' in options.ipProd:
         print "Calling VCM ingester..."
         stride = stride_IP if options.stride==None else options.stride
         if 'VCM' in options.ipProd :
@@ -3586,7 +3955,7 @@ def main():
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    if 'AOT_EDR' in options.ipProd :
+    if options.ipProd == 'AOT_EDR' :
         print "Calling AOT EDR ingester..."
         stride = stride_EDR if options.stride==None else options.stride
         vmin = 0.0 if (vmin==None) else vmin
@@ -3603,7 +3972,7 @@ def main():
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    elif 'AOT' in options.ipProd :
+    elif options.ipProd == 'AOT' :
         print "Calling AOT ingester..."
         stride = stride_IP if options.stride==None else options.stride
         vmin = 0.0 if (vmin==None) else vmin
@@ -3620,7 +3989,7 @@ def main():
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    elif 'SST_EDR' in options.ipProd :
+    elif options.ipProd == 'SST_EDR' :
         print "Calling SST_EDR ingester..."
         stride = stride_IP if options.stride==None else options.stride
 
@@ -3638,7 +4007,7 @@ def main():
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    elif 'NDVI' in options.ipProd  or 'EVI' in options.ipProd:
+    elif options.ipProd == 'NDVI'  or options.ipProd == 'EVI':
         print "Calling NDVI ingester..."
         stride = stride_IP if options.stride==None else options.stride
         ipProd = options.ipProd
@@ -3661,6 +4030,43 @@ def main():
         orthoPlot_NDVI(lats,lons,ndviData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=mapAnn)
+
+    elif options.ipProd == 'ST':
+        print "Calling ST ingester..."
+        stride = stride_IP if options.stride==None else options.stride
+
+        vmin = 0 if (vmin==None) else vmin
+        vmax = 17 if (vmax==None) else vmax
+
+        lats,lons,sstData,gran_lat_0,gran_lon_0,ModeGran = gran_ST(geoList,prodList,shrink=stride)
+        
+        lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
+        lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
+
+        print "Calling SST plotter..."
+        pointSize = pointSize_IP if options.pointSize==None else options.pointSize
+        orthoPlot_ST(lats,lons,sstData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
+            pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
+            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+
+    elif options.ipProd == 'LST' :
+        print "Calling LST ingester..."
+        stride = stride_IP if options.stride==None else options.stride
+
+        vmin = 271. if (vmin==None) else vmin
+        vmax = 318. if (vmax==None) else vmax
+
+        lats,lons,lstData,gran_lat_0,gran_lon_0,ModeGran = gran_LST(geoList,prodList,shrink=stride)
+        
+        lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
+        lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
+
+        print "Calling LST plotter..."
+        pointSize = pointSize_IP if options.pointSize==None else options.pointSize
+        orthoPlot_LST(lats,lons,lstData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
+            pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
+            prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
+
 
     #if 'COT_EDR' in options.ipProd :
         #print "Calling COT EDR ingester..."
