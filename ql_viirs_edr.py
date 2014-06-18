@@ -2622,11 +2622,11 @@ def gran_LST(geoList,lstList,shrink=1):
         lstQualMask = ma.masked_equal(LSTqualFlag,3).mask
 
         # LST valid range mask
-        LSTvalidRangFlag = np.bitwise_and(qf2Arr,2) >> 1
-        LSTvalidRangMask = ma.masked_equal(LSTvalidRangFlag,1).mask
+        LSTvalidRangeFlag = np.bitwise_and(qf2Arr,2) >> 1
+        LSTvalidRangeMask = ma.masked_equal(LSTvalidRangeFlag,1).mask
 
         # Combine the fill mask and quality masks...
-        totalMask = fillMask.mask + lstQualMask + LSTvalidRangMask
+        totalMask = fillMask.mask + lstQualMask + LSTvalidRangeMask
 
         try :
             data = ma.array(lstArr,mask=totalMask)

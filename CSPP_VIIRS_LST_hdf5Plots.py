@@ -317,60 +317,104 @@ class LSTclass():
 
                     hdf5Obj = hdf5_dict[shortName][granID][1]
 
-                    VIIRS_LST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-LST-EDR/VIIRS-LST-EDR_Gran_0')
-                    dayNightFlag =  getattr(VIIRS_LST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-                    orbitNumber =  getattr(VIIRS_LST_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
-                    print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-                    print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
-                    orient = -1 if dayNightFlag == 'Day' else 1
-
-
-                    dataGranule = hdf5Obj.getNode(dataName)[:,:]
-                    factors = hdf5Obj.getNode(factorsName)[:]
-                    dataGranule = dataGranule*factors[0] + factors[1]
-
-                    LSTqualFlagGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF1_VIIRSLSTEDR')
-                    LSTqualFlagGranule = np.bitwise_and(LSTqualFlagGranule,3) >> 0
-                    LSTqualFlagMaskGranule = ma.masked_equal(LSTqualFlagGranule,0).mask
-
                     # Concatenate the granules.
                     try :
+
+                        VIIRS_LST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-LST-EDR/VIIRS-LST-EDR_Gran_0')
+                        dayNightFlag =  getattr(VIIRS_LST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                        orbitNumber =  getattr(VIIRS_LST_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+                        print 'N_Day_Night_Flag = %s' % (dayNightFlag)
+                        print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
+                        orient = -1 if dayNightFlag == 'Day' else 1
+
+                        dataGranule = hdf5Obj.getNode(dataName)[:,:]
                         data = np.vstack((data,dataGranule))
-                        LSTqualFlagMask = np.vstack((LSTqualFlagMask,LSTqualFlagMaskGranule))
+
+                        factors = hdf5Obj.getNode(factorsName)[:]
+
+                        qf1ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF1_VIIRSLSTEDR')
+                        qf1Arr = np.vstack((qf1Arr,qf1ArrGranule))
+                        qf2ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF2_VIIRSLSTEDR')
+                        qf2Arr = np.vstack((qf2Arr,qf1ArrGranule))
+                        qf3ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF3_VIIRSLSTEDR')
+                        qf3Arr = np.vstack((qf3Arr,qf1ArrGranule))
+
                         print "data shape = {}".format(data.shape)
-                        print "LSTqualFlagMask shape = {}\n".format(LSTqualFlagMask.shape)
-                    except :
-                        data = dataGranule[:,:]
-                        LSTqualFlagMask = LSTqualFlagMaskGranule[:,:]
+                        print "qf1Arr shape = {}".format(qf1Arr.shape)
+                        print "qf2Arr shape = {}\n".format(qf2Arr.shape)
+
+                    except NameError :
+
+                        data = hdf5Obj.getNode(dataName)[:,:]
+                        qf1Arr = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF1_VIIRSLSTEDR')
+                        qf2Arr = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF2_VIIRSLSTEDR')
+                        qf3Arr = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF3_VIIRSLSTEDR')
+
                         print "data shape = {}".format(data.shape)
-                        print "LSTqualFlagMask shape = {}\n".format(LSTqualFlagMask.shape)
+                        print "qf1Arr shape = {}".format(qf1Arr.shape)
+                        print "qf2Arr shape = {}\n".format(qf2Arr.shape)
 
                 print "Final data shape = {}".format(data.shape)
-                print "Final LSTqualFlagMask shape = {}\n".format(LSTqualFlagMask.shape)
+                print "Final qf1Arr shape = {}".format(qf1Arr.shape)
+                print "Final qf2Arr shape = {}\n".format(qf2Arr.shape)
 
-                # What value are the bowtie deletion pixels
-                ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
-                print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
-                onboardPixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]
-                print "Onboard Pixel Trim value is {}".format(onboardPixelTrimValue)
+                try :
+                    #Determine masks for each fill type, for the LST EDR
+                    lstFillMasks = {}
+                    for fillType in trimObj.sdrTypeFill.keys() :
+                        fillValue = trimObj.sdrTypeFill[fillType][data.dtype.name]
+                        if 'float' in fillValue.__class__.__name__ :
+                            lstFillMasks[fillType] = ma.masked_inside(data,fillValue-eps,fillValue+eps).mask
+                            if (lstFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                                lstFillMasks[fillType] = None
+                        elif 'int' in fillValue.__class__.__name__ :
+                            lstFillMasks[fillType] = ma.masked_equal(data,fillValue).mask
+                            if (lstFillMasks[fillType].__class__.__name__ != 'ndarray') :
+                                lstFillMasks[fillType] = None
+                        else :
+                            print "Dataset was neither int not float... a worry"
+                            pass
 
-                # Create onboard and onground pixel trim mask arrays, for the total number of
-                # scans in the pass...
-                numGranules = len(granID_list)
-                numScans = numGranules * 48
-                onboardTrimMask = trimObj.createOnboardModTrimArray(nscans=numScans,trimType=bool)
-                ongroundTrimMask = trimObj.createModTrimArray(nscans=numScans,trimType=bool)
+                    #Construct the total mask from all of the various fill values
+                    fillMask = ma.array(np.zeros(data.shape,dtype=np.bool))
+                    for fillType in trimObj.sdrTypeFill.keys() :
+                        if lstFillMasks[fillType] is not None :
+                            fillMask = fillMask * ma.array(np.zeros(data.shape,dtype=np.bool),\
+                                mask=lstFillMasks[fillType])
 
-                print "onboardTrimMask  shape = {}".format(onboardTrimMask.shape)
-                print "ongroundTrimMask shape = {}\n".format(ongroundTrimMask.shape)
 
-                # Apply the On-board pixel trim
-                data = ma.array(data,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
-                data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
+                    # Unscale the LST dataset
+                    data = data * factors[0] + factors[1]
 
-                # Apply the On-board pixel trim
-                data = ma.array(data,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
-                data = data.filled() # Substitute for the masked values with onboardPixelTrimValue
+                    # LST quality mask
+                    LSTqualFlag = np.bitwise_and(qf1Arr,3) >> 0
+                    lstQualMask = ma.masked_equal(LSTqualFlag,3).mask
+
+                    # LST valid range mask
+                    LSTvalidRangeFlag = np.bitwise_and(qf2Arr,2) >> 1
+                    lstValidRangeMask = ma.masked_equal(LSTvalidRangeFlag,1).mask
+
+                    # LST water bodies LWM mask
+                    #LSTwaterBackgroundFlag = np.bitwise_and(qf3Arr,7) >> 0
+                    #lstWaterBackgroundMask = ma.masked_inside(LSTwaterBackgroundFlag,2,5).mask
+
+                    # LST water bodies surface type mask
+                    LSTwaterBodiesFlag = np.bitwise_and(qf3Arr,248) >> 3
+                    lstWaterBodiesMask = ma.masked_equal(LSTwaterBodiesFlag,17).mask
+
+                    # Combine the fill mask and quality masks...
+                    totalMask = fillMask.mask + lstQualMask \
+                            + lstWaterBodiesMask
+
+                    try :
+                        data = ma.array(data,mask=totalMask)
+                    except ma.core.MaskError :
+                        print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                        sys.exit(1)
+
+                except Exception, err :
+                    print ">> error: %s..." % (str(err))
+                    sys.exit(1)
 
                 plotTitle = '%s : orbit %s %s' % (shortName,orbitNumber,annotation)
                 cbTitle = plotDescr
@@ -402,7 +446,7 @@ class LSTclass():
 
                 # Construct the total mask
 
-                totalMask = LSTqualFlagMask + fill_mask
+                totalMask = fill_mask# + LSTqualFlagMask
 
                 # Mask the aerosol so we only have the retrievals
                 data = ma.masked_array(data,mask=totalMask)
@@ -442,7 +486,9 @@ class LSTclass():
                 ppl.close('all')
 
                 del(data)
-                del(LSTqualFlagMask)
+                del(qf1Arr)
+                del(qf2Arr)
+                del(qf3Arr)
 
 
     def plot_LST_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
