@@ -45,6 +45,9 @@ then
 
 fi
 
+export DCONFIG=${CSPP_EDR_HOME}/common/cspp_cfg/cfg
+
+
 if [ ! -z "${DCONFIG}" ];
 then
       echo "Warning overridden default: DCONFIG="${DCONFIG}

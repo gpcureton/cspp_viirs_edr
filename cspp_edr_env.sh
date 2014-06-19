@@ -15,7 +15,6 @@ test -d "$CSPP_EDR_HOME/common/ADL" && export CSPP_REV="20120215"
 # user path environment settings, making it easy to invoke wrapper scripts
 #
 
-export DCONFIG=${CSPP_EDR_HOME}/common/cspp_cfg/cfg
 
 export PATH=${CSPP_EDR_HOME}/common:$PATH
 export PATH=${CSPP_EDR_HOME}/common/ShellB3/bin:$PATH
