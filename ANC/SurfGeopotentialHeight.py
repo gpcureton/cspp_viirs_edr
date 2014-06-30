@@ -365,7 +365,8 @@ class SurfGeopotentialHeight() :
         longitude = self.longitude
 
         # Flip so that lats are (-90 ... 90)
-        gridData = self.gridData[::-1,:]
+        #gridData = self.gridData[::-1,:]
+        gridData = self.gridData[:,:]
 
         if self.num180Crossings != 2 :
 

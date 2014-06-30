@@ -378,8 +378,10 @@ class WindDirection() :
         longitude = self.longitude
 
         # Flip so that lats are (-90 ... 90)
-        uWind = self.uWind[::-1,:]
-        vWind = self.vWind[::-1,:]
+        #uWind = self.uWind[::-1,:]
+        #vWind = self.vWind[::-1,:]
+        uWind = self.uWind[:,:]
+        vWind = self.vWind[:,:]
 
         if self.num180Crossings != 2 :
 
