@@ -141,17 +141,23 @@ class SSTclass():
                               ]
 
         self.plotDescr = {}
-        self.plotDescr['VIIRS-SST-EDR'] = ['Skin Sea Surface Temperature (K)','Bulk Sea Surface Temperature (K)']
+        self.plotDescr['VIIRS-SST-EDR'] = ['Skin Sea Surface Temperature (K)',
+                                           'Reference Sea Surface Temperature (K)',
+                                           'Bulk Sea Surface Temperature (K)']
 
         self.plotLims = {}
         #self.plotLims['VIIRS-SST-EDR'] = [250., 290.]
         self.plotLims['VIIRS-SST-EDR'] = [None,None]
 
         self.dataName = {}
-        self.dataName['VIIRS-SST-EDR'] = ['/All_Data/VIIRS-SST-EDR_All/SkinSST','/All_Data/VIIRS-SST-EDR_All/BulkSST']
+        self.dataName['VIIRS-SST-EDR'] = ['/All_Data/VIIRS-SST-EDR_All/SkinSST',
+                                          '/All_Data/VIIRS-SST-EDR_All/ReferenceSST',
+                                          '/All_Data/VIIRS-SST-EDR_All/BulkSST']
 
         self.dataFactors = {}
-        self.dataFactors['VIIRS-SST-EDR'] = ['/All_Data/VIIRS-SST-EDR_All/SkinSSTFactors','/All_Data/VIIRS-SST-EDR_All/BulkSSTFactors']
+        self.dataFactors['VIIRS-SST-EDR'] = ['/All_Data/VIIRS-SST-EDR_All/SkinSSTFactors',
+                                             '/All_Data/VIIRS-SST-EDR_All/ReferenceSSTFactors',
+                                             '/All_Data/VIIRS-SST-EDR_All/Bulk-Skin_Offset']
 
         self.hdf5_dict = get_hdf5_dict(hdf5Dir,'VSSTO')
 
@@ -316,7 +322,7 @@ class SSTclass():
                 dataNames = self.dataName[shortName]
                 factorsNames = self.dataFactors[shortName]
                 plotDescrs = plotDescr[shortName]
-                prodNames = ['SkinSST','BulkSST']
+                prodNames = ['SkinSST','ReferenceSST','BulkSST']
 
             elif (plotProd == 'Skin'):
 
@@ -325,11 +331,18 @@ class SSTclass():
                 plotDescrs = [plotDescr[shortName][0]]
                 prodNames = ['SkinSST']
 
-            elif (plotProd == 'Bulk'):
+            elif (plotProd == 'Reference'):
 
                 dataNames = [self.dataName[shortName][1]]
                 factorsNames = [self.dataFactors[shortName][1]]
                 plotDescrs = [plotDescr[shortName][1]]
+                prodNames = ['ReferenceSST']
+
+            elif (plotProd == 'Bulk'):
+
+                dataNames = [self.dataName[shortName][2]]
+                factorsNames = [self.dataFactors[shortName][2]]
+                plotDescrs = [plotDescr[shortName][2]]
                 prodNames = ['BulkSST']
 
             granID_list =  hdf5_dict[shortName].keys()
@@ -805,7 +818,7 @@ class SSTclass():
 
 def main():
 
-    prodChoices=['EDR','QF','Skin','Bulk','QF1','QF2','QF3','QF4']
+    prodChoices=['EDR','QF','Skin','Reference','Bulk','QF1','QF2','QF3','QF4']
 
     description = \
     '''
@@ -882,8 +895,10 @@ def main():
                       dest="outputFilePrefix",
                       default="",
                       type="string",
-                      help="""String to prefix to the automatically generated png names, which are of
-the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default]""")
+                      help="""String to prefix to the automatically generated 
+                           png names, which are of the form 
+                           <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. 
+                           [default: %default]""")
 
     parser.add_option_group(optionalGroup)
 
@@ -938,6 +953,7 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     else :
         if ('EDR' in plotProduct) \
            or ('Skin' in plotProduct) \
+           or ('Reference' in plotProduct) \
            or ('Bulk' in plotProduct) :
             plotEDR = True
             edrPlotProduct = plotProduct
