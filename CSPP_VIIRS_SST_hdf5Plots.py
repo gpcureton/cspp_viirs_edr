@@ -405,11 +405,11 @@ class SSTclass():
                 print "ongroundTrimMask shape = {}\n".format(ongroundTrimMask.shape)
 
                 # Apply the On-board pixel trim
-                data = ma.array(data,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
+                data = ma.array(data,mask=onboardTrimMask,fill_value=onboardPixelTrimValue)
                 data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
 
-                # Apply the On-board pixel trim
-                data = ma.array(data,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
+                # Apply the On-ground pixel trim
+                data = ma.array(data,mask=ongroundTrimMask,fill_value=ongroundPixelTrimValue)
                 data = data.filled() # Substitute for the masked values with onboardPixelTrimValue
 
                 plotTitle = '%s : orbit %s %s' % (shortName,orbitNumber,annotation)
