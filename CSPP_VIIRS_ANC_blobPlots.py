@@ -90,7 +90,6 @@ import viirs_edr_data
 import logging
 LOG = logging.getLogger(__file__)
 
-dpi=200
 
 ### Moderate and Imager resolution trim table arrays. These are 
 ### bool arrays, and the trim pixels are set to True.
@@ -214,119 +213,6 @@ def get_blob_asc_dict(xmlDir,blobDir,collShortNames):
         #canvas.print_figure(pngFile,dpi=200)
 
 
-#class NCEPclass():
-
-    #def __init__(self,xmlFile,blobFile):
-        #xmlFile = path.expanduser(xmlFile)
-        #blobFile = path.expanduser(blobFile)
-
-        ## A default 0.5 degree grid...
-        #degInc = 0.5
-        #grids = np.mgrid[-90.:90.+degInc:degInc,-180.:180.:degInc]
-        #self.gridLat,self.gridLon = grids[0],grids[1]
-
-    #pngDir = path.abspath(path.curdir)
-
-    #ancDataSetTitle = {}
-    #ancDataSetTitle['geopotentialHeightLayers'] = 'geopotentialHeightLayers'
-    #ancDataSetTitle['temperatureLayers'] = 'temperatureLayers'
-    #ancDataSetTitle['waterVaporMixingRatioLayers'] = 'waterVaporMixingRatioLayers'
-    #ancDataSetTitle['pressureReducedToMSL'] = 'pressureReducedToMSL'
-    #ancDataSetTitle['uComponentOfWind'] = 'uComponentOfWind'
-    #ancDataSetTitle['vComponentOfWind'] = 'vComponentOfWind'
-    #ancDataSetTitle['surfacePressure'] = 'surfacePressure'
-    #ancDataSetTitle['skinTemperature'] = 'skinTemperature'
-    #ancDataSetTitle['surfaceTemperature'] = 'surfaceTemperature'
-    #ancDataSetTitle['totalPrecipitableWater'] = 'totalPrecipitableWater'
-    #ancDataSetTitle['surfaceGeopotentialHeight'] = 'surfaceGeopotentialHeight'
-    #ancDataSetTitle['surfaceSpecificHumidity'] = 'surfaceSpecificHumidity'
-    #ancDataSetTitle['tropopauseGeopotentialHeight'] = 'tropopauseGeopotentialHeight'
-    #ancDataSetTitle['totalColumnOzone'] = 'totalColumnOzone'
-
-    #NCEP_LAYER_LEVELS = {
-                          #'10mb' : 0,    '20mb' : 1,   '30mb' : 2,   '50mb' : 3,   '70mb' : 4,  '100mb' : 5,
-                         #'150mb' : 6,   '200mb' : 7,  '250mb' : 8,  '300mb' : 9,  '350mb' : 10, '400mb' : 11, 
-                         #'450mb' : 12,  '500mb' : 13, '550mb' : 14, '600mb' : 15, '650mb' : 16, '700mb' : 17, 
-                         #'750mb' : 18,  '800mb' : 19, '850mb' : 20, '900mb' : 21, '925mb' : 22, '950mb' : 23, 
-                         #'975mb' : 24, '1000mb' : 25
-                        #}
-
-    #NCEP_LAYER_VALUES = np.array([10.0, 20.0, 30.0, 50.0, 70.0, 100.0, 150.0, 200.0, 
-                                  #250.0, 300.0, 350.0, 400.0, 450.0, 500.0, 550.0, 
-                                  #600.0, 650.0, 700.0, 750.0, 800.0, 850.0, 900.0, 
-                                  #925.0, 950.0, 975.0, 1000.0 ]);
-
-
-    #@staticmethod
-    #def plotAncData(gridLat,gridLon,gridData,plotData) : #ancType,plotTitle,cbTitle) :
-
-        #ancType   =  plotData['ancType']
-        #plotTitle =  plotData['plotTitle']
-        #cbTitle   =  plotData['cbTitle']
-        #vmin,vmax =  plotData['plotLims'][0], plotData['plotLims'][1]
-
-        ## Create figure with default size, and create canvas to draw on
-        #scale=1.5
-        #fig = Figure(figsize=(scale*8,scale*5))
-        #canvas = FigureCanvas(fig)
-
-        ## Create main axes instance, leaving room for colorbar at bottom,
-        ## and also get the Bbox of the axes instance
-        #ax_rect = [0.05, 0.18, 0.9, 0.75  ] # [left,bottom,width,height]
-        #ax = fig.add_axes(ax_rect)
-
-        ## Granule axis title
-        #ax_title = ppl.setp(ax,title=plotTitle)
-        #ppl.setp(ax_title,fontsize=12)
-        #ppl.setp(ax_title,family="sans-serif")
-
-        ## Create the basemap object
-        #m = Basemap(projection='cyl',lon_0=0.,ax=ax)
-        #x,y = m(gridLon,gridLat)
-
-        ## Plot the data
-        #im = m.imshow(gridData.astype('float32'),axes=ax,interpolation='nearest',vmin=vmin,vmax=vmax)
-        
-        #m.drawmapboundary(ax=ax,linewidth=0.01,fill_color='grey')
-        #m.drawcoastlines(ax=ax,linewidth=0.5)
-
-        ## draw parallels
-        #delat = 30.
-        #circles = np.arange(-90.,90.+delat,delat)
-        #m.drawparallels(circles,ax=ax,labelstyle="+/-",labels=[1,0,0,0])
-
-        ## draw meridians
-        #delon = 60.
-        #meridians = np.arange(-180,180,delon)
-        #m.drawmeridians(meridians,ax=ax,labelstyle="+/-",labels=[0,0,0,1])
-
-        ## add a colorbar axis
-        #cax_rect = [0.05 , 0.05, 0.9 , 0.06 ] # [left,bottom,width,height]
-        #cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
-
-        ## Plot the colorbar.
-        #cb = fig.colorbar(im, cax=cax, orientation='horizontal')
-        #ppl.setp(cax.get_xticklabels(),fontsize=9)
-
-        ## Colourbar title
-        #cax_title = ppl.setp(cax,title=cbTitle)
-        #ppl.setp(cax_title,fontsize=9)
-
-        ## Redraw the figure
-        #canvas.draw()
-
-        ## save image 
-        #levelStr = "_"+string.replace(string.split(plotTitle,'@')[1],')','') if "@" in plotTitle else ""
-        #levelStr = string.replace(levelStr," ","")
-        #print "LevelStr = ",levelStr
-        #pngFile = "%s/NCEP-ANC-Int_%s%s.png" % (NCEPclass.pngDir,NCEPclass.ancDataSetTitle[ancType],levelStr)
-        #print "Writing file to ",pngFile
-        #canvas.print_figure(pngFile,dpi=dpi)
-
-        #del(m)
-        #return 0
-
-
 class ANCclass():
 
     def __init__(self):
@@ -375,16 +261,12 @@ class ANCclass():
         self.plotDescr['VIIRS-ANC-Temp-Skin-Mod-Gran'] = 'Sea Surface Skin Temperature (K)'
 
         self.plotLims = {}
-        #self.plotLims['VIIRS-ANC-Preci-Wtr-Mod-Gran']    = [None,None]
         self.plotLims['VIIRS-ANC-Preci-Wtr-Mod-Gran']    = [0.,10.]
-        #self.plotLims['VIIRS-ANC-Temp-Surf2M-Mod-Gran']  = [273.,293.]
-        self.plotLims['VIIRS-ANC-Temp-Surf2M-Mod-Gran']  = [283.,313.]
+        self.plotLims['VIIRS-ANC-Temp-Surf2M-Mod-Gran']  = [275.,315.]
         self.plotLims['VIIRS-ANC-Wind-Speed-Mod-Gran']   = [0.,20.]
         self.plotLims['VIIRS-ANC-Wind-Direction-Mod-Gran'] =[0.,360.]
         self.plotLims['VIIRS-ANC-Surf-Ht-Mod-Gran']      = [None, None]
-        #self.plotLims['VIIRS-ANC-Press-Surf-Mod-Gran']  = [300.,1080.]
         self.plotLims['VIIRS-ANC-Press-Surf-Mod-Gran']  = [800.,1013.]
-        #self.plotLims['VIIRS-ANC-Press-Surf-Mod-Gran']  = [None, None]
         self.plotLims['VIIRS-ANC-Tot-Col-Mod-Gran']     = [0.2,0.40]
         self.plotLims['VIIRS-ANC-Optical-Depth-Mod-Gran'] = [None, None]
         self.plotLims['VIIRS-ANC-Geopot-Ht-Lev-Mod-Gran'] = [None, None]
@@ -416,6 +298,8 @@ class ANCclass():
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
+
+        dpi = self.dpi
 
         xmlDir = self.xmlDir
         blobPath = self.blobPath
@@ -529,7 +413,7 @@ class ANCclass():
             # Save the figure to a png file...
             pngFile = path.join(pngDir,'%s_%s.png' % (shortName,granID))
             LOG.info("Writing to {} ...".format(pngFile))
-            canvas.print_figure(pngFile,dpi=100)
+            canvas.print_figure(pngFile,dpi=dpi)
 
             ppl.close('all')
             del(data)
@@ -706,7 +590,7 @@ most of the input types.'''
                       help="Maximum value to plot.".format(defaults["plotMax"])
                       )
 
-    parser.add_argument('--dpi',
+    parser.add_argument('-d','--dpi',
                       action="store",
                       dest="dpi",
                       default=defaults["dpi"],
@@ -798,6 +682,16 @@ def main():
 
     plotProduct = ANCobj.collShortNames if (plotProduct==None) else [plotProduct]
 
+    # If there is only one dataset, and we have specified the plot limits...
+    if len(plotProduct)==1 :
+        dataset = plotProduct[0]
+        if plotMin != None :
+            ANCobj.plotLims[dataset][0] = plotMin
+        if plotMax != None :
+            ANCobj.plotLims[dataset][1] = plotMax
+
+    ANCobj.dpi = dpi
+
     LOG.info("blob_dir = {}".format(blob_dir))
     LOG.info("xml_dir = {}".format(xml_dir))
     LOG.info("plotProduct = {}".format(plotProduct))
@@ -817,7 +711,6 @@ def main():
             ANCobj.plot_ANC_pass(pngDir=pngDir,endian=adl_blob.LITTLE_ENDIAN)
         else:
             LOG.info("Plotting a single granule")
-            #SSTobj.plot_SST_granules(plotProd=edrPlotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
 
     except Exception, err:
         traceback.print_exc(file=sys.stdout)

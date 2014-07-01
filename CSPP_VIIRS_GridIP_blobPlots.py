@@ -90,7 +90,6 @@ import viirs_edr_data
 import logging
 LOG = logging.getLogger(__file__)
 
-dpi=200
 
 ### Moderate and Imager resolution trim table arrays. These are 
 ### bool arrays, and the trim pixels are set to True.
@@ -165,7 +164,7 @@ class GridIPclass():
         self.plotLims['VIIRS-GridIP-VIIRS-Qst-Mod-Gran']   =  [1, 17]
         self.plotLims['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'] = [0, 7]
         self.plotLims['VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran']   =  [1, 20]
-        self.plotLims['VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'] = [None, None]
+        self.plotLims['VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'] = [0., 1.]
         #self.plotLims['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = [None, 200]
         self.plotLims['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = [0, 1]
         #self.plotLims['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = [None,None]
@@ -191,6 +190,8 @@ class GridIPclass():
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
+
+        dpi = self.dpi
 
         xmlDir = self.xmlDir
         blobPath = self.blobPath
@@ -305,7 +306,7 @@ class GridIPclass():
             # Save the figure to a png file...
             pngFile = path.join(pngDir,'%s_%s.png' % (shortName,granID))
             LOG.info("Writing to {} ...".format(pngFile))
-            canvas.print_figure(pngFile,dpi=100)
+            canvas.print_figure(pngFile,dpi=dpi)
 
             ppl.close('all')
             del(data)
@@ -494,7 +495,7 @@ most of the input types.'''
                       help="Maximum value to plot.".format(defaults["plotMax"])
                       )
 
-    parser.add_argument('--dpi',
+    parser.add_argument('-d','--dpi',
                       action="store",
                       dest="dpi",
                       default=defaults["dpi"],
@@ -586,6 +587,15 @@ def main():
 
     plotProduct = GridIPobj.collShortNames if (plotProduct==None) else [plotProduct]
 
+    if len(plotProduct)==1 :
+        dataset = plotProduct[0]
+        if plotMin != None :
+            GridIPobj.plotLims[dataset][0] = plotMin
+        if plotMax != None :
+            GridIPobj.plotLims[dataset][1] = plotMax
+
+    GridIPobj.dpi = dpi
+
     LOG.info("blob_dir = {}".format(blob_dir))
     LOG.info("xml_dir = {}".format(xml_dir))
     LOG.info("plotProduct = {}".format(plotProduct))
@@ -605,7 +615,6 @@ def main():
             GridIPobj.plot_GridIP_pass(pngDir=pngDir,endian=adl_blob.LITTLE_ENDIAN)
         else:
             LOG.info("Plotting a single granule")
-            #SSTobj.plot_SST_granules(plotProd=edrPlotProduct,vmin=vmin,vmax=vmax,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
 
     except Exception, err:
         traceback.print_exc(file=sys.stdout)
