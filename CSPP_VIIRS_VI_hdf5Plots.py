@@ -146,19 +146,21 @@ class VIclass():
         self.plotDescr['VIIRS-VI-EDR'] = ['Top of Atmosphere NDVI','Top of Canopy EVI']
 
         self.plotLims = {}
-        #self.plotLims['VIIRS-VI-EDR'] = [250., 290.]
         self.plotLims['VIIRS-VI-EDR'] = [None,None]
 
         self.dataName = {}
-        self.dataName['VIIRS-VI-EDR'] = ['/All_Data/VIIRS-VI-EDR_All/TOA_NDVI','/All_Data/VIIRS-VI-EDR_All/TOC_EVI']
+        self.dataName['VIIRS-VI-EDR'] = ['/All_Data/VIIRS-VI-EDR_All/TOA_NDVI',
+                '/All_Data/VIIRS-VI-EDR_All/TOC_EVI']
 
         self.dataFactors = {}
-        self.dataFactors['VIIRS-VI-EDR'] = ['/All_Data/VIIRS-VI-EDR_All/TOA_NDVI_Factors','/All_Data/VIIRS-VI-EDR_All/TOC_EVI_Factors']
+        self.dataFactors['VIIRS-VI-EDR'] = ['/All_Data/VIIRS-VI-EDR_All/TOA_NDVI_Factors',
+                '/All_Data/VIIRS-VI-EDR_All/TOC_EVI_Factors']
 
         self.hdf5_dict = get_hdf5_dict(hdf5Dir,'VIVIO')
 
 
-    def plot_VI_granules(self,plotProd='EDR',vmin=None,vmax=None,pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_VI_granules(self,plotProd='EDR',vmin=None,vmax=None,pngDir=None,
+            pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -310,7 +312,15 @@ class VIclass():
                 hdf5Obj.close()
 
 
-    def plot_SST_pass(self,plotProd='EDR',vmin=None,vmax=None,pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_VI_pass(self,plotProd='EDR',vmin=0.,vmax=1.,pngDir=None,
+            pngPrefix=None,annotation='',dpi=300):
+
+        reload(viirs_edr_data)
+        VegetationIndexProduct = viirs_edr_data.VegetationIndexProdData.VegetationIndexProd()
+        cmap = VegetationIndexProduct.cmap
+
+        vmin = 0.0 if (vmin==None) else vmin
+        vmax = 1.0  if (vmax==None) else vmax
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -332,21 +342,21 @@ class VIclass():
                 dataNames = self.dataName[shortName]
                 factorsNames = self.dataFactors[shortName]
                 plotDescrs = plotDescr[shortName]
-                prodNames = ['SkinSST','BulkSST']
+                prodNames = ['NDVI','EVI']
 
-            elif (plotProd == 'Skin'):
+            elif (plotProd == 'NDVI'):
 
                 dataNames = [self.dataName[shortName][0]]
                 factorsNames = [self.dataFactors[shortName][0]]
                 plotDescrs = [plotDescr[shortName][0]]
-                prodNames = ['SkinSST']
+                prodNames = ['NDVI']
 
-            elif (plotProd == 'Bulk'):
+            elif (plotProd == 'EVI'):
 
                 dataNames = [self.dataName[shortName][1]]
                 factorsNames = [self.dataFactors[shortName][1]]
                 plotDescrs = [plotDescr[shortName][1]]
-                prodNames = ['BulkSST']
+                prodNames = ['EVI']
 
             granID_list =  hdf5_dict[shortName].keys()
             granID_list.sort()
@@ -360,9 +370,9 @@ class VIclass():
 
                     hdf5Obj = hdf5_dict[shortName][granID][1]
 
-                    VIIRS_SST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0')
-                    dayNightFlag =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-                    orbitNumber =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+                    VIIRS_VI_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-VI-EDR/VIIRS-VI-EDR_Gran_0')
+                    dayNightFlag =  getattr(VIIRS_VI_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                    orbitNumber =  getattr(VIIRS_VI_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
                     print 'N_Day_Night_Flag = %s' % (dayNightFlag)
                     print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
                     orient = -1 if dayNightFlag == 'Day' else 1
@@ -372,24 +382,32 @@ class VIclass():
                     factors = hdf5Obj.getNode(factorsName)[:]
                     dataGranule = dataGranule*factors[0] + factors[1]
 
-                    SSTqualFlagGranule = hdf5Obj.getNode('/All_Data/VIIRS-SST-EDR_All/QF1_VIIRSSSTEDR')
-                    SSTqualFlagGranule = np.bitwise_and(SSTqualFlagGranule,3) >> 0
-                    SSTqualFlagMaskGranule = ma.masked_equal(SSTqualFlagGranule,0).mask
+                    VIqualFlagGranuleObj = hdf5Obj.getNode('/All_Data/VIIRS-VI-EDR_All/QF2_VIIRSVIEDR')
+
+                    VIlandWaterFlagGranule = np.bitwise_and(VIqualFlagGranuleObj[:,:],7) >> 0
+                    VIlandWaterFlagGranule = ma.masked_greater(VIlandWaterFlagGranule,1).mask
+
+                    VIcldConfFlagGranule = np.bitwise_and(VIqualFlagGranuleObj[:,:],24) >> 3
+                    VIcldConfFlagGranule = ma.masked_not_equal(VIcldConfFlagGranule,0).mask
 
                     # Concatenate the granules.
                     try :
                         data = np.vstack((data,dataGranule))
-                        SSTqualFlagMask = np.vstack((SSTqualFlagMask,SSTqualFlagMaskGranule))
+                        VIlandWaterMask = np.vstack((VIlandWaterMask,VIlandWaterFlagGranule))
+                        VIcldConfMask = np.vstack((VIcldConfMask,VIcldConfFlagGranule))
                         print "data shape = {}".format(data.shape)
-                        print "SSTqualFlagMask shape = {}\n".format(SSTqualFlagMask.shape)
+                        print "VIlandWaterMask shape = {}\n".format(VIlandWaterMask.shape)
                     except :
                         data = dataGranule[:,:]
-                        SSTqualFlagMask = SSTqualFlagMaskGranule[:,:]
+                        VIlandWaterMask = VIlandWaterFlagGranule[:,:]
+                        VIcldConfMask = VIcldConfFlagGranule[:,:]
                         print "data shape = {}".format(data.shape)
-                        print "SSTqualFlagMask shape = {}\n".format(SSTqualFlagMask.shape)
+                        print "VIlandWaterMask shape = {}".format(VIlandWaterMask.shape)
+                        print "VIcldConfMask shape = {}\n".format(VIcldConfMask.shape)
 
                 print "Final data shape = {}".format(data.shape)
-                print "Final SSTqualFlagMask shape = {}\n".format(SSTqualFlagMask.shape)
+                print "Final VIlandWaterMask shape = {}".format(VIlandWaterMask.shape)
+                print "Final VIcldConfMask shape = {}\n".format(VIlandWaterMask.shape)
 
                 # What value are the bowtie deletion pixels
                 ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
@@ -401,18 +419,18 @@ class VIclass():
                 # scans in the pass...
                 numGranules = len(granID_list)
                 numScans = numGranules * 48
-                onboardTrimMask = trimObj.createOnboardModTrimArray(nscans=numScans,trimType=bool)
-                ongroundTrimMask = trimObj.createModTrimArray(nscans=numScans,trimType=bool)
+                ongroundTrimMask = trimObj.createOngroundImgTrimArray(nscans=numScans,trimType=bool)
+                onboardTrimMask = trimObj.createOnboardImgTrimArray(nscans=numScans,trimType=bool)
 
+                print "ongroundTrimMask shape = {}".format(ongroundTrimMask.shape)
                 print "onboardTrimMask  shape = {}".format(onboardTrimMask.shape)
-                print "ongroundTrimMask shape = {}\n".format(ongroundTrimMask.shape)
 
-                # Apply the On-board pixel trim
-                data = ma.array(data,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
+                # Apply the On-ground pixel trim
+                data = ma.array(data,mask=ongroundTrimMask,fill_value=ongroundPixelTrimValue)
                 data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
 
                 # Apply the On-board pixel trim
-                data = ma.array(data,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
+                data = ma.array(data,mask=onboardTrimMask,fill_value=onboardPixelTrimValue)
                 data = data.filled() # Substitute for the masked values with onboardPixelTrimValue
 
                 plotTitle = '%s : orbit %s %s' % (shortName,orbitNumber,annotation)
@@ -445,12 +463,16 @@ class VIclass():
 
                 # Construct the total mask
 
-                totalMask = SSTqualFlagMask + fill_mask
+                totalMask = fill_mask + VIlandWaterMask + VIcldConfMask
 
                 # Mask the aerosol so we only have the retrievals
                 data = ma.masked_array(data,mask=totalMask)
                 
-                im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
+                print "vmin = {}".format(vmin)
+                print "vmax = {}".format(vmax)
+
+                im = ax.imshow(data[::orient,::orient],interpolation='nearest',
+                        vmin=vmin,vmax=vmax,cmap=cmap)
                 
                 ppl.setp(ax.get_xticklabels(), visible=False)
                 ppl.setp(ax.get_yticklabels(), visible=False)
@@ -485,10 +507,11 @@ class VIclass():
                 ppl.close('all')
 
                 del(data)
-                del(SSTqualFlagMask)
+                del(VIlandWaterMask)
+                del(VIcldConfMask)
 
 
-    def plot_SST_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_VI_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -517,8 +540,8 @@ class VIclass():
                 print '%s --> %s ' % (shortName, granID)
                 hdf5Obj = hdf5_dict[shortName][granID][1]
 
-                VIIRS_SST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0')
-                dayNightFlag =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                VIIRS_VI_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-VI-EDR/VIIRS-VI-EDR_Gran_0')
+                dayNightFlag =  getattr(VIIRS_VI_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
                 print 'N_Day_Night_Flag = %s' % (dayNightFlag)
                 orient = -1 if dayNightFlag == 'Day' else 1
 
@@ -526,7 +549,7 @@ class VIclass():
 
                     print ""
 
-                    plots = list(CMD.ViirsSSTqualBitMaskNames[byte])
+                    plots = list(CMD.ViirsVIqualBitMaskNames[byte])
                     for item in plots:
                         if item == 'Spare':
                             plots.remove(item)
@@ -545,33 +568,33 @@ class VIclass():
 
                     plotIdx = 1
 
-                    for dSet in range(np.shape(CMD.ViirsSSTqualBitMasks[byte])[0]):
+                    for dSet in range(np.shape(CMD.ViirsVIqualBitMasks[byte])[0]):
 
                         print '\ndSet = %d' %(dSet)
 
-                        dSetName = '/All_Data/VIIRS-SST-EDR_All/QF%s_VIIRSSSTEDR'%(str(byte+1))
+                        dSetName = '/All_Data/VIIRS-VI-EDR_All/QF%s_VIIRSVIEDR'%(str(byte+1))
                         byteData = hdf5Obj.getNode(dSetName)[:,:]
 
                         plotTitle = '%s : %s %s (Byte %d)' % (shortName,granID,annotation,byte)
                         fig.text(0.5, 0.95, plotTitle, fontsize=16, color='black', ha='center', va='bottom', alpha=1.0)
 
-                        if (CMD.ViirsSSTqualBitMaskNames[byte][dSet] == 'Spare') :
+                        if (CMD.ViirsVIqualBitMaskNames[byte][dSet] == 'Spare') :
                             print "Skipping dataset with byte = %d, dSet = %d" % (byte, dSet)
                         else :
                             print "byte = %d, dSet = %d" % (byte, dSet)
 
-                            byteMask = CMD.ViirsSSTqualBitMasks[byte][dSet]
-                            byteShift = CMD.ViirsSSTqualBitShift[byte][dSet]
+                            byteMask = CMD.ViirsVIqualBitMasks[byte][dSet]
+                            byteShift = CMD.ViirsVIqualBitShift[byte][dSet]
 
                             print "byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName)
 
                             data = np.bitwise_and(byteData,byteMask) >> byteShift
-                            vmin,vmax = CMD.ViirsSSTqualvalues[byte][dSet][0], CMD.ViirsSSTqualvalues[byte][dSet][-1]
+                            vmin,vmax = CMD.ViirsVIqualvalues[byte][dSet][0], CMD.ViirsVIqualvalues[byte][dSet][-1]
                             print "vmin = %d, vmax = %d" % (vmin, vmax)
 
-                            cmap = ListedColormap(CMD.ViirsSSTqualFillColours[byte][dSet])
+                            cmap = ListedColormap(CMD.ViirsVIqualFillColours[byte][dSet])
 
-                            numCats = np.array(CMD.ViirsSSTqualFillColours[byte][dSet]).size
+                            numCats = np.array(CMD.ViirsVIqualFillColours[byte][dSet]).size
                             numBounds = numCats + 1
 
                             tickPos = np.arange(float(numBounds))/float(numCats)
@@ -580,7 +603,7 @@ class VIclass():
                             print "numCats = ",numCats
                             print "tickPos = ",tickPos
 
-                            titleStr = CMD.ViirsSSTqualBitMaskNames[byte][dSet]
+                            titleStr = CMD.ViirsVIqualBitMaskNames[byte][dSet]
                             print "titleStr = %s" % (titleStr)
 
                             Ax.append(fig.add_subplot(numRows,2,plotIdx))
@@ -597,13 +620,13 @@ class VIclass():
                             Cb.append(fig.colorbar(Im[dSet], orientation='horizonal', pad=0.05))
 
                             print "Cb byte = %d, dSet = %d" % (byte, dSet)
-                            print "CMD.ViirsSSTqualTickNames[%d][%d] = %s" % \
-                                    (byte,dSet,CMD.ViirsSSTqualTickNames[byte][dSet])
-                            print "CMD.ViirsSSTqualFillColours[%d][%d] = %s" % \
-                                    (byte,dSet,CMD.ViirsSSTqualFillColours[byte][dSet])
+                            print "CMD.ViirsVIqualTickNames[%d][%d] = %s" % \
+                                    (byte,dSet,CMD.ViirsVIqualTickNames[byte][dSet])
+                            print "CMD.ViirsVIqualFillColours[%d][%d] = %s" % \
+                                    (byte,dSet,CMD.ViirsVIqualFillColours[byte][dSet])
 
                             Cb[dSet].set_ticks(vmax*tickPos)
-                            ppl.setp(Cb[dSet].ax,xticklabels=CMD.ViirsSSTqualTickNames[byte][dSet])
+                            ppl.setp(Cb[dSet].ax,xticklabels=CMD.ViirsVIqualTickNames[byte][dSet])
                             ppl.setp(Cb[dSet].ax.get_xticklabels(),fontsize=6)
                             ppl.setp(Cb[dSet].ax.get_xticklines(),visible=False)
 
@@ -620,7 +643,7 @@ class VIclass():
                 hdf5Obj.close()
 
 
-    def plot_SST_pass_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_VI_pass_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -651,7 +674,7 @@ class VIclass():
 
                 print ""
 
-                plots = list(CMD.ViirsSSTqualBitMaskNames[byte])
+                plots = list(CMD.ViirsVIqualBitMaskNames[byte])
                 for item in plots:
                     if item == 'Spare':
                         plots.remove(item)
@@ -664,7 +687,7 @@ class VIclass():
 
                 else :
 
-                    for dSet in range(np.shape(CMD.ViirsSSTqualBitMasks[byte])[0]):
+                    for dSet in range(np.shape(CMD.ViirsVIqualBitMasks[byte])[0]):
 
                         print '\ndSet = %d' %(dSet)
 
@@ -674,14 +697,14 @@ class VIclass():
 
                             hdf5Obj = hdf5_dict[shortName][granID][1]
 
-                            VIIRS_SST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-SST-EDR/VIIRS-SST-EDR_Gran_0')
-                            dayNightFlag =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-                            orbitNumber =  getattr(VIIRS_SST_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+                            VIIRS_VI_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-VI-EDR/VIIRS-VI-EDR_Gran_0')
+                            dayNightFlag =  getattr(VIIRS_VI_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                            orbitNumber =  getattr(VIIRS_VI_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
                             print 'N_Day_Night_Flag = %s' % (dayNightFlag)
                             print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
                             orient = -1 if dayNightFlag == 'Day' else 1
 
-                            dSetName = '/All_Data/VIIRS-SST-EDR_All/QF%s_VIIRSSSTEDR'%(str(byte+1))
+                            dSetName = '/All_Data/VIIRS-VI-EDR_All/QF%s_VIIRSVIEDR'%(str(byte+1))
                             byteDataGranule = hdf5Obj.getNode(dSetName)[:,:]
 
                             # Concatenate the granules.
@@ -716,23 +739,23 @@ class VIclass():
                         # Flip the pass depending on whether this is an ascending or decending pass
                         byteData = byteData[::orient,::orient]
 
-                        if (CMD.ViirsSSTqualBitMaskNames[byte][dSet] == 'Spare') :
+                        if (CMD.ViirsVIqualBitMaskNames[byte][dSet] == 'Spare') :
                             print "Skipping dataset with byte = %d, dSet = %d" % (byte, dSet)
                         else :
                             print "byte = %d, dSet = %d" % (byte, dSet)
 
-                            byteMask = CMD.ViirsSSTqualBitMasks[byte][dSet]
-                            byteShift = CMD.ViirsSSTqualBitShift[byte][dSet]
+                            byteMask = CMD.ViirsVIqualBitMasks[byte][dSet]
+                            byteShift = CMD.ViirsVIqualBitShift[byte][dSet]
 
                             print "byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName)
 
                             data = np.bitwise_and(byteData,byteMask) >> byteShift
-                            vmin,vmax = CMD.ViirsSSTqualvalues[byte][dSet][0], CMD.ViirsSSTqualvalues[byte][dSet][-1]
+                            vmin,vmax = CMD.ViirsVIqualvalues[byte][dSet][0], CMD.ViirsVIqualvalues[byte][dSet][-1]
                             print "vmin = %d, vmax = %d" % (vmin, vmax)
 
-                            cmap = ListedColormap(CMD.ViirsSSTqualFillColours[byte][dSet])
+                            cmap = ListedColormap(CMD.ViirsVIqualFillColours[byte][dSet])
 
-                            numCats = np.array(CMD.ViirsSSTqualFillColours[byte][dSet]).size
+                            numCats = np.array(CMD.ViirsVIqualFillColours[byte][dSet]).size
                             numBounds = numCats + 1
 
                             tickPos = np.arange(float(numBounds))/float(numCats)
@@ -743,7 +766,7 @@ class VIclass():
 
                             # Set the plot and colourbar titles...
                             plotTitle = '%s : orbit %s %s (Byte %d)' % (shortName,orbitNumber,annotation,byte)
-                            cbTitle = CMD.ViirsSSTqualBitMaskNames[byte][dSet]
+                            cbTitle = CMD.ViirsVIqualBitMaskNames[byte][dSet]
 
                             # Create figure with default size, and create canvas to draw on
                             passRows = float(data.shape[0])
@@ -792,7 +815,7 @@ class VIclass():
                             # Set the colourbar tick locations and ticklabels
                             #ppl.setp(cb.ax,xticks=CMD.ViirsCMTickPos) # In colorbar axis coords (0..1)
                             cb.set_ticks(vmax*tickPos) # In data coords (0..3)
-                            ppl.setp(cb.ax,xticklabels=CMD.ViirsSSTqualTickNames[byte][dSet])
+                            ppl.setp(cb.ax,xticklabels=CMD.ViirsVIqualTickNames[byte][dSet])
 
                             # Colourbar title
                             cax_title = ppl.setp(cax,title=cbTitle)
@@ -898,8 +921,10 @@ def main():
                       dest="outputFilePrefix",
                       default="",
                       type="string",
-                      help="""String to prefix to the automatically generated png names, which are of
-the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default]""")
+                      help="""String to prefix to the automatically generated 
+                      png names, which are of the form 
+                      <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. 
+                      [default: %default]""")
 
     parser.add_option_group(optionalGroup)
 

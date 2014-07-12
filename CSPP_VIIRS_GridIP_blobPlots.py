@@ -244,7 +244,7 @@ class GridIPclass():
 
             # What value are the bowtie deletion pixels
             ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
-            print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
+            LOG.info("Onground Pixel Trim value is {}".format(ongroundPixelTrimValue))
 
             # Create onboard and onground pixel trim mask arrays, for the total number of
             # scans in the pass...

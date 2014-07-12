@@ -82,8 +82,8 @@ from mpl_toolkits.basemap import Basemap,addcyclic,shiftgrid
 
 import optparse as optparse
 
-import adl_blob
-import adl_blob2
+#import adl_blob
+import adl_blob2 as adl_blob
 from ViirsData import ViirsTrimTable
 import viirs_edr_data
 
@@ -185,6 +185,7 @@ class ANCclass():
         cbTitle   =  plotData['cbTitle']
         vmin,vmax =  plotData['plotLims'][0], plotData['plotLims'][1]
         dpi       =  plotData['dpi']
+        prefix       =  plotData['prefix']
 
         # Create figure with default size, and create canvas to draw on
         scale=1.5
@@ -199,11 +200,27 @@ class ANCclass():
         # Granule axis title
         LOG.info("plotTitle = {}".format(plotTitle))
         ax_title = ppl.setp(ax,title=plotTitle)
-        ppl.setp(ax_title,fontsize=12)
+        ppl.setp(ax_title,fontsize=10)
         ppl.setp(ax_title,family="sans-serif")
 
         # Create the basemap object
-        m = Basemap(projection='cyl',lon_0=0.,ax=ax,resolution='c')
+        llcrnrlon = self.lonMin
+        llcrnrlat = self.latMin
+        urcrnrlon = self.lonMax
+        urcrnrlat = self.latMax
+         
+        lon_0 = 0.
+        gridData, gridLon = shiftgrid(lon_0, gridData, gridLon[0], start=True)
+
+        if llcrnrlon != None and llcrnrlat != None and \
+                urcrnrlon != None and urcrnrlat != None:
+            m = Basemap(projection='cyl',llcrnrlon=llcrnrlon,llcrnrlat=llcrnrlat,
+                    urcrnrlon=urcrnrlon,urcrnrlat=urcrnrlat,ax=ax,resolution='l')
+        else:
+            #m = Basemap(projection='cyl',lon_0=0.,ax=ax,resolution='l')
+            m = Basemap(projection='cyl',lon_0=lon_0,ax=ax,resolution='l')
+            #m = Basemap(projection='cyl',ax=ax,resolution='l')
+
         x,y = m(gridLon,gridLat)
 
         # Plot the data
@@ -242,8 +259,8 @@ class ANCclass():
         levelStr = string.replace(levelStr," ","")
         LOG.debug("LevelStr = {}".format(levelStr))
         LOG.debug("pngDir = {}".format(self.pngDir))
-        pngFile = "%s/%s_NCEP-ANC-Int_%s%s.png" % (self.pngDir,
-                path.basename(blobName),
+        pngFile = "{}/{}{}_NCEP-ANC-Int_{}{}.png".format(self.pngDir,
+                prefix,path.basename(blobName),
                 self.ancDataSetTitle[ancType],levelStr)
         LOG.info("Writing file to {}".format(pngFile))
         canvas.print_figure(pngFile,dpi=dpi)
@@ -252,20 +269,20 @@ class ANCclass():
         return 0
 
 
-    def plot_ncep_data(self,NCEP_ANC_xmlFile,NCEP_ANC_BlobFile,endianness,level='1000mb'):
+    def plot_ncep_data(self,NCEP_ANC_xmlFile,NCEP_ANC_BlobFile,endian,level='1000mb'):
         '''
         Loop through the NCEP datasets that have been selected for plotting,
         and call the plotting routine for each one.
         '''
 
-        NCEP_ancObj = adl_blob.map(NCEP_ANC_xmlFile,NCEP_ANC_BlobFile, endian=endianness)
-        NCEP_ancArrObj = NCEP_ancObj.as_arrays()
+        NCEP_ancObj = adl_blob.map(NCEP_ANC_xmlFile,NCEP_ANC_BlobFile,
+                endian=endian)
 
         # Check whether we are plotting a pressure level or something else...
         for dataset in self.plot_datasets :
             LOG.info("Ingesting dataset {}".format(dataset))
 
-            NCEP_anc = getattr(NCEP_ancArrObj,dataset)
+            NCEP_anc = getattr(NCEP_ancObj,dataset)
 
             try :
                 if 'Layers' in dataset:
@@ -278,17 +295,21 @@ class ANCclass():
 
                 LOG.debug("Inital shape(NCEP_anc) = {}".format(np.shape(NCEP_anc)))
 
-                NCEP_anc = np.roll(NCEP_anc,360)
-                NCEP_anc = np.roll(NCEP_anc,0,axis=0)
+                if endian == adl_blob.BIG_ENDIAN: 
+                    NCEP_anc = NCEP_anc[::-1,:] # For ADL BE blobs only
+
+                #NCEP_anc = np.roll(NCEP_anc,360) # Roll flattened array
+                #NCEP_anc = np.roll(NCEP_anc,0,axis=0) # Roll over rows
+                #NCEP_anc = np.roll(NCEP_anc,360,axis=1) # Roll over cols
 
                 NCEP_anc_min = np.min(NCEP_anc)
                 NCEP_anc_max = np.max(NCEP_anc)
                 LOG.debug("min(NCEP_anc) = {}".format(np.min(NCEP_anc_min)))
                 LOG.debug("max(NCEP_anc) = {}".format(np.max(NCEP_anc_max)))
 
-                ### A default 1 degree grid...
+                ### A default 0.5 degree grid...
                 degInc = 0.5
-                grids = np.mgrid[-90.:90.+degInc:degInc,-180.:180.:degInc]
+                grids = np.mgrid[-90.:90.+degInc:degInc,-180.:180.:degInc] # original
                 gridLat,gridLon = grids[0],grids[1]
 
                 LOG.debug("Final shape(NCEP_anc) = {}".format(np.shape(NCEP_anc)))
@@ -297,12 +318,13 @@ class ANCclass():
 
                 plotData = {}
                 plotData['ancType'] = dataset
-                plotData['plotTitle'] = '%s : %s'%(path.basename(NCEP_ANC_BlobFile),
+                plotData['plotTitle'] = "{}\n{}".format(path.basename(NCEP_ANC_BlobFile),
                         plotData['ancType'])
                 plotData['cbTitle'] = self.plotDescr[dataset]
                 plotData['plotLims'] = self.plotLims[dataset]
                 plotData['NCEP_ANC_BlobFile'] = NCEP_ANC_BlobFile
                 plotData['dpi'] = self.dpi
+                plotData['prefix'] = self.outputFilePrefix
 
                 self.plotAncData(gridLat,gridLon,NCEP_anc,plotData)
 
@@ -324,16 +346,22 @@ def _argparse():
     ANCobj = ANCclass()
 
     prodChoices = ANCobj.data_names
+    endian_choices = ['big','little']
 
     defaults = {
                 'plotProduct' : None,
+                'endianness' : 'little',
                 'plotPass' : False,
                 'plotMin'  : None,
                 'plotMax'  : None,
+                'latMin'  : None,
+                'latMax'  : None,
+                'lonMin'  : None,
+                'lonMax'  : None,
                 'dpi'      : 100,
                 'mapAnn'   : None,
                 'pngDir'   : None,
-                'outputFilePrefix' : None
+                'outputFilePrefix' : ""
                 }
 
     description = '''Boilerplate code which shows how to use argparse, and tries to exercise
@@ -378,6 +406,18 @@ most of the input types.'''
                            '''.format(prodChoices.__str__()[1:-1])
                       )
 
+    parser.add_argument('-e','--endianness',
+                      action="store",
+                      dest="endianness",
+                      default=defaults["endianness"],
+                      type=str,
+                      choices=endian_choices,
+                      help='''The endianness of the NCEP-ANC-Int blob file.
+                      Possible options are...\n
+                              {}.
+                           '''.format(endian_choices.__str__()[1:-1])
+                      )
+
     parser.add_argument('--plotMin',
                       action="store",
                       dest="plotMin",
@@ -392,6 +432,38 @@ most of the input types.'''
                       default=defaults["plotMax"],
                       type=float,
                       help="Maximum value to plot.".format(defaults["plotMax"])
+                      )
+
+    parser.add_argument('--latMin',
+                      action="store",
+                      dest="latMin",
+                      default=defaults["latMin"],
+                      type=float,
+                      help="Minimum latitude of plot.".format(defaults["latMin"])
+                      )
+
+    parser.add_argument('--latMax',
+                      action="store",
+                      dest="latMax",
+                      default=defaults["latMax"],
+                      type=float,
+                      help="Maximum latitude of plot.".format(defaults["latMax"])
+                      )
+
+    parser.add_argument('--lonMin',
+                      action="store",
+                      dest="lonMin",
+                      default=defaults["lonMin"],
+                      type=float,
+                      help="Minimum longitude of plot.".format(defaults["lonMin"])
+                      )
+
+    parser.add_argument('--lonMax',
+                      action="store",
+                      dest="lonMax",
+                      default=defaults["lonMax"],
+                      type=float,
+                      help="Maximum longitude of plot.".format(defaults["lonMax"])
                       )
 
     parser.add_argument('-d','--dpi',
@@ -469,8 +541,13 @@ def main():
     blob_file = options.blob_file
     xml_file  = options.xml_file
     plotProduct  = options.plotProduct
+    endianness  = options.endianness
     plotMin = options.plotMin
     plotMax = options.plotMax
+    latMin = options.latMin
+    latMax = options.latMax
+    lonMin = options.lonMin
+    lonMax = options.lonMax
     dpi = options.dpi
     mapAnn = options.mapAnn
     pngDir = options.pngDir
@@ -493,13 +570,31 @@ def main():
         if plotMax != None :
             ANCobj.plotLims[dataset][1] = plotMax
 
+    # Set the endianness
+    if endianness == 'big':
+        endian = adl_blob.BIG_ENDIAN
+    else:
+        endian = adl_blob.LITTLE_ENDIAN
+
+    # Set the lat and lon plot limits
+    ANCobj.latMin = latMin
+    ANCobj.latMax = latMax
+    ANCobj.lonMin = lonMin
+    ANCobj.lonMax = lonMax
+
     ANCobj.dpi = dpi
+    ANCobj.outputFilePrefix = outputFilePrefix
 
     LOG.info("blob_file = {}".format(blob_file))
     LOG.info("xml_file = {}".format(xml_file))
     LOG.info("plotProduct = {}".format(ANCobj.plot_datasets))
+    LOG.info("endianness = {}".format(endianness))
     LOG.info("plotMin = {}".format(plotMin))
     LOG.info("plotMax = {}".format(plotMax))
+    LOG.info("latMin = {}".format(latMin))
+    LOG.info("latMax = {}".format(latMax))
+    LOG.info("lonMin = {}".format(lonMin))
+    LOG.info("lonMax = {}".format(lonMax))
     LOG.info("dpi = {}".format(dpi))
     LOG.info("mapAnn = {}".format(mapAnn))
     LOG.info("pngDir = {}".format(pngDir))
@@ -507,7 +602,8 @@ def main():
 
     try :
 
-        ANCobj.plot_ncep_data(xml_file,blob_file,adl_blob.LITTLE_ENDIAN)
+        ANCobj.plot_ncep_data(xml_file,blob_file,endian)
+        #pass
 
     except Exception, err :
         LOG.debug(traceback.format_exc())

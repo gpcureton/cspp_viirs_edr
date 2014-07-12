@@ -346,12 +346,12 @@ class ANCclass():
 
             LOG.info("Final data shape = {}".format(data.shape))
 
-            # Assuming this is a descending granule, flip it...
+            # Assuming this is an ascending granule, flip it...
             data = data[::-1,::-1]
 
             # What value are the bowtie deletion pixels
             ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
-            print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
+            LOG.info("Onground Pixel Trim value is {}".format(ongroundPixelTrimValue))
 
             # Create onboard and onground pixel trim mask arrays, for the total number of
             # scans in the pass...

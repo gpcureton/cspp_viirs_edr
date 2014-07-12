@@ -4012,8 +4012,8 @@ def main():
         stride = stride_IP if options.stride==None else options.stride
         ipProd = options.ipProd
 
-        vmin = 0.05 if (vmin==None) else vmin
-        vmax = 0.92  if (vmax==None) else vmax
+        vmin = 0.0 if (vmin==None) else vmin
+        vmax = 1.0  if (vmax==None) else vmax
 
         lats,lons,ndviData,gran_lat_0,gran_lon_0,ModeGran = gran_NDVI(geoList,prodList,prodName=ipProd,shrink=stride)
         
