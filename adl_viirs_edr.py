@@ -1834,7 +1834,6 @@ def main():
 
         # Granulate the VIIRS ANC data
         dummy_granule_dict = _granulate_ANC(work_dir,anc_granules_to_process,algList,dummy_granule_dict)
-        sys.exit(0)
 
         # Granulate the VIIRS GridIP data
         dummy_granule_dict = _granulate_GridIP(work_dir,anc_granules_to_process,algList,dummy_granule_dict)
