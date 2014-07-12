@@ -45,7 +45,8 @@ import ViirsData
 from NCEPtoBlob import NCEPclass
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
+#import adl_blob
+import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
@@ -196,11 +197,10 @@ class SurfPres() :
         endian = self.sdrEndian
 
         geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobArrObj = geoBlobObj.as_arrays()
 
         # Get scan_mode to find any bad scans
 
-        scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = geoBlobObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
@@ -208,11 +208,11 @@ class SurfPres() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
-            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+            latitude = getattr(geoBlobObj,'latitude').astype('float')
+            longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
-            latitude = getattr(geoBlobArrObj,'lat').astype('float')
-            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+            latitude = getattr(geoBlobObj,'lat').astype('float')
+            longitude = getattr(geoBlobObj,'lon').astype('float')
 
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
@@ -394,20 +394,22 @@ class SurfPres() :
                 ANC_objects[shortName].sourceList = self.sourceList
                 ANC_objects[shortName].ingest(ancBlob=self.gridBlob)
             else :
-                ANC_objects[shortName].ingest()
+                LOG.info("Shortname {} is not of type NCEP_ANC_Int...".format(shortName))
+                # Terrain corrected geopotential height...
+                ANC_objects[shortName].ingest(ancBlob=None)
+
             LOG.info("Ingesting ANC_objects gridded  %s" % (shortName))
 
         # Loop through the required ANC datasets and create the blobs.
         for shortName in collectionShortNames :
         
-            LOG.debug("Processing dataset %s for %s" % (ANC_objects[shortName].blobDatasetName,shortName))
+            LOG.info("Processing dataset %s for %s" % (ANC_objects[shortName].blobDatasetName,shortName))
 
             # Set the geolocation information in this ancillary object for the current granule...
             ANC_objects[shortName].setGeolocationInfo(geoDict)
 
             # Granulate the gridded data in this ancillary object for the current granule...
             ANC_objects[shortName].granulate(ANC_objects)
-            #ANC_objects[shortName].shipOutToFile()
 
         # Now that we have the prerequisite data, granulate and terrain-correct the NCEP
         # surface pressure...
@@ -421,13 +423,12 @@ class SurfPres() :
         latitude = self.latitude
         longitude = self.longitude
 
-        # Flip so that lats are (-90 ... 90)
-        #gridData = self.gridData[::-1,:]
         gridData = self.gridData[:,:]
 
         if self.num180Crossings != 2 :
 
-            gridData = np.roll(gridData,360)
+            #gridData = np.roll(gridData,360) # old
+            gridData = np.roll(gridData,360,axis=1) # new
             gridLon,gridLat = np.meshgrid(lons,lats)
 
             LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))

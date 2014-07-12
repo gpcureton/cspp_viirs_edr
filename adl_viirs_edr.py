@@ -103,6 +103,7 @@ from multiprocessing import Pool, Lock, Value, cpu_count
 
 # skim and convert routines for reading .asc metadata fields of interest
 import adl_blob
+import adl_blob2
 from adl_asc import skim_dir, contiguous_granule_groups,eliminate_duplicates, \
         granule_groups_contain, effective_anc_contains, \
         _is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, \
@@ -145,9 +146,9 @@ def set_sdr_endian(inputEndianness) :
     '''
     global sdrEndian 
     if inputEndianness=='big' :
-        sdrEndian = adl_blob.BIG_ENDIAN
+        sdrEndian = adl_blob2.BIG_ENDIAN
     elif inputEndianness=='little' :
-        sdrEndian = adl_blob.LITTLE_ENDIAN
+        sdrEndian = adl_blob2.LITTLE_ENDIAN
     else :
         LOG.error('Invalid value for the VIIRS SDR endianness : %s ' 
                 % (inputEndianness))
@@ -805,9 +806,8 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
         if shortName == requiredGeoShortname[0]:
             first_XmlFile = "{}.xml".format(string.replace(first_N_Collection_Short_Name,'-','_'))
             first_XmlFile = path.join(ADL_HOME,'xml/VIIRS',first_XmlFile)
-            first_BlobObj = adl_blob.map(first_XmlFile,first_BlobFile,writable=False,endian=sdrEndian)
-            first_BlobArrObj = first_BlobObj.as_arrays()
-            first_scanStartTime = getattr(first_BlobArrObj,'scanStartTime')[0]
+            first_BlobObj = adl_blob2.map(first_XmlFile,first_BlobFile,writable=False,endian=sdrEndian)
+            first_scanStartTime = getattr(first_BlobObj,'scanStartTime')[0]
 
         first_ascFile = firstDict['_filename']
         LOG.debug("The first file for {} is {}".format(shortName,first_ascFile))
@@ -911,9 +911,8 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
         if shortName == requiredGeoShortname[0]:
             last_XmlFile = "{}.xml".format(string.replace(last_N_Collection_Short_Name,'-','_'))
             last_XmlFile = path.join(ADL_HOME,'xml/VIIRS',last_XmlFile)
-            last_BlobObj = adl_blob.map(last_XmlFile,last_BlobFile,writable=False,endian=sdrEndian)
-            last_BlobArrObj = last_BlobObj.as_arrays()
-            last_scanStartTime = getattr(last_BlobArrObj,'scanStartTime')[0]
+            last_BlobObj = adl_blob2.map(last_XmlFile,last_BlobFile,writable=False,endian=sdrEndian)
+            last_scanStartTime = getattr(last_BlobObj,'scanStartTime')[0]
 
         last_ascFile = lastDict['_filename']
         LOG.debug("The last file for {} is {}".format(shortName,last_ascFile))
@@ -1034,7 +1033,6 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
     ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
     ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
 
-    ###############################################
     # Create a list of algorithm module "pointers"
     algorithms = []
     for alg in algList :
@@ -1055,8 +1053,6 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
 
     # If there are ancillary types to process, proceed...
     if collectionShortNames != []:
-
-    ###############################################
 
         # Download the required NCEP grib files
         LOG.info("Downloading NCEP GRIB ancillary into cache...")
@@ -1081,16 +1077,16 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
         # Open the NCEP gridded blob file
 
         ncepXmlFile = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
-        endian = adl_blob.LITTLE_ENDIAN
-        ncepBlobArrObjs = []
+        #endian = adl_blob.LITTLE_ENDIAN
+        endian = adl_blob2.LITTLE_ENDIAN
+        ncepBlobObjs = []
 
         for gridBlobFile in ncepGridBlobFiles :
             timeObj = gridBlobFile[0]
             ncepBlobFile = gridBlobFile[1]
-            ncepBlobObj = adl_blob.map(ncepXmlFile, ncepBlobFile, endian=endian)
-            ncepBlobArrObj = ncepBlobObj.as_arrays()
-            ncepBlobArrObjs.append([timeObj,ncepBlobArrObj])
-            LOG.debug("%s...\n%r" % (ncepBlobFile,[field for field in ncepBlobArrObj._fields]))
+            ncepBlobObj = adl_blob2.map(ncepXmlFile, ncepBlobFile, endian=endian)
+            ncepBlobObjs.append([timeObj,ncepBlobObj])
+            LOG.debug("%s...\n%r" % (ncepBlobFile,[field for field in ncepBlobObj._fields]))
         
         # Get the NAAPS AOT if required...
         if 'AOT' in algList :
@@ -1118,40 +1114,20 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
             LOG.debug("NAAPS naapsGridBlobFiles = %r" % (naapsGridBlobFiles))
 
             naapsXmlFile = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
-            endian = adl_blob.LITTLE_ENDIAN
-            naapsBlobArrObjs = []
+            #endian = adl_blob.LITTLE_ENDIAN
+            endian = adl_blob2.LITTLE_ENDIAN
+            naapsBlobObjs = []
 
             for gridBlobFile in naapsGridBlobFiles :
                 timeObj = gridBlobFile[0]
                 naapsBlobFile = gridBlobFile[1]
-                naapsBlobObj = adl_blob.map(naapsXmlFile, naapsBlobFile, endian=endian)
-                naapsBlobArrObj = naapsBlobObj.as_arrays()
-                naapsBlobArrObjs.append([timeObj,naapsBlobArrObj])
-                LOG.debug("%s...\n%r" % (naapsBlobFile,[field for field in naapsBlobArrObj._fields]))
+                naapsBlobObj = adl_blob2.map(naapsXmlFile, naapsBlobFile, endian=endian)
+                naapsBlobObjs.append([timeObj,naapsBlobObj])
+                LOG.debug("%s...\n%r" % (naapsBlobFile,[field for field in naapsBlobObj._fields]))
 
     else:
         LOG.info("No ancillary required, so no NCEP or NAAPS gridding...")
 
-    '''
-    # Create a list of algorithm module "pointers"
-    algorithms = []
-    for alg in algList :
-        algName = Algorithms.modules[alg]
-        algorithms.append(getattr(Algorithms,algName))
-
-    # Obtain the required ANC collection shortnames for each algorithm
-    collectionShortNames = []
-    for alg in algorithms :
-        for shortName in alg.ANC_collectionShortNames :
-            LOG.info("Adding %s to the list of required collection short names..." \
-                    %(shortName))
-            collectionShortNames.append(shortName)
-
-    # Remove duplicate shortNames
-    collectionShortNames = list(set(collectionShortNames))
-    LOG.info("collectionShortNames = %r" %(collectionShortNames))
-    '''
-    ###############################################
 
     # Create a dict of ANC class instances, which will handle ingest and granulation
     ANC_objects = {}
@@ -1175,14 +1151,12 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
         LOG.info("Ingesting gridded ANC_objects: %s" % (shortName))
         if ANC_objects[shortName].sourceType == 'NCEP_ANC_Int' :
             ANC_objects[shortName].sourceList = [files[1] for files in ncepGridBlobFiles]
-            ANC_objects[shortName].ingest(ancBlob=ncepBlobArrObjs)
+            ANC_objects[shortName].ingest(ancBlob=ncepBlobObjs)
         elif ANC_objects[shortName].sourceType == 'NAAPS_ANC_Int' :
             ANC_objects[shortName].sourceList = [files[1] for files in naapsGridBlobFiles]
-            ANC_objects[shortName].ingest(ancBlob=naapsBlobArrObjs)
+            ANC_objects[shortName].ingest(ancBlob=naapsBlobObjs)
         else :
             ANC_objects[shortName].ingest()
-
-    #dummy_granule_dict = {} 
 
     # Loop through the required ANC datasets and create the blobs.
     granIdKey = lambda x: (x['N_Granule_ID'])
@@ -1860,6 +1834,7 @@ def main():
 
         # Granulate the VIIRS ANC data
         dummy_granule_dict = _granulate_ANC(work_dir,anc_granules_to_process,algList,dummy_granule_dict)
+        sys.exit(0)
 
         # Granulate the VIIRS GridIP data
         dummy_granule_dict = _granulate_GridIP(work_dir,anc_granules_to_process,algList,dummy_granule_dict)

@@ -34,6 +34,7 @@ from subprocess import CalledProcessError, call
 import pygrib
 
 import adl_blob
+import adl_blob2
 from adl_common import sh, env
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE, env, JPSS_REMOTE_ANC_DIR
 
@@ -257,6 +258,7 @@ def shipOutToFile(ANCobj):
 
     endian = ANCobj.ancEndian
     if endian is adl_blob.LITTLE_ENDIAN :
+    #if endian is adl_blob2.LITTLE_ENDIAN :
         endianString = "LE"
     else :
         endianString = "BE"
@@ -284,9 +286,12 @@ def shipOutToFile(ANCobj):
 
     # Create a new ancillary blob, and copy the data to it.
     newANCblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
+    #newANCblobObj = adl_blob2.create(xmlName, blobName, endian=endian, overwrite=True)
     newANCblobArrObj = newANCblobObj.as_arrays()
 
+    # FIXME: Why doesn't adl_blob2 work here?
     blobData = getattr(newANCblobArrObj,'data')
+    #blobData = getattr(newANCblobObj,'data')
     blobData[:,:] = ANCobj.data[:,:]
 
     # Make a new ANC asc file from the template, and substitute for the various tags
@@ -544,7 +549,8 @@ def create_NCEP_grid_blobs(gribFile):
 
             # Write the contents of the NCEPobj object to an ADL blob file
             LOG.debug('Writing the contents of the the NCEPobj object to ADL blob file %s'%(gribBlob))
-            endian = adl_blob.LITTLE_ENDIAN
+            #endian = adl_blob.LITTLE_ENDIAN
+            endian = adl_blob2.LITTLE_ENDIAN
             procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
 
             if not (procRetVal == 0) :
@@ -603,7 +609,8 @@ def create_NAAPS_grid_blobs(gribFile):
             LOG.debug('Successfully created NAAPSobj...')
 
             # Write the contents of the NAAPSobj object to an ADL blob file
-            endian = adl_blob.LITTLE_ENDIAN
+            #endian = adl_blob.LITTLE_ENDIAN
+            endian = adl_blob2.LITTLE_ENDIAN
             procRetVal = NAAPSclass.NAAPSgribToBlob_interpNew(NAAPSobj,NAAPSxml,gribBlob,endian=endian)
 
             if not (procRetVal == 0) :

@@ -45,7 +45,8 @@ import ViirsData
 from NAAPStoBlob import NAAPSclass
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
+#import adl_blob
+import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
@@ -108,8 +109,6 @@ class OpticalDepth() :
 
         LOG.debug("Minimum NAAPS date is: %s" %(self.date_0.strftime("%Y-%m-%d %H:%M:%S:%f")))
         LOG.debug("Maximum NAAPS date is: %s" %(self.date_1.strftime("%Y-%m-%d %H:%M:%S:%f")))
-
-        LOG.info("naapsBlobFiles: %r" %(naapsBlobFiles))
 
         naapsBlobFile_0 = naapsBlobFiles[0]
         naapsBlobFile_1 = naapsBlobFiles[0]
@@ -198,11 +197,10 @@ class OpticalDepth() :
         endian = self.sdrEndian
 
         geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobArrObj = geoBlobObj.as_arrays()
 
         # Get scan_mode to find any bad scans
 
-        scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = geoBlobObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
@@ -210,11 +208,11 @@ class OpticalDepth() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
-            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+            latitude = getattr(geoBlobObj,'latitude').astype('float')
+            longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
-            latitude = getattr(geoBlobArrObj,'lat').astype('float')
-            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+            latitude = getattr(geoBlobObj,'lat').astype('float')
+            longitude = getattr(geoBlobObj,'lon').astype('float')
 
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
@@ -376,13 +374,12 @@ class OpticalDepth() :
         latitude = self.latitude
         longitude = self.longitude
 
-        # Flip so that lats are (-90 ... 90)
-        #gridData = self.gridData[::-1,:]
         gridData = self.gridData[:,:]
 
         if self.num180Crossings != 2 :
 
-            gridData = np.roll(gridData,360)
+            #gridData = np.roll(gridData,360) # old
+            gridData = np.roll(gridData,360,axis=1) # new
             gridLon,gridLat = np.meshgrid(lons,lats)
 
             LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
@@ -467,9 +464,8 @@ class OpticalDepth() :
 
         # Create a new ancillary blob, and copy the data to it.
         newANCblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
-        newANCblobArrObj = newANCblobObj.as_arrays()
 
-        blobData = getattr(newANCblobArrObj,'faot550')
+        blobData = getattr(newANCblobObj,'faot550')
         blobData[:,:] = self.data[:,:]
 
         # Make a new ANC asc file from the template, and substitute for the various tags

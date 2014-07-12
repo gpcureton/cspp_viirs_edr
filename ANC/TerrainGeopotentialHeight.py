@@ -44,7 +44,8 @@ from numpy.ctypeslib import ndpointer
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
+#import adl_blob
+import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
@@ -96,11 +97,12 @@ class TerrainGeopotentialHeight() :
         '''
         Ingest the ancillary dataset.
         '''
-        LOG.debug("Ingesting of %s is to be handled differently." % (self.collectionShortName))        
+        LOG.info("Ingesting of %s is to be handled differently." % (self.collectionShortName))        
         if ancBlob is None:
             self.gridData = None
         else :
             data = ancBlob.height[:,:]
+            print "data = ",data
             self.sourceType = 'VIIRS-MOD-GEO-TC'
 
             # Moderate resolution trim table arrays. These are 
@@ -121,6 +123,8 @@ class TerrainGeopotentialHeight() :
         '''
         Populate this class instance with the geolocation data for a single granule
         '''
+        LOG.info("Inside setGeolocationInfo() for current geolocation dict")
+
         # Set some environment variables and paths
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
         ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
@@ -170,15 +174,10 @@ class TerrainGeopotentialHeight() :
         endian = self.sdrEndian
 
         geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobArrObj = geoBlobObj.as_arrays()
-
-        # If we have the terrain corrected geolocation, get the terrain height
-        if terrainCorrectedGeo :
-            self.ingest(geoBlobArrObj)
 
         # Get scan_mode to find any bad scans
 
-        scanMode = geoBlobArrObj.scan_mode[:]
+        scanMode = geoBlobObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
@@ -186,11 +185,11 @@ class TerrainGeopotentialHeight() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobArrObj,'latitude').astype('float')
-            longitude = getattr(geoBlobArrObj,'longitude').astype('float')
+            latitude = getattr(geoBlobObj,'latitude').astype('float')
+            longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
-            latitude = getattr(geoBlobArrObj,'lat').astype('float')
-            longitude = getattr(geoBlobArrObj,'lon').astype('float')
+            latitude = getattr(geoBlobObj,'lat').astype('float')
+            longitude = getattr(geoBlobObj,'lon').astype('float')
 
         latitude = ma.masked_less(latitude,-800.)
         latMin,latMax = np.min(latitude),np.max(latitude)
@@ -247,6 +246,10 @@ class TerrainGeopotentialHeight() :
         self.GRingLongitudeStr = getAscStructs(geoAscFile,"GRingLongitude",12)
 
         geoAscFile.close()
+
+        # Share this with the rest of the class so that it can be accessed
+        # in self.granulate()
+        self.geoBlobObj = geoBlobObj
 
 
     def _grid2Gran_bilinearInterp(self,dataLat, dataLon, gridData, gridLat, gridLon):
@@ -314,8 +317,14 @@ class TerrainGeopotentialHeight() :
     def granulate(self,ANC_objects):
         '''
         Granulate the ancillary dataset.
+
+        In this routine we just return the terrain corrected geopotential height 
+        stored in the terrain corrected geolocation VIIRS-MOD-GEO-TC. This must 
+        be done here rather than in ingest() because ingest() is called before
+        setGeolocationInfo(), which is where the class instance gets access to 
+        the geolocation blob object.
         '''
-        pass
+        ANC_objects[self.collectionShortName].data = getattr(self.geoBlobObj,'height')
 
 
     def shipOutToFile(self):

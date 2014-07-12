@@ -654,7 +654,9 @@ class IceConcentration() :
 
         if self.num180Crossings != 2 :
 
-            gridData = np.roll(gridData,360)
+            #gridData = np.roll(gridData,360) # old
+            gridData = np.roll(gridData,360,axis=1) # new
+
             gridLon,gridLat = np.meshgrid(lons,lats)
 
             LOG.debug("start,end MMAB Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))

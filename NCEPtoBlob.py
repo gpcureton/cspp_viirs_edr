@@ -51,7 +51,8 @@ from scipy import interpolate
 
 import pygrib
 
-import adl_blob as adl
+import adl_blob
+import adl_blob2
 from thermo import rh_to_mr
 rh_to_mr_vec = np.vectorize(rh_to_mr)
 
@@ -518,12 +519,16 @@ class NCEPclass(object):
         '''
 
         # Create a blank blob file from the xml file
-        newBlobObj = adl.create(xmlFile,newNCEPblob,endian=adl.LITTLE_ENDIAN,overwrite=True)
+        #newBlobObj = adl_blob.create(xmlFile,newNCEPblob,endian=adl_blob.LITTLE_ENDIAN,overwrite=True)
+        newBlobObj = adl_blob2.create(xmlFile,newNCEPblob,endian=adl_blob2.LITTLE_ENDIAN,overwrite=True)
+
+        #newBlobArrObj = newBlobObj.as_arrays()
 
         for msgKey in gribObj.gfsMsgKeys :
             LOG.debug("\nCopying NCEP[%s] to blob...\n" % (msgKey))
             msgObj = gribObj.NCEPmessages[msgKey]
-            blobArr = getattr(newBlobArrObj, msgKey)
+            #blobArr = getattr(newBlobArrObj, msgKey)
+            blobArr = getattr(newBlobObj, msgKey)
 
             if msgObj.typeOfLevel=='isobaricInhPa' :
                 for level,levelIdx in gribObj.NCEP_LAYER_LEVELS.items() : 
@@ -545,7 +550,7 @@ class NCEPclass(object):
                     LOG.error("%s" % (str(err)))
                     LOG.error("There was a problem assigning %s" % (msgKey))
 
-    def NCEPgribToBlob_interp(gribObj,xmlFile,newNCEPblob,endian=adl.LITTLE_ENDIAN):
+    def NCEPgribToBlob_interp(gribObj,xmlFile,newNCEPblob,endian=adl_blob2.LITTLE_ENDIAN):
         '''
         NCEPgribToBlob_interp
 
@@ -565,12 +570,16 @@ class NCEPclass(object):
             ynew = gribObj.blobLongitude[0,:]
 
         # Create a blank blob file from the xml file
-        newBlobObj = adl.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
+        #newBlobObj = adl_blob.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
+        newBlobObj = adl_blob2.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
+
+        #newBlobArrObj = newBlobObj.as_arrays()
 
         for msgKey in gribObj.gfsMsgKeys :
             LOG.debug("\nCopying NCEP[%s] to blob...\n" % (msgKey))
             msgObj = gribObj.NCEPmessages[msgKey]
-            blobArr = getattr(newBlobArrObj, msgKey)
+            #blobArr = getattr(newBlobArrObj, msgKey)
+            blobArr = getattr(newBlobObj, msgKey)
 
             if msgObj.typeOfLevel=='isobaricInhPa' :
                 for level,levelIdx in gribObj.NCEP_LAYER_LEVELS.items() : 
@@ -608,7 +617,8 @@ class NCEPclass(object):
 
             LOG.debug("\tShape of %s blob array is %s" % (msgKey,repr(np.shape(blobArr))))
 
-    def NCEPgribToBlob_interpNew(gribObj,xmlFile,newNCEPblob,endian=adl.LITTLE_ENDIAN,reverseLat=False):
+
+    def NCEPgribToBlob_interpNew(gribObj,xmlFile,newNCEPblob,endian=adl_blob2.LITTLE_ENDIAN,reverseLat=False):
         '''
         NCEPgribToBlob_interpNew
 
@@ -637,19 +647,21 @@ class NCEPclass(object):
         LOG.debug("Creating empty NCEP blob file %s..." % (newNCEPblob))
 
         try :
-            newBlobObj = adl.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
+            #newBlobObj = adl_blob.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
+            newBlobObj = adl_blob2.create(xmlFile,newNCEPblob,endian=endian,overwrite=True)
         except Exception, err:
                     LOG.error("%s" % (str(err)))
                     LOG.error("Blob creation error %s" % (newNCEPblob))
                     return -1
 
 
-        newBlobArrObj = newBlobObj.as_arrays()
+        #newBlobArrObj = newBlobObj.as_arrays()
 
         for msgKey in gribObj.gfsMsgKeys :
             LOG.debug("Copying NCEP[%s] to blob...\n" % (msgKey))
             msgObj = gribObj.NCEPmessages[msgKey]
-            blobArr = getattr(newBlobArrObj, msgKey)
+            #blobArr = getattr(newBlobArrObj, msgKey)
+            blobArr = getattr(newBlobObj, msgKey)
 
             if msgObj.typeOfLevel=='isobaricInhPa' :
                 for level,levelIdx in gribObj.NCEP_LAYER_LEVELS.items() : 
@@ -697,7 +709,8 @@ def main():
     #transChoices=['hdf5', 'binary']
     endianChoices=['big', 'little']
 
-    description = '''Transcode an NCEP GFS or GDAS grib file into the binary blob format required by Raytheon's Algorithm Development Library (ADL).'''
+    description = '''Transcode an NCEP GFS or GDAS grib file into the binary 
+    blob format required by Raytheon's Algorithm Development Library (ADL).'''
     usage = "usage: %prog [mandatory args] [options]"
     version = version="%prog "+__version__
 
@@ -723,13 +736,16 @@ def main():
                       action="store",
                       dest="xmlFile" ,
                       type="string",
-                      help="The full path of the ADL xml file describing the blob contents")
+                      help="""The full path of the ADL xml file describing the 
+                      blob contents""")
 
     optionalGroup.add_option('-l','--list',
                       action="store_true",
                       dest="isListing",
                       #default=False,
-                      help="List the datasets contained in this grib file which match the required datasets for the ADL NCEP blob file, and exit.")
+                      help="""List the datasets contained in this grib file which 
+match the required datasets for the ADL NCEP blob file, and 
+exit.""")
 
     optionalGroup.add_option('-e','--endian',
                       action="store",
@@ -737,7 +753,8 @@ def main():
                       default="little",
                       type="choice",
                       choices=endianChoices,
-                      help="The endianess of the output blob file [default: %default]."+' Possible values are... %s' % (endianChoices.__str__()[0 :])
+                      help="""The endianess of the output blob file [default: %default]. 
+Possible values are... {}""".format(endianChoices)
                       )
 
     optionalGroup.add_option('--reverse_latitude',
@@ -751,13 +768,15 @@ def main():
                       dest="outputFile",
                       default="NCEP-ANC-Int_grib",
                       type="string",
-                      help="The full path of the transcoded output file. [default: %default]")
+                      help="""The full path of the transcoded output file. 
+                      [default: %default]""")
 
     parser.add_option('-v', '--verbose',
                       dest='verbosity',
                       action="count",
                       default=0,
-                      help='each occurrence increases verbosity 1 level from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG')
+                      help="""each occurrence increases verbosity 1 level 
+                      from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG""")
 
     parser.add_option_group(optionalGroup)
 
@@ -778,7 +797,7 @@ def main():
     for m,m_err in zip(mandatories,mand_errors):
         if not options.__dict__[m]:
             isMissingMand = True
-            print m_err
+            LOG.error(m_err)
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
@@ -799,10 +818,10 @@ def main():
         listErrorStr = "\n"
         if ( options.endian is not None ):
             listError = True
-            print "We have endianness!"
+            LOG.debug("We have endianness!")
             listErrorStr += "\toptions -l/--list and -e/--endian are mutually exclusive\n"
         if ( options.outputFile is not None ) :
-            print "We have output file!"
+            LOG.debug("We have output file!")
             listError = True
             listErrorStr += "\toptions -l/--list and -o/--output_file  are mutually exclusive\n"
 
@@ -831,15 +850,25 @@ def main():
         # TODO : This should be in a separate method...
 
         # Convert surface pressure from Pa to mb or hPa ...
+        # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+        # Ref: applyScalingFactor(currentBuffer, GRID_SIZE, 0.01);
         gribObj.NCEPmessages['surfacePressure'].data /= 100.
 
         # Convert total column ozone from DU or kg m**-2 to Atm.cm ...
+        # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+        # Code: const float DOBSON_TO_ATMSCM_SCALING_FACTOR = .001;
+        # Code: applyScalingFactor(currentBuffer, GRID_SIZE,DOBSON_TO_ATMSCM_SCALING_FACTOR);
         gribObj.NCEPmessages['totalColumnOzone'].data /= 1000.
 
         # Convert total precipitable water kg m^{-2} to cm ...
+        # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+        # Code: applyScalingFactor(currentBuffer, GRID_SIZE, .10);
         gribObj.NCEPmessages['totalPrecipitableWater'].data /= 10.
 
         # Convert specific humidity in kg.kg^{-1} to water vapor mixing ratio in g.kg^{-1}
+        # Ref: ADL/CMN/Utilities/ING/MSD/NCEP/src/IngMsdNCEP_Converter.cpp
+        # Code: void IngMsdNCEP_Converter::applyWaterVaporMixingRatio()
+        # Code: destination[i] = 1000 * (destination[i]/ (1-destination[i]));
         moistureObj = gribObj.NCEPmessages['waterVaporMixingRatioLayers'].messageLevelData
         temperatureObj = gribObj.NCEPmessages['temperatureLayers'].messageLevelData
 
@@ -882,7 +911,7 @@ def main():
             moistureObj[levelStrIdx].data = mixingRatio
 
         # Write the contents of the gribObj object to an ADL blob file
-        endian = adl.LITTLE_ENDIAN if options.endian=="little" else adl.BIG_ENDIAN
+        endian = adl_blob.LITTLE_ENDIAN if options.endian=="little" else adl_blob.BIG_ENDIAN
         #NCEPclass.NCEPgribToBlob_interp(gribObj,options.xmlFile,options.outputFile,endian=endian)
         NCEPclass.NCEPgribToBlob_interpNew(gribObj,options.xmlFile,options.outputFile,\
                 endian=endian,reverseLat=options.reverseLat)

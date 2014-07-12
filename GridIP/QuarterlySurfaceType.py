@@ -167,8 +167,8 @@ class QuarterlySurfaceType() :
 
         endian = self.sdrEndian
 
-        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=adl_blob.LITTLE_ENDIAN)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
+        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=adl_blob.LITTLE_ENDIAN)
 
         # Get scan_mode to find any bad scans
 
