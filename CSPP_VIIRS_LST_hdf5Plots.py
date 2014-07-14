@@ -67,7 +67,7 @@ from tables import exceptions as pyEx
 # every module should have a LOG object
 # e.g. LOG.warning('my dog has fleas')
 import logging
-logging.basicConfig() 
+LOG = logging.getLogger(__file__)
 
 dpi=200
 
@@ -280,7 +280,8 @@ class LSTclass():
                 hdf5Obj.close()
 
 
-    def plot_LST_pass(self,plotProd='EDR',vmin=None,vmax=None,pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_LST_pass(self,plotProd='EDR',vmin=None,vmax=None,pngDir=None,
+            pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -317,46 +318,43 @@ class LSTclass():
 
                     hdf5Obj = hdf5_dict[shortName][granID][1]
 
+                    VIIRS_LST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-LST-EDR/VIIRS-LST-EDR_Gran_0')
+                    dayNightFlag =  getattr(VIIRS_LST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
+                    orbitNumber =  getattr(VIIRS_LST_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
+                    print 'N_Day_Night_Flag = %s' % (dayNightFlag)
+                    print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
+                    orient = -1 if dayNightFlag == 'Day' else 1
+
+                    dataGranule = hdf5Obj.getNode(dataName)[:,:]
+                    factors = hdf5Obj.getNode(factorsName)[:]
+                    qf1ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF1_VIIRSLSTEDR')
+                    qf2ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF2_VIIRSLSTEDR')
+                    qf3ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF3_VIIRSLSTEDR')
+
                     # Concatenate the granules.
                     try :
-
-                        VIIRS_LST_EDR_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-LST-EDR/VIIRS-LST-EDR_Gran_0')
-                        dayNightFlag =  getattr(VIIRS_LST_EDR_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-                        orbitNumber =  getattr(VIIRS_LST_EDR_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
-                        print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-                        print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
-                        orient = -1 if dayNightFlag == 'Day' else 1
-
-                        dataGranule = hdf5Obj.getNode(dataName)[:,:]
                         data = np.vstack((data,dataGranule))
-
-                        factors = hdf5Obj.getNode(factorsName)[:]
-
-                        qf1ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF1_VIIRSLSTEDR')
                         qf1Arr = np.vstack((qf1Arr,qf1ArrGranule))
-                        qf2ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF2_VIIRSLSTEDR')
                         qf2Arr = np.vstack((qf2Arr,qf1ArrGranule))
-                        qf3ArrGranule = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF3_VIIRSLSTEDR')
                         qf3Arr = np.vstack((qf3Arr,qf1ArrGranule))
-
                         print "data shape = {}".format(data.shape)
                         print "qf1Arr shape = {}".format(qf1Arr.shape)
-                        print "qf2Arr shape = {}\n".format(qf2Arr.shape)
-
+                        print "qf2Arr shape = {}".format(qf2Arr.shape)
+                        print "qf3Arr shape = {}\n".format(qf3Arr.shape)
                     except NameError :
-
-                        data = hdf5Obj.getNode(dataName)[:,:]
-                        qf1Arr = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF1_VIIRSLSTEDR')
-                        qf2Arr = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF2_VIIRSLSTEDR')
-                        qf3Arr = hdf5Obj.getNode('/All_Data/VIIRS-LST-EDR_All/QF3_VIIRSLSTEDR')
-
+                        data = dataGranule[:,:]
+                        qf1Arr = qf1ArrGranule[:,:]
+                        qf2Arr = qf2ArrGranule[:,:]
+                        qf3Arr = qf3ArrGranule[:,:]
                         print "data shape = {}".format(data.shape)
                         print "qf1Arr shape = {}".format(qf1Arr.shape)
-                        print "qf2Arr shape = {}\n".format(qf2Arr.shape)
+                        print "qf2Arr shape = {}".format(qf2Arr.shape)
+                        print "qf3Arr shape = {}\n".format(qf3Arr.shape)
 
                 print "Final data shape = {}".format(data.shape)
                 print "Final qf1Arr shape = {}".format(qf1Arr.shape)
-                print "Final qf2Arr shape = {}\n".format(qf2Arr.shape)
+                print "Final qf2Arr shape = {}".format(qf2Arr.shape)
+                print "Final qf3Arr shape = {}\n".format(qf3Arr.shape)
 
                 try :
                     #Determine masks for each fill type, for the LST EDR
@@ -437,6 +435,12 @@ class LSTclass():
                 ppl.setp(ax_title,fontsize=12)
                 ppl.setp(ax_title,family="sans-serif")
 
+                # Remove the ticks and ticklabels on the main axis
+                ppl.setp(ax.get_xticklabels(), visible=False)
+                ppl.setp(ax.get_yticklabels(), visible=False)
+                ppl.setp(ax.get_xticklines(),visible=False)
+                ppl.setp(ax.get_yticklines(),visible=False)
+
                 # Plot the data
                 print "%s is of kind %r" % (shortName,data.dtype.kind)
                 if (data.dtype.kind =='i' or data.dtype.kind =='u'):
@@ -451,13 +455,11 @@ class LSTclass():
                 # Mask the aerosol so we only have the retrievals
                 data = ma.masked_array(data,mask=totalMask)
                 
-                im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
-                
-                ppl.setp(ax.get_xticklabels(), visible=False)
-                ppl.setp(ax.get_yticklabels(), visible=False)
-                ppl.setp(ax.get_xticklines(),visible=False)
-                ppl.setp(ax.get_yticklines(),visible=False)
+                # Flip the pass depending on whether this is an ascending or decending pass
+                data = data[::orient,::orient]
 
+                im = ax.imshow(data,interpolation='nearest',vmin=vmin,vmax=vmax)
+                
                 # add a colorbar axis
                 cax_rect = [0.05 , 0.05, 0.9 , 0.08 ] # [left,bottom,width,height]
                 cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes

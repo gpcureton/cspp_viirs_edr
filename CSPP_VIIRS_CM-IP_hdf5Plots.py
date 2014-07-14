@@ -67,7 +67,7 @@ from tables import exceptions as pyEx
 # every module should have a LOG object
 # e.g. LOG.warning('my dog has fleas')
 import logging
-logging.basicConfig() 
+LOG = logging.getLogger(__file__)
 
 dpi=200
 
@@ -81,21 +81,21 @@ def get_hdf5_dict(hdf5Path,filePrefix):
     shortNameDict = {}
     
     hdf5Path = path.abspath(path.expanduser(hdf5Path))
-    print "hdf5Path = %s" % (hdf5Path)
+    LOG.info("hdf5Path = %s" % (hdf5Path))
 
     hdf5Dir = path.dirname(hdf5Path)
     hdf5Glob = path.basename(hdf5Path)
 
-    print "hdf5Dir = %s" % (hdf5Dir)
-    print "hdf5Glob = %s" % (hdf5Glob)
+    LOG.info("hdf5Dir = %s" % (hdf5Dir))
+    LOG.info("hdf5Glob = %s" % (hdf5Glob))
 
     if (hdf5Glob == '' or hdf5Glob == '*'):
-        print "prefix = %s" % (filePrefix)
+        LOG.info("prefix = %s" % (filePrefix))
         hdf5Glob = path.join(hdf5Dir,'%s_*.h5'%(filePrefix))
     else :
         hdf5Glob = path.join(hdf5Dir,'%s'%(hdf5Glob))
 
-    print "Final hdf5Glob = %s" % (hdf5Glob)
+    LOG.info("Final hdf5Glob = %s" % (hdf5Glob))
 
     hdf5Files = glob(hdf5Glob)
     if hdf5Files != []:
@@ -111,13 +111,13 @@ def get_hdf5_dict(hdf5Path,filePrefix):
             
             # Retrieve a few attributes
             granID =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Granule_ID')[0][0]
-            print 'N_Granule_ID = %s' % (granID)
+            LOG.info('N_Granule_ID = %s' % (granID))
             
             dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
-            print 'N_Day_Night_Flag = %s' % (dayNightFlag)
+            LOG.info('N_Day_Night_Flag = %s' % (dayNightFlag))
             
             shortName = fileObj.getNodeAttr('/Data_Products/VIIRS-CM-IP','N_Collection_Short_Name')[0][0]
-            print 'N_Collection_Short_Name = %s' % (shortName)
+            LOG.info('N_Collection_Short_Name = %s' % (shortName))
             
             # Strip the path from the filename
             hdf5File = path.basename(files)
@@ -170,13 +170,13 @@ class VCMclass():
         hdf5_dict = self.hdf5_dict
         collShortNames = hdf5_dict.keys()
 
-        print 'collShortNames = %r' % (collShortNames)
+        LOG.info('collShortNames = %r' % (collShortNames))
 
         CMD = viirs_edr_data.CloudMaskData
 
         for shortName in collShortNames :
 
-            print 'shortName = %s' % (shortName)
+            LOG.info('shortName = %s' % (shortName))
 
             if (plotProd == 'IP'):
 
@@ -207,15 +207,15 @@ class VCMclass():
 
             for granID in granID_list :
 
-                print '%s --> %s ' % (shortName, granID)
+                LOG.info('%s --> %s ' % (shortName, granID))
                 
                 hdf5Obj = hdf5_dict[shortName][granID][1]
                 
                 VIIRS_CM_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
                 dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
                 orbitNumber =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
-                print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-                print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
+                LOG.info('N_Day_Night_Flag = %s' % (dayNightFlag))
+                LOG.info('N_Beginning_Orbit_Number = %s' % (orbitNumber))
                 orient = -1 if dayNightFlag == 'Day' else 1
 
                 for dataName,byte,dSet,plotDescr,prodName in zip(dataNames,byteIdx,byteDsetIdx,plotDescrs,prodNames):
@@ -223,7 +223,7 @@ class VCMclass():
                     data = hdf5Obj.getNode(dataName)[:,:]
                     
                     pixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]
-                    print "pixelTrimValue is %r" % (pixelTrimValue)
+                    LOG.info("pixelTrimValue is %r" % (pixelTrimValue))
 
                     # Bit mask and shift to get the Cloud Mask
                     bitMask  = CMD.ViirsCMbitMasks[byte][dSet]
@@ -244,8 +244,8 @@ class VCMclass():
                     tickPos = np.arange(float(numBounds))/float(numCats)
                     tickPos = tickPos[0 :-1] + tickPos[1]/2.
 
-                    print "numCats = ",numCats
-                    print "tickPos = ",tickPos
+                    LOG.info("numCats = {}".format(numCats))
+                    LOG.info("tickPos = {}".format(tickPos))
 
                     plotTitle = '%s : %s %s' % (shortName,granID,annotation)
                     cbTitle = plotDescr
@@ -266,8 +266,8 @@ class VCMclass():
                     ppl.setp(ax_title,family="sans-serif")
 
                     # Plot the data
-                    print "%s is of kind %r" % (shortName,data.dtype.kind)
-                    #print data
+                    LOG.info("%s is of kind %r" % (shortName,data.dtype.kind))
+                    #LOG.info(data)
                     if (data.dtype.kind =='i' or data.dtype.kind =='u'):
                         data = ma.masked_greater(data,200)
                     else:
@@ -307,14 +307,15 @@ class VCMclass():
                     # Save the figure to a png file...
                     pngFile = path.join(pngDir,'%s%s_%s_%s.png' % (pngPrefix,shortName,granID,prodName))
                     canvas.print_figure(pngFile,dpi=dpi)
-                    print "Writing to %s..." % (pngFile)
+                    LOG.info("Writing to %s..." % (pngFile))
 
                     ppl.close('all')
 
                 hdf5Obj.close()
 
 
-    def plot_VCM_pass(self,plotProd='IP',pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_VCM_pass(self,plotProd='IP',pngDir=None,pngPrefix=None,
+            annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -325,13 +326,13 @@ class VCMclass():
         hdf5_dict = self.hdf5_dict
         collShortNames = hdf5_dict.keys()
 
-        print 'collShortNames = %r' % (collShortNames)
+        LOG.info('collShortNames = %r' % (collShortNames))
 
         CMD = viirs_edr_data.CloudMaskData
 
         for shortName in collShortNames :
 
-            print 'shortName = %s' % (shortName)
+            LOG.info('shortName = %s' % (shortName))
 
             if (plotProd == 'IP'):
 
@@ -360,21 +361,20 @@ class VCMclass():
             granID_list =  hdf5_dict[shortName].keys()
             granID_list.sort()
 
-
             for dataName,byte,dSet,plotDescr,prodName in zip(dataNames,byteIdx,byteDsetIdx,plotDescrs,prodNames):
 
                 # Read in the data from the granules and concatenate
                 for granID in granID_list :
 
-                    print '%s --> %s ' % (shortName, granID)
+                    LOG.info('%s --> %s ' % (shortName, granID))
                     
                     hdf5Obj = hdf5_dict[shortName][granID][1]
                     
                     VIIRS_CM_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
                     dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
                     orbitNumber =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
-                    print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-                    print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
+                    LOG.info('N_Day_Night_Flag = %s' % (dayNightFlag))
+                    LOG.info('N_Beginning_Orbit_Number = %s' % (orbitNumber))
                     orient = -1 if dayNightFlag == 'Day' else 1
 
                     dataGranule = hdf5Obj.getNode(dataName)[:,:]
@@ -382,25 +382,26 @@ class VCMclass():
                     # Concatenate the granules.
                     try :
                         data = np.vstack((data,dataGranule))
-                        print "data shape = %s\n" %(str(data.shape))
-                    except :
+                        LOG.info("data shape = {}".format(data.shape))
+                    except NameError :
                         data = dataGranule[:,:]
-                        print "data shape = %s\n" %(str(data.shape))
+                        #data = hdf5Obj.getNode(dataName)[:,:]
+                        LOG.info("data shape = {}".format(data.shape))
 
-                    hdf5Obj.close()
-                    
+                LOG.info("Final data shape = {}".format(data.shape))
+
                 # What value are the bowtie deletion pixels
-                ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
-                print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
                 onboardPixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]
-                print "Onboard Pixel Trim value is {}".format(onboardPixelTrimValue)
+                LOG.info("Onboard Pixel Trim value is {}".format(onboardPixelTrimValue))
+                ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
+                LOG.info("Onground Pixel Trim value is {}".format(ongroundPixelTrimValue))
 
                 # Create onboard and onground pixel trim mask arrays, for the total number of
                 # scans in the pass...
                 numGranules = len(granID_list)
                 numScans = numGranules * 48
                 onboardTrimMask = trimObj.createOnboardModTrimArray(nscans=numScans,trimType=bool)
-                ongroundTrimMask = trimObj.createModTrimArray(nscans=numScans,trimType=bool)
+                ongroundTrimMask = trimObj.createOngroundModTrimArray(nscans=numScans,trimType=bool)
 
                 # Bit mask and shift to get the Cloud Mask
                 bitMask  = CMD.ViirsCMbitMasks[byte][dSet]
@@ -410,12 +411,12 @@ class VCMclass():
                 data = np.bitwise_and(data ,bitMask) >> bitShift
 
                 # Apply the On-board pixel trim
-                data = ma.array(data,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
-                data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
-
-                # Apply the On-board pixel trim
-                data = ma.array(data,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
+                data = ma.array(data,mask=onboardTrimMask,fill_value=onboardPixelTrimValue)
                 data = data.filled() # Substitute for the masked values with onboardPixelTrimValue
+
+                # Apply the On-ground pixel trim
+                data = ma.array(data,mask=ongroundTrimMask,fill_value=ongroundPixelTrimValue)
+                data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
 
                 # Flip the pass depending on whether this is an ascending or decending pass
                 data = data[::orient,::orient]
@@ -429,11 +430,11 @@ class VCMclass():
                 tickPos = np.arange(float(numBounds))/float(numCats)
                 tickPos = tickPos[0 :-1] + tickPos[1]/2.
 
-                print "numCats = ",numCats
-                print "tickPos = ",tickPos
+                LOG.info("numCats = {}".format(numCats))
+                LOG.info("tickPos = {}".format(tickPos))
 
                 # Set the plot and colourbar titles...
-                plotTitle = '%s : %s %s' % (shortName,granID,annotation)
+                plotTitle = '%s : orbit %s %s' % (shortName,orbitNumber,annotation)
                 cbTitle = plotDescr
 
                 # Create figure with default size, and create canvas to draw on
@@ -461,14 +462,15 @@ class VCMclass():
                 ppl.setp(ax.get_yticklines(),visible=False)
 
                 # Mask the data
-                print "%s is of kind %r" % (shortName,data.dtype.kind)
+                LOG.info("%s is of kind %r" % (shortName,data.dtype.kind))
                 if (data.dtype.kind =='i' or data.dtype.kind =='u'):
                     data = ma.masked_greater(data,247)
                 else:
                     data = ma.masked_less(data,-800.)
 
                 # Plot the dataset on the main plotting axis
-                im = ax.imshow(data,interpolation='nearest',vmin=vmin,vmax=vmax,cmap=cmap)
+                im = ax.imshow(data,interpolation='nearest',vmin=vmin,vmax=vmax,
+                        cmap=cmap)
 
                 # add a colorbar axis
                 cax_rect = [0.05 , 0.05, 0.9 , 0.08 ] # [left,bottom,width,height]
@@ -498,10 +500,11 @@ class VCMclass():
                 # Save the figure to a png file...
                 pngFile = path.join(pngDir,'%s%s_b%s_%s.png' % (pngPrefix,shortName,orbitNumber,prodName))
                 canvas.print_figure(pngFile,dpi=dpi)
-                print "Writing to %s..." % (pngFile)
+                LOG.info("Writing to %s..." % (pngFile))
 
                 ppl.close('all')
 
+                del(data)
 
 
     def plot_VCM_granule_tests(self,plotProd='QF',pngDir=None,pngPrefix=None,annotation='',dpi=300):
@@ -517,13 +520,13 @@ class VCMclass():
         else :
             byteList = [int(plotProd.strip('QF'))-1]
 
-        print 'collShortNames = %r' % (collShortNames)
+        LOG.info('collShortNames = %r' % (collShortNames))
 
         CMD = viirs_edr_data.CloudMaskData
 
         for shortName in collShortNames :
 
-            print 'shortName = %s' % (shortName)
+            LOG.info('shortName = %s' % (shortName))
 
             dataName = self.dataName[shortName]
 
@@ -532,29 +535,29 @@ class VCMclass():
 
             for granID in granID_list :
 
-                print '%s --> %s ' % (shortName, granID)
+                LOG.info('%s --> %s ' % (shortName, granID))
                 hdf5Obj = hdf5_dict[shortName][granID][1]
 
                 VIIRS_CM_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
                 dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
                 orbitNumber =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
-                print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-                print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
+                LOG.info('N_Day_Night_Flag = %s' % (dayNightFlag))
+                LOG.info('N_Beginning_Orbit_Number = %s' % (orbitNumber))
                 orient = -1 if dayNightFlag == 'Day' else 1
 
                 for byte in byteList :
 
-                    print ""
+                    LOG.info("")
 
                     plots = list(CMD.ViirsCMbitMaskNames[byte])
                     for item in plots:
                         if item == 'Spare':
                             plots.remove(item)
-                    print "plots = ",plots
+                    LOG.info("plots = ",plots)
 
                     if (plots == []):
 
-                        print "There are no valid datasets in this byte array, skipping..."
+                        LOG.info("There are no valid datasets in this byte array, skipping...")
 
                     else :
 
@@ -575,7 +578,7 @@ class VCMclass():
 
                         for dSet in range(np.shape(CMD.ViirsCMbitMasks[byte])[0]):
 
-                            print '\ndSet = %d' %(dSet)
+                            LOG.info('\ndSet = %d' %(dSet))
 
                             dSetName = '/All_Data/VIIRS-CM-IP_All/QF%s_VIIRSCMIP' % (str(byte+1))
                             byteData = hdf5Obj.getNode(dSetName)[:,:]
@@ -584,18 +587,18 @@ class VCMclass():
                             fig.text(0.5, 0.95, plotTitle, fontsize=16, color='black', ha='center', va='bottom', alpha=1.0)
 
                             if (CMD.ViirsCMbitMaskNames[byte][dSet] == 'Spare') :
-                                print "Skipping dataset with byte = %d, dSet = %d" % (byte, dSet)
+                                LOG.info("Skipping dataset with byte = %d, dSet = %d" % (byte, dSet))
                             else :
-                                print "byte = %d, dSet = %d" % (byte, dSet)
+                                LOG.info("byte = %d, dSet = %d" % (byte, dSet))
 
                                 byteMask = CMD.ViirsCMbitMasks[byte][dSet]
                                 byteShift = CMD.ViirsCMbitShift[byte][dSet]
 
-                                print "byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName)
+                                LOG.info("byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName))
 
                                 data = np.bitwise_and(byteData,byteMask) >> byteShift
                                 vmin,vmax = CMD.ViirsCMvalues[byte][dSet][0], CMD.ViirsCMvalues[byte][dSet][-1]
-                                print "vmin = %d, vmax = %d" % (vmin, vmax)
+                                LOG.info("vmin = %d, vmax = %d" % (vmin, vmax))
 
                                 cmap = ListedColormap(CMD.ViirsCMfillColours[byte][dSet])
 
@@ -605,14 +608,14 @@ class VCMclass():
                                 tickPos = np.arange(float(numBounds))/float(numCats)
                                 tickPos = tickPos[0 :-1] + tickPos[1]/2.
 
-                                print "numCats = ",numCats
-                                print "tickPos = ",tickPos
+                                LOG.info("numCats = {}".format(numCats))
+                                LOG.info("tickPos = {}".format(tickPos))
 
                                 titleStr = CMD.ViirsCMbitMaskNames[byte][dSet]
-                                print "titleStr = %s" % (titleStr)
+                                LOG.info("titleStr = %s" % (titleStr))
 
                                 Ax.append(fig.add_subplot(numRows,2,plotIdx))
-                                print "data.dtype.__str__() = %s" % (data.dtype.__str__())
+                                LOG.info("data.dtype.__str__() = %s" % (data.dtype.__str__()))
                                 Im.append(Ax[dSet].imshow(data.astype('int')[::orient,::orient], vmin=vmin, vmax=vmax, interpolation='nearest',cmap=cmap))
                                 Txt.append(Ax[dSet].set_title(titleStr))
 
@@ -624,11 +627,11 @@ class VCMclass():
 
                                 Cb.append(fig.colorbar(Im[dSet], orientation='horizontal', pad=0.05))
 
-                                print "Cb byte = %d, dSet = %d" % (byte, dSet)
-                                print "CMD.ViirsCMbitMaskNames[%d][%d] = %s" % \
-                                        (byte,dSet,CMD.ViirsCMbitMaskNames[byte][dSet])
-                                print "CMD.ViirsCMfillColours[%d][%d] = %s" % \
-                                        (byte,dSet,CMD.ViirsCMfillColours[byte][dSet])
+                                LOG.info("Cb byte = %d, dSet = %d" % (byte, dSet))
+                                LOG.info("CMD.ViirsCMbitMaskNames[%d][%d] = %s" % \
+                                        (byte,dSet,CMD.ViirsCMbitMaskNames[byte][dSet]))
+                                LOG.info("CMD.ViirsCMfillColours[%d][%d] = %s" % \
+                                        (byte,dSet,CMD.ViirsCMfillColours[byte][dSet]))
 
                                 Cb[dSet].set_ticks(vmax*tickPos)
                                 ppl.setp(Cb[dSet].ax,xticklabels=CMD.ViirsCMtickNames[byte][dSet])
@@ -638,7 +641,7 @@ class VCMclass():
                                 plotIdx += 1
 
                         pngFile = path.join(pngDir,'%s%s_%s_QF%s.png' % (pngPrefix,shortName,granID,str(byte+1)))
-                        print "Writing to %s..." % (pngFile)
+                        LOG.info("Writing to %s..." % (pngFile))
 
                         canvas.draw()
                         canvas.print_figure(pngFile,dpi=dpi)
@@ -661,13 +664,13 @@ class VCMclass():
         else :
             byteList = [int(plotProd.strip('QF'))-1]
 
-        print 'collShortNames = %r' % (collShortNames)
+        LOG.info('collShortNames = %r' % (collShortNames))
 
         CMD = viirs_edr_data.CloudMaskData
 
         for shortName in collShortNames :
 
-            print 'shortName = %s' % (shortName)
+            LOG.info('shortName = %s' % (shortName))
 
             dataName = self.dataName[shortName]
 
@@ -677,36 +680,36 @@ class VCMclass():
 
             for byte in byteList :
 
-                print ""
+                LOG.info("")
 
                 plots = list(CMD.ViirsCMbitMaskNames[byte])
                 for item in plots:
                     if item == 'Spare':
                         plots.remove(item)
-                print "plots = ",plots
+                LOG.info("plots = ",plots)
 
 
                 if (plots == []):
 
-                    print "There are no valid datasets in this byte array, skipping..."
+                    LOG.info("There are no valid datasets in this byte array, skipping...")
 
                 else :
 
                     for dSet in range(np.shape(CMD.ViirsCMbitMasks[byte])[0]):
 
-                        print '\ndSet = %d' %(dSet)
+                        LOG.info('\ndSet = %d' %(dSet))
 
                         for granID in granID_list :
 
-                            print '%s --> %s ' % (shortName, granID)
+                            LOG.info('%s --> %s ' % (shortName, granID))
 
                             hdf5Obj = hdf5_dict[shortName][granID][1]
 
                             VIIRS_CM_IP_Gran_0 = hdf5Obj.getNode('/Data_Products/VIIRS-CM-IP/VIIRS-CM-IP_Gran_0')
                             dayNightFlag =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Day_Night_Flag')[0][0]
                             orbitNumber =  getattr(VIIRS_CM_IP_Gran_0.attrs,'N_Beginning_Orbit_Number')[0][0]
-                            print 'N_Day_Night_Flag = %s' % (dayNightFlag)
-                            print 'N_Beginning_Orbit_Number = %s' % (orbitNumber)
+                            LOG.info('N_Day_Night_Flag = %s' % (dayNightFlag))
+                            LOG.info('N_Beginning_Orbit_Number = %s' % (orbitNumber))
                             orient = -1 if dayNightFlag == 'Day' else 1
 
                             dSetName = '/All_Data/VIIRS-CM-IP_All/QF%s_VIIRSCMIP' % (str(byte+1))
@@ -715,16 +718,16 @@ class VCMclass():
                             # Concatenate the granules.
                             try :
                                 byteData = np.vstack((byteData,byteDataGranule))
-                                print "byteData shape = %s\n" %(str(byteData.shape))
+                                LOG.info("byteData shape = %s\n" %(str(byteData.shape)))
                             except :
                                 byteData = byteDataGranule[:,:]
-                                print "byteData shape = %s\n" %(str(byteData.shape))
+                                LOG.info("byteData shape = %s\n" %(str(byteData.shape)))
 
                         # What value are the bowtie deletion pixels
                         ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][byteData.dtype.name]
-                        print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
+                        LOG.info("Onground Pixel Trim value is {}".format(ongroundPixelTrimValue))
                         onboardPixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][byteData.dtype.name]
-                        print "Onboard Pixel Trim value is {}\n".format(onboardPixelTrimValue)
+                        LOG.info("Onboard Pixel Trim value is {}\n".format(onboardPixelTrimValue))
 
                         # Create onboard and onground pixel trim mask arrays, for the total number of
                         # scans in the pass...
@@ -745,18 +748,18 @@ class VCMclass():
                         byteData = byteData[::orient,::orient]
 
                         if (CMD.ViirsCMbitMaskNames[byte][dSet] == 'Spare') :
-                            print "Skipping dataset with byte = %d, dSet = %d" % (byte, dSet)
+                            LOG.info("Skipping dataset with byte = %d, dSet = %d" % (byte, dSet))
                         else :
-                            print "byte = %d, dSet = %d" % (byte, dSet)
+                            LOG.info("byte = %d, dSet = %d" % (byte, dSet))
 
                             byteMask = CMD.ViirsCMbitMasks[byte][dSet]
                             byteShift = CMD.ViirsCMbitShift[byte][dSet]
 
-                            print "byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName)
+                            LOG.info("byteMask = %d, byteShift = %d, dSetName = %s" % (byteMask, byteShift, dSetName))
 
                             data = np.bitwise_and(byteData,byteMask) >> byteShift
                             vmin,vmax = CMD.ViirsCMvalues[byte][dSet][0], CMD.ViirsCMvalues[byte][dSet][-1]
-                            print "vmin = %d, vmax = %d" % (vmin, vmax)
+                            LOG.info("vmin = %d, vmax = %d" % (vmin, vmax))
 
                             cmap = ListedColormap(CMD.ViirsCMfillColours[byte][dSet])
 
@@ -766,8 +769,8 @@ class VCMclass():
                             tickPos = np.arange(float(numBounds))/float(numCats)
                             tickPos = tickPos[0 :-1] + tickPos[1]/2.
 
-                            print "numCats = ",numCats
-                            print "tickPos = ",tickPos
+                            LOG.info("numCats = {}".format(numCats))
+                            LOG.info("tickPos = {}".format(tickPos))
 
                             # Set the plot and colourbar titles...
                             plotTitle = '%s : orbit %s %s (Byte %d)' % (shortName,orbitNumber,annotation,byte)
@@ -799,10 +802,10 @@ class VCMclass():
 
                             # Mask the data
                             if (data.dtype.kind =='i' or data.dtype.kind =='u'):
-                                print "%s is of kind %r" % (shortName,data.dtype.kind)
+                                LOG.info("%s is of kind %r" % (shortName,data.dtype.kind))
                                 data = ma.masked_greater(data,247)
                             else:
-                                print "%s is of kind %r" % (shortName,data.dtype.kind)
+                                LOG.info("%s is of kind %r" % (shortName,data.dtype.kind))
                                 data = ma.masked_less(data,-800.)
 
                             # Plot the dataset on the main plotting axis
@@ -836,7 +839,7 @@ class VCMclass():
                             # Save the figure to a png file...
                             pngFile = path.join(pngDir,'%s%s_b%s_QF%s_%d.png' % (pngPrefix,shortName,orbitNumber,str(byte+1),dSet))
                             canvas.print_figure(pngFile,dpi=dpi)
-                            print "Writing to %s..." % (pngFile)
+                            LOG.info("Writing to %s..." % (pngFile))
 
                             ppl.close('all')
 
@@ -922,22 +925,39 @@ def main():
                       dest="pngDir" ,
                       type="string",
                       help="The directory where png files will be written.")
+
     optionalGroup.add_option('-o','--output_file_prefix',
                       action="store",
                       dest="outputFilePrefix",
                       default="",
                       type="string",
-                      help="""String to prefix to the automatically generated png names, which are of
-the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default]""")
+                      help="""String to prefix to the automatically generated 
+                      png names, which are of the form 
+                      <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. 
+                      [default: %default]""")
+
+    optionalGroup.add_option('-v', '--verbose',
+                      dest='verbosity',
+                      action="count",
+                      default=2,
+                      help="""each occurrence increases verbosity 1 level from 
+                      ERROR: -v=WARNING -vv=INFO -vvv=DEBUG""")
 
     parser.add_option_group(optionalGroup)
 
     # Parse the arguments from the command line
     (options, args) = parser.parse_args()
 
+    # Set up the logging
+    console_logFormat = '%(asctime)s : (%(levelname)s):%(filename)s:%(funcName)s:%(lineno)d:  %(message)s'
+    dateFormat = '%Y-%m-%d %H:%M:%S'
+    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+    logging.basicConfig(level = levels[options.verbosity], 
+            format = console_logFormat, 
+            datefmt = dateFormat)
 
     # Check that all of the mandatory options are given. If one or more 
-    # are missing, print error message and exit...
+    # are missing, LOG.info(error message and exit...
     mandatories = ['hdf5Files']
     mand_errors = ["Missing mandatory argument [-i HDF5FILES | --input_files=HDF5FILES]"
                   ]
@@ -945,7 +965,7 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
     for m,m_err in zip(mandatories,mand_errors):
         if not options.__dict__[m]:
             isMissingMand = True
-            print m_err
+            LOG.info(m_err)
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
@@ -954,17 +974,17 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
 
     hdf5Path = path.abspath(path.expanduser(options.hdf5Files))
 
-    print "hdf5Path = %s" % (hdf5Path)
+    LOG.info("hdf5Path = %s" % (hdf5Path))
     pngDir = '.' if (options.pngDir is None) else options.pngDir
     pngDir = path.abspath(path.expanduser(pngDir))
-    print "pngDir = %s" % (pngDir)
+    LOG.info("pngDir = %s" % (pngDir))
     if not path.isdir(pngDir):
-        print "Output image directory %s does not exist, creating..." % (pngDir)
+        LOG.info("Output image directory %s does not exist, creating..." % (pngDir))
         try:
             mkdir(pngDir,0755)
         except Exception, err :
-            print "%s" % (err)
-            print "Creating directory %s failed, aborting..." % (pngDir)
+            LOG.info("%s" % (err))
+            LOG.info("Creating directory %s failed, aborting..." % (pngDir))
             sys.exit(1)
 
     pngPrefix = options.outputFilePrefix
@@ -999,9 +1019,9 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
             else:
                 VCMobj.plot_VCM_granules(plotProd=edrPlotProduct,pngDir=pngDir,pngPrefix=pngPrefix,dpi=dpi)
 
-            pytables.file.close_open_files()
+            #pytables.file.close_open_files()
         except Exception, err:
-            traceback.print_exc(file=sys.stdout)
+            LOG.info(traceback.format_exc())            
             pytables.file.close_open_files()
 
     if plotQF :
@@ -1014,10 +1034,10 @@ the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default
 
             pytables.file.close_open_files()
         except Exception, err:
-            traceback.print_exc(file=sys.stdout)
+            LOG.info(traceback.format_exc())            
             pytables.file.close_open_files()
 
-    print "Exiting..."
+    LOG.info("Exiting...")
     sys.exit(0)
 
 

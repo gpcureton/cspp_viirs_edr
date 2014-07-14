@@ -67,7 +67,7 @@ from tables import exceptions as pyEx
 # every module should have a LOG object
 # e.g. LOG.warning('my dog has fleas')
 import logging
-logging.basicConfig() 
+LOG = logging.getLogger(__file__)
 
 dpi=200
 
@@ -296,7 +296,8 @@ class AOTclass():
 
 
 
-    def plot_AOT_pass(self,plotProd='IP',vmin=None,vmax=None,pngDir=None,pngPrefix=None,annotation='',dpi=300):
+    def plot_AOT_pass(self,plotProd='IP',vmin=None,vmax=None,pngDir=None,
+            pngPrefix=None,annotation='',dpi=300):
 
         if pngDir is None :
             pngDir = path.abspath(path.curdir)
@@ -340,7 +341,6 @@ class AOTclass():
             granID_list =  hdf5_dict[shortName].keys()
             granID_list.sort()
 
-
             for dataName,plotDescr,prodName in zip(dataNames,plotDescrs,prodNames):
 
                 # Read in the data from the granules and concatenate
@@ -379,29 +379,27 @@ class AOTclass():
                 print "Final NAAPSflagMask shape = {}\n".format(NAAPSflagMask.shape)
 
                 # What value are the bowtie deletion pixels
-                ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
-                print "Onground Pixel Trim value is {}".format(ongroundPixelTrimValue)
                 onboardPixelTrimValue = trimObj.sdrTypeFill['ONBOARD_PT_FILL'][data.dtype.name]
-                print "Onboard Pixel Trim value is {}".format(onboardPixelTrimValue)
+                LOG.info("Onboard Pixel Trim value is {}".format(onboardPixelTrimValue))
+                ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
+                LOG.info("Onground Pixel Trim value is {}".format(ongroundPixelTrimValue))
 
                 # Create onboard and onground pixel trim mask arrays, for the total number of
                 # scans in the pass...
                 numGranules = len(granID_list)
                 numScans = numGranules * 48
                 onboardTrimMask = trimObj.createOnboardModTrimArray(nscans=numScans,trimType=bool)
-                ongroundTrimMask = trimObj.createModTrimArray(nscans=numScans,trimType=bool)
-
-                print "onboardTrimMask  shape = {}".format(onboardTrimMask.shape)
-                print "ongroundTrimMask shape = {}\n".format(ongroundTrimMask.shape)
+                ongroundTrimMask = trimObj.createOngroundModTrimArray(nscans=numScans,trimType=bool)
 
                 # Apply the On-board pixel trim
-                data = ma.array(data,mask=onboardTrimMask,fill_value=ongroundPixelTrimValue)
-                data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
-
-                # Apply the On-board pixel trim
-                data = ma.array(data,mask=ongroundTrimMask,fill_value=onboardPixelTrimValue)
+                data = ma.array(data,mask=onboardTrimMask,fill_value=onboardPixelTrimValue)
                 data = data.filled() # Substitute for the masked values with onboardPixelTrimValue
 
+                # Apply the On-ground pixel trim
+                data = ma.array(data,mask=ongroundTrimMask,fill_value=ongroundPixelTrimValue)
+                data = data.filled() # Substitute for the masked values with ongroundPixelTrimValue
+
+                # Set the plot and colourbar titles...
                 plotTitle = '%s : orbit %s %s' % (shortName,orbitNumber,annotation)
                 cbTitle = plotDescr
 
@@ -423,6 +421,12 @@ class AOTclass():
                 ppl.setp(ax_title,fontsize=12)
                 ppl.setp(ax_title,family="sans-serif")
 
+                # Remove the ticks and ticklabels on the main axis
+                ppl.setp(ax.get_xticklabels(), visible=False)
+                ppl.setp(ax.get_yticklabels(), visible=False)
+                ppl.setp(ax.get_xticklines(),visible=False)
+                ppl.setp(ax.get_yticklines(),visible=False)
+
                 # Plot the data
                 print "%s is of kind %r" % (shortName,data.dtype.kind)
                 if (data.dtype.kind =='i' or data.dtype.kind =='u'):
@@ -436,13 +440,12 @@ class AOTclass():
                 # Mask the aerosol so we only have the retrievals
                 data = ma.masked_array(data,mask=totalMask)
                 
-                im = ax.imshow(data[::orient,::orient],interpolation='nearest',vmin=vmin,vmax=vmax)
-                
-                ppl.setp(ax.get_xticklabels(), visible=False)
-                ppl.setp(ax.get_yticklabels(), visible=False)
-                ppl.setp(ax.get_xticklines(),visible=False)
-                ppl.setp(ax.get_yticklines(),visible=False)
+                # Flip the pass depending on whether this is an ascending or decending pass
+                data = data[::orient,::orient]
 
+                im = ax.imshow(data,interpolation='nearest',
+                        vmin=vmin,vmax=vmax)
+                
                 # add a colorbar axis
                 cax_rect = [0.05 , 0.05, 0.9 , 0.08 ] # [left,bottom,width,height]
                 cax = fig.add_axes(cax_rect,frameon=False) # setup colorbar axes
@@ -885,14 +888,30 @@ def main():
                       dest="outputFilePrefix",
                       default="",
                       type="string",
-                      help="""String to prefix to the automatically generated png names, which are of
-the form <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. [default: %default]""")
+                      help="""String to prefix to the automatically generated 
+                      png names, which are of the form 
+                      <N_Collection_Short_Name>_<N_Granule_ID>_<dset>.png. 
+                      [default: %default]""")
+
+    optionalGroup.add_option('-v', '--verbose',
+                      dest='verbosity',
+                      action="count",
+                      default=2,
+                      help="""each occurrence increases verbosity 1 level from 
+                      ERROR: -v=WARNING -vv=INFO -vvv=DEBUG""")
 
     parser.add_option_group(optionalGroup)
 
     # Parse the arguments from the command line
     (options, args) = parser.parse_args()
 
+    # Set up the logging
+    console_logFormat = '%(asctime)s : (%(levelname)s):%(filename)s:%(funcName)s:%(lineno)d:  %(message)s'
+    dateFormat = '%Y-%m-%d %H:%M:%S'
+    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+    logging.basicConfig(level = levels[options.verbosity], 
+            format = console_logFormat, 
+            datefmt = dateFormat)
 
     # Check that all of the mandatory options are given. If one or more 
     # are missing, print error message and exit...
