@@ -77,7 +77,7 @@ dpi=200
 trimObj = ViirsTrimTable()
 modTrimMask = trimObj.createModTrimArray(nscans=48,trimType=bool)
 onboardTrimMask = trimObj.createOnboardImgTrimArray(nscans=48,trimType=bool)
-ongroundTrimMask = trimObj.createImgTrimArray(nscans=48,trimType=bool)
+ongroundTrimMask = trimObj.createOngroundImgTrimArray(nscans=48,trimType=bool)
 
 
 def get_hdf5_dict(hdf5Path,filePrefix):

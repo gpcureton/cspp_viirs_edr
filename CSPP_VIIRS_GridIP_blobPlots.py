@@ -220,9 +220,7 @@ class GridIPclass():
                 blobFile = blobDict[shortName][granID][0]
                 blobFile = path.join(blobPath,'%s'%(blobFile))
                 blobObj = adl_blob.map(xmlFile,blobFile,endian=endian)
-                #blobArrObj = blobObj.as_arrays()
 
-                #dataGranule = getattr(blobArrObj,dataName)
                 dataGranule = getattr(blobObj,dataName)
                 
                 LOG.info("{} is of kind {}".format(shortName,dataGranule.dtype.kind))
@@ -239,7 +237,7 @@ class GridIPclass():
 
             LOG.info("Final data shape = {}".format(data.shape))
 
-            # Assuming this is a descending granule, flip it...
+            # Assuming this is an ascending granule, flip it...
             data = data[::-1,::-1]
 
             # What value are the bowtie deletion pixels
@@ -250,7 +248,7 @@ class GridIPclass():
             # scans in the pass...
             numGranules = len(blobDict[shortName].keys())
             numScans = numGranules * 48
-            ongroundTrimMask = trimObj.createModTrimArray(nscans=numScans,trimType=bool)
+            ongroundTrimMask = trimObj.createOngroundModTrimArray(nscans=numScans,trimType=bool)
 
             # Apply the On-ground pixel trim
             data = ma.array(data,mask=ongroundTrimMask,fill_value=ongroundPixelTrimValue)
