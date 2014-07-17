@@ -24,13 +24,14 @@ if [ "$#" -ne 3 ]; then
   echo "    SST (Sea Surface Temperature) uses GMTCO* geolocation files"
   echo "    NDVI (Normalized Difference Vegetation Index) uses GITCO* geolocation files"
   echo "    EVI (Enhanced Vegetation Index) uses GITCO* geolocation files"
+  echo "    LST (Land Surface Temperature ) uses GMTCO* geolocation files"
   echo " GMTCO/GITCO file path is the full path to the Geolocation file directory"
   echo " PROD file path is the path to the EDR file directory"
   exit 1
 fi
 
 PROD=$1
-if [[ "$PROD" != VCM && "$PROD" != AOT && "$PROD" != SST && "$PROD" != NDVI && "$PROD" != EVI ]] ; then
+if [[ "$PROD" != VCM && "$PROD" != AOT && "$PROD" != SST && "$PROD" != NDVI && "$PROD" != EVI && "$PROD" != LST ]] ; then
    echo "Input product is not valid :" $PROD
    exit 1
 fi
@@ -72,6 +73,11 @@ fi
 if [[ "$PROD" == "EVI" ]] ; then
   IPFILE=VIVIO
   OUTFILENAME=VIIRS_Enhanced_Vegetation_Index.png
+fi
+
+if [[ "$PROD" == "LST" ]] ; then
+  IPFILE=VLSTO
+  OUTFILENAME=VIIRS_Land_Surface_Temperature.png
 fi
 
 if [[ "$PROD" != "NDVI" && "$PROD" != "EVI" ]] ; then
