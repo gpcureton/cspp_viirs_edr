@@ -821,6 +821,8 @@ def main():
 
     desc = """Build VIIRS GTM EDR work directory and run VIIRS GTM EDR."""
     parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('-G', '--geo-ref', metavar='geo_ref',
+                        action="store_true", default=False, help="update geo-ref on VM* and VI* product files listed")
     parser.add_argument('-t', '--test',
                         action="store_true", default=False, help="run self-tests")
     parser.add_argument('-W', '--work-dir', metavar='work_dir', default='.',
@@ -890,6 +892,10 @@ def main():
         return 1
 
     # register_sigterm()
+    if args.geo_ref:
+        for path in args.input_dir:
+            write_geo_ref(path)
+        return 0
 
     num_procs = args.processors
     if num_procs <= 0:
