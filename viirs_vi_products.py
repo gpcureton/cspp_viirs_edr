@@ -154,9 +154,9 @@ class viirsVI:
 
             #ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/QF1_VIIRSVIEDR'
             #self.ViirsVI_QF1 =  ViirsVIprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
-
-            #ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/QF2_VIIRSVIEDR'
-            #self.ViirsVI_QF2 =  ViirsVIprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
+            
+            ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/QF2_VIIRSVIEDR'
+            self.ViirsVI_QF2 =  ViirsVIprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]
 
             #ViirsDataSetPath = '/All_Data/VIIRS-VI-EDR_All/QF3_VIIRSVIEDR'
             #self.ViirsVI_QF3 =  ViirsVIprodFileObj.getNode(ViirsDataSetPath)[::shrinkFactor,::shrinkFactor]

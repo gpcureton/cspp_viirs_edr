@@ -69,6 +69,11 @@ import viirs_lst_products as viirsLST
 import tables as pytables
 from tables import exceptions as pyEx
 
+# every module should have a LOG object
+# e.g. LOG.warning('my dog has fleas')
+import logging
+LOG = logging.getLogger(__file__)
+
 ###################################################
 #                  Global Data                    #
 ###################################################
@@ -92,52 +97,52 @@ def granuleFiles(geoGlob,prodGlob):
     geoDir = path.dirname(path.abspath(path.expanduser(geoGlob)))
     prodDir = path.dirname(path.abspath(path.expanduser(prodGlob)))
 
-    print "Initial geoGlob = ",geoGlob
-    print "Initial prodGlob = ",prodGlob
+    LOG.debug("Initial geoGlob = ",geoGlob)
+    LOG.debug("Initial prodGlob = ",prodGlob)
 
     geoGlob = path.basename(path.abspath(path.expanduser(geoGlob)))
     prodGlob = path.basename(path.abspath(path.expanduser(prodGlob)))
 
     geoPrefix = string.split(geoGlob,'_')[0]
 
-    print "geoDir = ",geoDir
-    print "prodDir = ",prodDir
-    print "geoGlob = ",geoGlob
-    print "prodGlob = ",prodGlob
-    print "geoPrefix = ",geoPrefix
+    LOG.debug("geoDir = ",geoDir)
+    LOG.debug("prodDir = ",prodDir)
+    LOG.debug("geoGlob = ",geoGlob)
+    LOG.debug("prodGlob = ",prodGlob)
+    LOG.debug("geoPrefix = ",geoPrefix)
 
     geoList_in = glob("%s/%s" % (geoDir,geoGlob))
     prodList_in = glob("%s/%s" % (prodDir,prodGlob))
     geoList_in.sort()
     prodList_in.sort()
     
-    #print "prodList_in..."
+    #LOG.debug("prodList_in...")
     #for prodFile in prodList_in:
-        #print prodFile
+        #LOG.debug(prodFile)
 
     geoList = []
     prodList = []
     #prodList = prodList_in
     for files in prodList_in :
         prod_arr = string.split(path.basename(files),"_")
-        #print "prod_arr = ",prod_arr
+        #LOG.debug("prod_arr = ",prod_arr
         dateStamp = prod_arr[2]
         timeStamp = prod_arr[3]
         geoFileGlob="%s/%s*%s_%s*.h5" % (geoDir,geoPrefix,dateStamp,timeStamp)
-        #print "dateStamp = ",dateStamp
-        #print "timeStamp = ",timeStamp
-        #print "geoFileGlob = ",geoFileGlob
+        #LOG.debug("dateStamp = ",dateStamp)
+        #LOG.debug("timeStamp = ",timeStamp)
+        #LOG.debug("geoFileGlob = ",geoFileGlob)
         geoFile = glob("%s/%s*%s_%s*.h5" % (geoDir,geoPrefix,dateStamp,timeStamp))
         if (np.shape(geoFile)[0] != 0) :
             geoList.append(geoFile[0])
             prodList.append(files)
         else :
             #geoList.append(files)
-            print " ... no match found for %s, appending %s" % ( geoFile, files)
+            LOG.debug(" ... no match found for {}, appending {}".format( geoFile, files))
             pass
     
     for geoFile,prodFile in zip(geoList,prodList):
-        print geoFile,prodFile
+        LOG.debug("{},{}".format(geoFile,prodFile))
     return geoList,prodList
 
 
@@ -153,9 +158,9 @@ def gran_VCM(geoList,cmList,shrink=1):
     global cmByte,cmBit 
 
     # Define the colourmap we want to use.
-    print "Importing the CloudMaskProduct object..."
+    LOG.debug("Importing the CloudMaskProduct object...")
     CloudMaskProduct = viirs_edr_data.CloudMaskData
-    print "done"
+    LOG.debug("done")
 
     try :
         reload(viirsCM)
@@ -168,9 +173,9 @@ def gran_VCM(geoList,cmList,shrink=1):
     except :
         pass
 
-    print "Creating viirsCMobj..."
+    LOG.debug("Creating viirsCMobj...")
     viirsCMobj = viirsCM.viirsCM()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
@@ -178,7 +183,7 @@ def gran_VCM(geoList,cmList,shrink=1):
 
     for grans in np.arange(len(geoList)):
 
-        print "\nIngesting granule %d using cmByte=%d and cmBit=%d ..." % (grans,cmByte,cmBit)
+        LOG.debug("\nIngesting granule {} using cmByte={} and cmBit={} ...".format(grans,cmByte,cmBit))
         retArr = viirsCMobj.ingest(geoList[grans],cmList[grans],cmByte,cmBit,shrink)
 
         try :
@@ -195,10 +200,10 @@ def gran_VCM(geoList,cmList,shrink=1):
             cmArr   = viirsCMobj.ViirsCMaskSDS[:,:]
             qualArr = viirsCMobj.ViirsCMquality[:,:]
 
-        print "Intermediate latArr.shape = %s" % (str(latArr.shape))
-        print "Intermediate lonArr.shape = %s" % (str(lonArr.shape))
-        print "Intermediate cmArr.shape = %s" % (str(cmArr.shape))
-        print "Intermediate qualArr.shape = %s" % (str(qualArr.shape))
+        LOG.debug("Intermediate latArr.shape = {}".format(str(latArr.shape)))
+        LOG.debug("Intermediate lonArr.shape = {}".format(str(lonArr.shape)))
+        LOG.debug("Intermediate cmArr.shape = {}".format(str(cmArr.shape)))
+        LOG.debug("Intermediate qualArr.shape = {}".format(str(qualArr.shape)))
 
     lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
     lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
@@ -217,7 +222,7 @@ def gran_VCM(geoList,cmList,shrink=1):
                 if (cmFillMasks[fillType].__class__.__name__ != 'ndarray') :
                     cmFillMasks[fillType] = None
             else :
-                print "Dataset was neither int not float... a worry"
+                LOG.debug("Dataset was neither int not float... a worry")
                 pass
 
         # Construct the total mask from all of the various fill values
@@ -241,11 +246,11 @@ def gran_VCM(geoList,cmList,shrink=1):
             lats = ma.array(latArr,mask=totalMask.mask)
             lons = ma.array(lonArr,mask=totalMask.mask)
         except ma.core.MaskError :
-            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
             sys.exit(1)
 
     except Exception, err :
-        print ">> error: %s..." % (str(err))
+        LOG.debug(">> error: {}...".format(str(err)))
         sys.exit(1)
 
     return lats,lons,data,lat_0,lon_0
@@ -266,19 +271,19 @@ def gran_COP(geoList,copList,dataSet,shrink=1):
     except :
         pass
 
-    print "Creating viirsCldObj..."
+    LOG.debug("Creating viirsCldObj...")
     reload(viirsCld)
     viirsCldObj = viirsCld.viirsCld()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
-        print "Ingesting granule %d ..." % (grans)
+        LOG.debug("Ingesting granule {} ...".format(grans))
         retArr = viirsCldObj.ingestLite(geoList[grans],copList[grans],dataSet,1)
-        print "done"
+        LOG.debug("done")
 
         try :
             latArr  = viirsCldObj.Lat[:,:]
@@ -289,10 +294,10 @@ def gran_COP(geoList,copList,dataSet,shrink=1):
 
             badGeo = False
             if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
+                LOG.debug("\n>> error: Latitude of granule midpoint ({}) does not satisfy (-90. <= lat_0 <= 90.)\nfor file {}\n\taborting...".format(lat_0,geoList[grans]))
                 badGeo = True
             if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
+                LOG.debug("\n>> error: Longitude of granule midpoint ({}) does not satisfy (-180. <= lon_0 <= 180.)\nfor file {}\n\taborting...".format(lon_0,geoList[grans]))
                 badGeo = True
 
             if badGeo :
@@ -315,7 +320,7 @@ def gran_COP(geoList,copList,dataSet,shrink=1):
                     if (copFillMasks[fillType].__class__.__name__ != 'ndarray') :
                         copFillMasks[fillType] = None
                 else :
-                    print "Dataset was neither int not float... a worry"
+                    LOG.debug("Dataset was neither int not float... a worry")
                     pass
 
             # Construct the total mask from all of the various fill values
@@ -334,11 +339,11 @@ def gran_COP(geoList,copList,dataSet,shrink=1):
                 lats  = ma.array(latArr,  mask=totalMask.mask)
                 lons  = ma.array(lonArr,  mask=totalMask.mask)
             except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
                 sys.exit(1)
 
         except :
-            print ">> error: there was an exception..."
+            LOG.debug(">> error: there was an exception...")
             sys.exit(1)
 
     return lats,lons,data,phase,lat_0,lon_0
@@ -358,26 +363,26 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
     except :
         pass
 
-    print "Creating viirsCldObj..."
+    LOG.debug("Creating viirsCldObj...")
     reload(viirsCld)
     viirsCldObj = viirsCld.viirsCld()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
-        print "Ingesting EDR granule %d ..." % (grans)
+        LOG.debug("Ingesting EDR granule {} ...".format(grans))
 
         # Read in geolocation...
         ViirsGeoFileName = geoList[grans]
         if(pytables.isHDF5File(ViirsGeoFileName)) :
             try :
                 ViirsGeoFileObj = pytables.openFile(ViirsGeoFileName,mode='r')
-                print "Successfully opened geolocation file",ViirsGeoFileName
+                LOG.debug("Successfully opened geolocation file",ViirsGeoFileName)
             except IOError :
-                print ">> error: Could not open geolocation file: ",ViirsGeoFileName
+                LOG.debug(">> error: Could not open geolocation file: ",ViirsGeoFileName)
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
@@ -385,50 +390,50 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
             group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Geolocation Group : %s " % (geoGroupName)
+            LOG.debug("Geolocation Group : {} ".format(geoGroupName))
             isEdrGeo = ('VIIRS-CLD-AGG-GEO_All' in geoGroupName)
             if not isEdrGeo :
-                print ">> error: %s is not an EDR resolution cloud geolocation file\n\taborting..."  % (ViirsGeoFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud geolocation file\n\taborting...".format(ViirsGeoFileName))
                 sys.exit(1)
 
             # Get the geolocation Latitude and Longitude nodes...
             try :
                 dataName = 'Latitude'
                 geoLatNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLatNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLatNode.shape)))
                 dataName = 'Longitude'
                 geoLonNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLonNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLonNode.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the geolocation node data, so we can close the file
             try :
                 dataName = 'Latitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 latArr = geoLatNode[:,:]
                 geoLatNode.close()
                 latArr = np.squeeze(latArr)
-                print "done"
+                LOG.debug("done")
                 dataName = 'Longitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 lonArr = geoLonNode[:,:]
                 geoLonNode.close()
                 lonArr = np.squeeze(lonArr)
-                print "done"
-                print "Closing geolocation file"
+                LOG.debug("done")
+                LOG.debug("Closing geolocation file")
                 ViirsGeoFileObj.close()
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 geoLatNode.close()
                 geoLonNode.close()
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsGeoFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsGeoFileName))
             sys.exit(1)
         
         # Read in dataSets...
@@ -436,9 +441,9 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
         if(pytables.isHDF5File(ViirsEDRFileName)) :
             try :
                 ViirsEDRFileObj = pytables.openFile(ViirsEDRFileName,mode='r')
-                print "Successfully opened edr file",ViirsEDRFileName
+                LOG.debug("Successfully opened edr file",ViirsEDRFileName)
             except IOError :
-                print ">> error: Could not open edr file: ",ViirsEDRFileName
+                LOG.debug(">> error: Could not open edr file: ",ViirsEDRFileName)
                 sys.exit(1)
 
             # Detemine the edr group name and related information
@@ -446,58 +451,58 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
             group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Edr Group : %s " % (edrGroupName)
+            LOG.debug("Edr Group : {} ".format(edrGroupName))
             isEdr = ('VIIRS-COT-EDR_All' in edrGroupName)
             if not isEdr :
-                print ">> error: %s is not an EDR resolution cloud file\n\taborting..."  % (ViirsEDRFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud file\n\taborting...".format(ViirsEDRFileName))
                 sys.exit(1)
 
             # Get the edr nodes...
             try :
                 dataName = 'AverageCloudOpticalThickness'
                 cotNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(cotNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(cotNode.shape)))
                 dataName = 'COTFactors'
                 cotFactorsNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(cotFactorsNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(cotFactorsNode.shape)))
                 dataName = 'QF3_VIIRSCOTAVGEDR'
                 QF3_VIIRSCOTAVGEDR_Node = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(QF3_VIIRSCOTAVGEDR_Node.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(QF3_VIIRSCOTAVGEDR_Node.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 ViirsEDRFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the edr node data, so we can close the file
             try :
                 dataName = 'AverageCloudOpticalThickness'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cot = cotNode[:,:]
                 cot = np.squeeze(cot)
                 cotNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'COTFactors'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cotFactors = cotFactorsNode[:]
                 cotFactors = np.squeeze(cotFactors)
                 cotFactorsNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'QF3_VIIRSCOTAVGEDR'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cloudConf = np.bitwise_and(QF3_VIIRSCOTAVGEDR_Node[:,:],3) >> 0
                 waterCldFrac = np.bitwise_and(QF3_VIIRSCOTAVGEDR_Node[:,:],12) >> 2
                 mixedCldFrac = np.bitwise_and(QF3_VIIRSCOTAVGEDR_Node[:,:],192) >> 6
                 QF3_VIIRSCOTAVGEDR_Node.close()
-                print "done"
-                print "Closing edr file"
+                LOG.debug("done")
+                LOG.debug("Closing edr file")
                 ViirsEDRFileObj.close()
 
-                print "Shape of cot is %s" % (repr(np.shape(cot)))
-                print "Shape of latsArr is %s" % (repr(np.shape(latArr)))
-                print "Shape of lonsArr is %s" % (repr(np.shape(lonArr)))
+                LOG.debug("Shape of cot is {}".format(repr(np.shape(cot))))
+                LOG.debug("Shape of latsArr is {}".format(repr(np.shape(latArr))))
+                LOG.debug("Shape of lonsArr is {}".format(repr(np.shape(lonArr))))
 
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 cotNode.close()
                 cotFactorsNode.close()
                 QF3_VIIRSCOTAVGEDR_Node.close()
@@ -505,10 +510,10 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsEDRFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsEDRFileName))
             sys.exit(1)
         
-        print "Creating some masks"
+        LOG.debug("Creating some masks")
         try :
             
             lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
@@ -516,10 +521,10 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
 
             badGeo = False
             if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
+                LOG.debug("\n>> error: Latitude of granule midpoint ({}) does not satisfy (-90. <= lat_0 <= 90.)\nfor file {}\n\taborting...".format(lat_0,geoList[grans]))
                 badGeo = True
             if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
+                LOG.debug("\n>> error: Longitude of granule midpoint ({}) does not satisfy (-180. <= lon_0 <= 180.)\nfor file {}\n\taborting...".format(lon_0,geoList[grans]))
                 badGeo = True
 
             if badGeo :
@@ -544,7 +549,7 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
                     if (cotFillMasks[fillType].__class__.__name__ != 'ndarray') :
                         cotFillMasks[fillType] = None
                 else :
-                    print "Dataset was neither int not float... a worry"
+                    LOG.debug("Dataset was neither int not float... a worry")
                     pass
 
             # Construct the total mask from all of the various fill values
@@ -562,17 +567,17 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
                 lats    = ma.array(latArr,    mask=totalMask.mask)
                 lons    = ma.array(lonArr,    mask=totalMask.mask)
             except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
                 sys.exit(1)
 
             data = data * cotFactors[0] + cotFactors[1]
 
             cldPhase = np.ones(data.shape,dtype=np.uint8) * trimObj.sdrTypeFill['NA_FILL']['uint8']
 
-            print "cloudPhase.shape = ",cldPhase.shape
-            print "cloudConfArr.shape = ",cloudConfArr.shape
-            print "waterCldFracArr.shape = ",waterCldFracArr.shape
-            print "mixedCldFracArr.shape = ",mixedCldFracArr.shape
+            LOG.debug("cloudPhase.shape = ",cldPhase.shape)
+            LOG.debug("cloudConfArr.shape = ",cloudConfArr.shape)
+            LOG.debug("waterCldFracArr.shape = ",waterCldFracArr.shape)
+            LOG.debug("mixedCldFracArr.shape = ",mixedCldFracArr.shape)
 
             cloudFracMask = (cloudConfArr>0)
             waterFracMask = (waterCldFracArr>0)
@@ -581,18 +586,18 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
             waterMask = cloudFracMask * (waterFracMask + mixedFracMask)
             iceMask = cloudFracMask * np.logical_not(waterFracMask + mixedFracMask)
 
-            print "waterMask.shape = ",waterMask.shape
-            print "iceMask.shape = ",iceMask.shape
+            LOG.debug("waterMask.shape = ",waterMask.shape)
+            LOG.debug("iceMask.shape = ",iceMask.shape)
 
-            print "Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum()
-            print "Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum()
-            print "Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum()
+            LOG.debug("Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum())
+            LOG.debug("Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum())
+            LOG.debug("Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum())
 
-            print "Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum()
-            print "Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum()
+            LOG.debug("Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum())
+            LOG.debug("Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum())
 
-            print "Number of water pixels: ",waterMask.sum()
-            print "Number of ice pixels: ",iceMask.sum()
+            LOG.debug("Number of water pixels: ",waterMask.sum())
+            LOG.debug("Number of ice pixels: ",iceMask.sum())
 
             cldPhaseShape = cldPhase.shape
             cldPhase = np.ravel(cldPhase)
@@ -605,14 +610,14 @@ def gran_COT_EDR(geoList,cotList,shrink=1):
             cldPhase = np.reshape(cldPhase,cldPhaseShape)
 
         except Exception, err :
-            print ">> error: %s..." % (str(err))
+            LOG.debug(">> error: {}...".format(str(err)))
             sys.exit(1)
 
-    print "lat_0,lon_0 = %f,%f" % (lat_0,lon_0)
-    print "Shape of data is %s" % (repr(np.shape(data)))
-    print "Shape of cldPhase is %s" % (repr(np.shape(cldPhase)))
-    print "Shape of lats is %s" % (repr(np.shape(lats)))
-    print "Shape of lons is %s" % (repr(np.shape(lons)))
+    LOG.debug("lat_0,lon_0 = {},{}".format(lat_0,lon_0))
+    LOG.debug("Shape of data is {}".format(repr(np.shape(data))))
+    LOG.debug("Shape of cldPhase is {}".format(repr(np.shape(cldPhase))))
+    LOG.debug("Shape of lats is {}".format(repr(np.shape(lats))))
+    LOG.debug("Shape of lons is {}".format(repr(np.shape(lons))))
 
     return lats,lons,data,cldPhase,lat_0,lon_0
 
@@ -631,26 +636,26 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
     except :
         pass
 
-    print "Creating viirsCldObj..."
+    LOG.debug("Creating viirsCldObj...")
     reload(viirsCld)
     viirsCldObj = viirsCld.viirsCld()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
-        print "Ingesting EDR granule %d ..." % (grans)
+        LOG.debug("Ingesting EDR granule {} ...".format(grans))
 
         # Read in geolocation...
         ViirsGeoFileName = geoList[grans]
         if(pytables.isHDF5File(ViirsGeoFileName)) :
             try :
                 ViirsGeoFileObj = pytables.openFile(ViirsGeoFileName,mode='r')
-                print "Successfully opened geolocation file",ViirsGeoFileName
+                LOG.debug("Successfully opened geolocation file",ViirsGeoFileName)
             except IOError :
-                print ">> error: Could not open geolocation file: ",ViirsGeoFileName
+                LOG.debug(">> error: Could not open geolocation file: ",ViirsGeoFileName)
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
@@ -658,50 +663,50 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
             group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Geolocation Group : %s " % (geoGroupName)
+            LOG.debug("Geolocation Group : {} ".format(geoGroupName))
             isEdrGeo = ('VIIRS-CLD-AGG-GEO_All' in geoGroupName)
             if not isEdrGeo :
-                print ">> error: %s is not an EDR resolution cloud geolocation file\n\taborting..."  % (ViirsGeoFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud geolocation file\n\taborting...".format(ViirsGeoFileName))
                 sys.exit(1)
 
             # Get the geolocation Latitude and Longitude nodes...
             try :
                 dataName = 'Latitude'
                 geoLatNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLatNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLatNode.shape)))
                 dataName = 'Longitude'
                 geoLonNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLonNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLonNode.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the geolocation node data, so we can close the file
             try :
                 dataName = 'Latitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 latArr = geoLatNode[:,:]
                 geoLatNode.close()
                 latArr = np.squeeze(latArr)
-                print "done"
+                LOG.debug("done")
                 dataName = 'Longitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 lonArr = geoLonNode[:,:]
                 geoLonNode.close()
                 lonArr = np.squeeze(lonArr)
-                print "done"
-                print "Closing geolocation file"
+                LOG.debug("done")
+                LOG.debug("Closing geolocation file")
                 ViirsGeoFileObj.close()
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 geoLatNode.close()
                 geoLonNode.close()
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsGeoFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsGeoFileName))
             sys.exit(1)
         
         # Read in dataSets...
@@ -709,9 +714,9 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
         if(pytables.isHDF5File(ViirsEDRFileName)) :
             try :
                 ViirsEDRFileObj = pytables.openFile(ViirsEDRFileName,mode='r')
-                print "Successfully opened edr file",ViirsEDRFileName
+                LOG.debug("Successfully opened edr file",ViirsEDRFileName)
             except IOError :
-                print ">> error: Could not open edr file: ",ViirsEDRFileName
+                LOG.debug(">> error: Could not open edr file: ",ViirsEDRFileName)
                 sys.exit(1)
 
             # Detemine the edr group name and related information
@@ -719,58 +724,58 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
             group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Edr Group : %s " % (edrGroupName)
+            LOG.debug("Edr Group : {} ".format(edrGroupName))
             isEdr = ('VIIRS-CEPS-EDR_All' in edrGroupName)
             if not isEdr :
-                print ">> error: %s is not an EDR resolution cloud file\n\taborting..."  % (ViirsEDRFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud file\n\taborting...".format(ViirsEDRFileName))
                 sys.exit(1)
 
             # Get the edr nodes...
             try :
                 dataName = 'AverageCloudEffectiveParticleSize'
                 epsNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(epsNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(epsNode.shape)))
                 dataName = 'CEPSFactors'
                 epsFactorsNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(epsFactorsNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(epsFactorsNode.shape)))
                 dataName = 'QF3_VIIRSCEPSAVGEDR'
                 QF3_VIIRSCEPSAVGEDR_Node = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(QF3_VIIRSCEPSAVGEDR_Node.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(QF3_VIIRSCEPSAVGEDR_Node.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 ViirsEDRFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the edr node data, so we can close the file
             try :
                 dataName = 'AverageCloudEffectiveParticleSize'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 eps = epsNode[:,:]
                 eps = np.squeeze(eps)
                 epsNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'CEPSFactors'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 epsFactors = epsFactorsNode[:]
                 epsFactors = np.squeeze(epsFactors)
                 epsFactorsNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'QF3_VIIRSCEPSAVGEDR'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cloudConf = np.bitwise_and(QF3_VIIRSCEPSAVGEDR_Node[:,:],3) >> 0
                 waterCldFrac = np.bitwise_and(QF3_VIIRSCEPSAVGEDR_Node[:,:],12) >> 2
                 mixedCldFrac = np.bitwise_and(QF3_VIIRSCEPSAVGEDR_Node[:,:],192) >> 6
                 QF3_VIIRSCEPSAVGEDR_Node.close()
-                print "done"
-                print "Closing edr file"
+                LOG.debug("done")
+                LOG.debug("Closing edr file")
                 ViirsEDRFileObj.close()
 
-                print "Shape of eps is %s" % (repr(np.shape(eps)))
-                print "Shape of latsArr is %s" % (repr(np.shape(latArr)))
-                print "Shape of lonsArr is %s" % (repr(np.shape(lonArr)))
+                LOG.debug("Shape of eps is {}".format(repr(np.shape(eps))))
+                LOG.debug("Shape of latsArr is {}".format(repr(np.shape(latArr))))
+                LOG.debug("Shape of lonsArr is {}".format(repr(np.shape(lonArr))))
 
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 epsNode.close()
                 epsFactorsNode.close()
                 QF3_VIIRSCEPSAVGEDR_Node.close()
@@ -778,10 +783,10 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsEDRFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsEDRFileName))
             sys.exit(1)
         
-        print "Creating some masks"
+        LOG.debug("Creating some masks")
         try :
             
             lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
@@ -789,10 +794,10 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
 
             badGeo = False
             if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
+                LOG.debug("\n>> error: Latitude of granule midpoint ({}) does not satisfy (-90. <= lat_0 <= 90.)\nfor file {}\n\taborting...".format(lat_0,geoList[grans]))
                 badGeo = True
             if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
+                LOG.debug("\n>> error: Longitude of granule midpoint ({}) does not satisfy (-180. <= lon_0 <= 180.)\nfor file {}\n\taborting...".format(lon_0,geoList[grans]))
                 badGeo = True
 
             if badGeo :
@@ -817,7 +822,7 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
                     if (epsFillMasks[fillType].__class__.__name__ != 'ndarray') :
                         epsFillMasks[fillType] = None
                 else :
-                    print "Dataset was neither int not float... a worry"
+                    LOG.debug("Dataset was neither int not float... a worry")
                     pass
 
             # Construct the total mask from all of the various fill values
@@ -835,7 +840,7 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
                 lats    = ma.array(latArr,    mask=totalMask.mask)
                 lons    = ma.array(lonArr,    mask=totalMask.mask)
             except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
                 sys.exit(1)
 
             data = data * epsFactors[0] + epsFactors[1]
@@ -849,15 +854,15 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
             waterMask = cloudFracMask * (waterFracMask + mixedFracMask)
             iceMask = cloudFracMask * np.logical_not(waterFracMask + mixedFracMask)
 
-            print "Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum()
-            print "Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum()
-            print "Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum()
+            LOG.debug("Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum())
+            LOG.debug("Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum())
+            LOG.debug("Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum())
 
-            print "Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum()
-            print "Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum()
+            LOG.debug("Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum())
+            LOG.debug("Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum())
 
-            print "Number of water pixels: ",waterMask.sum()
-            print "Number of ice pixels: ",iceMask.sum()
+            LOG.debug("Number of water pixels: ",waterMask.sum())
+            LOG.debug("Number of ice pixels: ",iceMask.sum())
 
             cldPhaseShape = cldPhase.shape
             cldPhase = np.ravel(cldPhase)
@@ -870,14 +875,14 @@ def gran_EPS_EDR(geoList,epsList,shrink=1):
             cldPhase = np.reshape(cldPhase,cldPhaseShape)
 
         except Exception, err :
-            print ">> error: %s..." % (str(err))
+            LOG.debug(">> error: {}...".format(str(err)))
             sys.exit(1)
 
-    print "lat_0,lon_0 = %f,%f" % (lat_0,lon_0)
-    print "Shape of data is %s" % (repr(np.shape(data)))
-    print "Shape of cldPhase is %s" % (repr(np.shape(cldPhase)))
-    print "Shape of lats is %s" % (repr(np.shape(lats)))
-    print "Shape of lons is %s" % (repr(np.shape(lons)))
+    LOG.debug("lat_0,lon_0 = {},{}".format(lat_0,lon_0))
+    LOG.debug("Shape of data is {}".format(repr(np.shape(data))))
+    LOG.debug("Shape of cldPhase is {}".format(repr(np.shape(cldPhase))))
+    LOG.debug("Shape of lats is {}".format(repr(np.shape(lats))))
+    LOG.debug("Shape of lons is {}".format(repr(np.shape(lons))))
 
     return lats,lons,data,cldPhase,lat_0,lon_0
 
@@ -897,19 +902,19 @@ def gran_CTp(geoList,ctpList,dataSet,shrink=1):
     except :
         pass
 
-    print "Creating viirsCldObj..."
+    LOG.debug("Creating viirsCldObj...")
     reload(viirsCld)
     viirsCldObj = viirsCld.viirsCld()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
-        print "Ingesting granule %d ..." % (grans)
+        LOG.debug("Ingesting granule {} ...".format(grans))
         retArr = viirsCldObj.ingestLite(geoList[grans],ctpList[grans],dataSet,1)
-        print "done"
+        LOG.debug("done")
 
         try :
             latArr  = viirsCldObj.Lat[:,:]
@@ -920,10 +925,10 @@ def gran_CTp(geoList,ctpList,dataSet,shrink=1):
 
             badGeo = False
             if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
+                LOG.debug("\n>> error: Latitude of granule midpoint ({}) does not satisfy (-90. <= lat_0 <= 90.)\nfor file {}\n\taborting...".format(lat_0,geoList[grans]))
                 badGeo = True
             if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
+                LOG.debug("\n>> error: Longitude of granule midpoint ({}) does not satisfy (-180. <= lon_0 <= 180.)\nfor file {}\n\taborting...".format(lon_0,geoList[grans]))
                 badGeo = True
 
             if badGeo :
@@ -945,7 +950,7 @@ def gran_CTp(geoList,ctpList,dataSet,shrink=1):
                     if (ctpFillMasks[fillType].__class__.__name__ != 'ndarray') :
                         ctpFillMasks[fillType] = None
                 else :
-                    print "Dataset was neither int not float... a worry"
+                    LOG.debug("Dataset was neither int not float... a worry")
                     pass
 
             # Construct the total mask from all of the various fill values
@@ -964,11 +969,11 @@ def gran_CTp(geoList,ctpList,dataSet,shrink=1):
                 lats  = ma.array(latArr,  mask=totalMask.mask)
                 lons  = ma.array(lonArr,  mask=totalMask.mask)
             except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
                 sys.exit(1)
 
         except :
-            print ">> error: There was an exception..."
+            LOG.debug(">> error: There was an exception...")
             sys.exit(1)
 
     return lats,lons,data,phase,lat_0,lon_0
@@ -988,26 +993,26 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
     except :
         pass
 
-    print "Creating viirsCldObj..."
+    LOG.debug("Creating viirsCldObj...")
     reload(viirsCld)
     viirsCldObj = viirsCld.viirsCld()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
-        print "Ingesting EDR granule %d ..." % (grans)
+        LOG.debug("Ingesting EDR granule {} ...".format(grans))
 
         # Read in geolocation...
         ViirsGeoFileName = geoList[grans]
         if(pytables.isHDF5File(ViirsGeoFileName)) :
             try :
                 ViirsGeoFileObj = pytables.openFile(ViirsGeoFileName,mode='r')
-                print "Successfully opened geolocation file",ViirsGeoFileName
+                LOG.debug("Successfully opened geolocation file",ViirsGeoFileName)
             except IOError :
-                print ">> error: Could not open geolocation file: ",ViirsGeoFileName
+                LOG.debug(">> error: Could not open geolocation file: ",ViirsGeoFileName)
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
@@ -1015,50 +1020,50 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
             group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Geolocation Group : %s " % (geoGroupName)
+            LOG.debug("Geolocation Group : {} ".format(geoGroupName))
             isEdrGeo = ('VIIRS-CLD-AGG-GEO_All' in geoGroupName)
             if not isEdrGeo :
-                print ">> error: %s is not an EDR resolution cloud geolocation file\n\taborting..."  % (ViirsGeoFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud geolocation file\n\taborting...".format(ViirsGeoFileName))
                 sys.exit(1)
 
             # Get the geolocation Latitude and Longitude nodes...
             try :
                 dataName = 'Latitude'
                 geoLatNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLatNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLatNode.shape)))
                 dataName = 'Longitude'
                 geoLonNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLonNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLonNode.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the geolocation node data, so we can close the file
             try :
                 dataName = 'Latitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 latArr = geoLatNode[:,:]
                 geoLatNode.close()
                 latArr = np.squeeze(latArr)
-                print "done"
+                LOG.debug("done")
                 dataName = 'Longitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 lonArr = geoLonNode[:,:]
                 geoLonNode.close()
                 lonArr = np.squeeze(lonArr)
-                print "done"
-                print "Closing geolocation file"
+                LOG.debug("done")
+                LOG.debug("Closing geolocation file")
                 ViirsGeoFileObj.close()
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 geoLatNode.close()
                 geoLonNode.close()
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsGeoFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsGeoFileName))
             sys.exit(1)
         
         # Read in dataSets...
@@ -1066,9 +1071,9 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
         if(pytables.isHDF5File(ViirsEDRFileName)) :
             try :
                 ViirsEDRFileObj = pytables.openFile(ViirsEDRFileName,mode='r')
-                print "Successfully opened edr file",ViirsEDRFileName
+                LOG.debug("Successfully opened edr file",ViirsEDRFileName)
             except IOError :
-                print ">> error: Could not open edr file: ",ViirsEDRFileName
+                LOG.debug(">> error: Could not open edr file: ",ViirsEDRFileName)
                 sys.exit(1)
 
             # Detemine the edr group name and related information
@@ -1076,58 +1081,58 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
             group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Edr Group : %s " % (edrGroupName)
+            LOG.debug("Edr Group : {} ".format(edrGroupName))
             isEdr = ('VIIRS-CTT-EDR_All' in edrGroupName)
             if not isEdr :
-                print ">> error: %s is not an EDR resolution cloud file\n\taborting..."  % (ViirsEDRFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud file\n\taborting...".format(ViirsEDRFileName))
                 sys.exit(1)
 
             # Get the edr nodes...
             try :
                 dataName = 'AverageCloudTopTemperature'
                 cttNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(cttNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(cttNode.shape)))
                 dataName = 'CTTFactors'
                 cttFactorsNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(cttFactorsNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(cttFactorsNode.shape)))
                 dataName = 'QF3_VIIRSCTTAVGEDR'
                 QF3_VIIRSCTTAVGEDR_Node = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(QF3_VIIRSCTTAVGEDR_Node.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(QF3_VIIRSCTTAVGEDR_Node.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 ViirsEDRFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the edr node data, so we can close the file
             try :
                 dataName = 'AverageCloudTopTemperature'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 ctt = cttNode[:,:]
                 ctt = np.squeeze(ctt)
                 cttNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'CTTFactors'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cttFactors = cttFactorsNode[:]
                 cttFactors = np.squeeze(cttFactors)
                 cttFactorsNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'QF3_VIIRSCTTAVGEDR'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cloudConf = np.bitwise_and(QF3_VIIRSCTTAVGEDR_Node[:,:],3) >> 0
                 waterCldFrac = np.bitwise_and(QF3_VIIRSCTTAVGEDR_Node[:,:],12) >> 2
                 mixedCldFrac = np.bitwise_and(QF3_VIIRSCTTAVGEDR_Node[:,:],192) >> 6
                 QF3_VIIRSCTTAVGEDR_Node.close()
-                print "done"
-                print "Closing edr file"
+                LOG.debug("done")
+                LOG.debug("Closing edr file")
                 ViirsEDRFileObj.close()
 
-                print "Shape of ctt is %s" % (repr(np.shape(ctt)))
-                print "Shape of latsArr is %s" % (repr(np.shape(latArr)))
-                print "Shape of lonsArr is %s" % (repr(np.shape(lonArr)))
+                LOG.debug("Shape of ctt is {}".format(repr(np.shape(ctt))))
+                LOG.debug("Shape of latsArr is {}".format(repr(np.shape(latArr))))
+                LOG.debug("Shape of lonsArr is {}".format(repr(np.shape(lonArr))))
 
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 cttNode.close()
                 cttFactorsNode.close()
                 waterCldFracNode.close()
@@ -1135,10 +1140,10 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsEDRFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsEDRFileName))
             sys.exit(1)
         
-        print "Creating some masks"
+        LOG.debug("Creating some masks")
         try :
             
             lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
@@ -1146,10 +1151,10 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
 
             badGeo = False
             if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
+                LOG.debug("\n>> error: Latitude of granule midpoint ({}) does not satisfy (-90. <= lat_0 <= 90.)\nfor file {}\n\taborting...".format(lat_0,geoList[grans]))
                 badGeo = True
             if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
+                LOG.debug("\n>> error: Longitude of granule midpoint ({}) does not satisfy (-180. <= lon_0 <= 180.)\nfor file {}\n\taborting...".format(lon_0,geoList[grans]))
                 badGeo = True
 
             if badGeo :
@@ -1175,7 +1180,7 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
                     if (cttFillMasks[fillType].__class__.__name__ != 'ndarray') :
                         cttFillMasks[fillType] = None
                 else :
-                    print "Dataset was neither int not float... a worry"
+                    LOG.debug("Dataset was neither int not float... a worry")
                     pass
 
             # Construct the total mask from all of the various fill values
@@ -1193,7 +1198,7 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
                 lats = ma.array(latArr,mask=totalMask.mask)
                 lons = ma.array(lonArr,mask=totalMask.mask)
             except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
                 sys.exit(1)
 
             data = data * cttFactors[0] + cttFactors[1]
@@ -1207,15 +1212,15 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
             waterMask = cloudFracMask * (waterFracMask + mixedFracMask)
             iceMask = cloudFracMask * np.logical_not(waterFracMask + mixedFracMask)
 
-            print "Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum()
-            print "Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum()
-            print "Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum()
+            LOG.debug("Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum())
+            LOG.debug("Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum())
+            LOG.debug("Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum())
 
-            print "Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum()
-            print "Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum()
+            LOG.debug("Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum())
+            LOG.debug("Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum())
 
-            print "Number of water pixels: ",waterMask.sum()
-            print "Number of ice pixels: ",iceMask.sum()
+            LOG.debug("Number of water pixels: ",waterMask.sum())
+            LOG.debug("Number of ice pixels: ",iceMask.sum())
 
             cldPhaseShape = cldPhase.shape
             cldPhase = np.ravel(cldPhase)
@@ -1226,14 +1231,14 @@ def gran_CTT_EDR(geoList,cttList,shrink=1):
             cldPhase[iceIdx] = 5
 
         except Exception, err :
-            print ">> error: %s..." % (str(err))
+            LOG.debug(">> error: {}...".format(str(err)))
             sys.exit(1)
 
-    print "lat_0,lon_0 = %f,%f" % (lat_0,lon_0)
-    print "Shape of data is %s" % (repr(np.shape(data)))
-    print "Shape of cldPhase is %s" % (repr(np.shape(cldPhase)))
-    print "Shape of lats is %s" % (repr(np.shape(lats)))
-    print "Shape of lons is %s" % (repr(np.shape(lons)))
+    LOG.debug("lat_0,lon_0 = {},{}".format(lat_0,lon_0))
+    LOG.debug("Shape of data is {}".format(repr(np.shape(data))))
+    LOG.debug("Shape of cldPhase is {}".format(repr(np.shape(cldPhase))))
+    LOG.debug("Shape of lats is {}".format(repr(np.shape(lats))))
+    LOG.debug("Shape of lons is {}".format(repr(np.shape(lons))))
 
     return lats,lons,data,cldPhase,lat_0,lon_0
 
@@ -1252,26 +1257,26 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
     except :
         pass
 
-    print "Creating viirsCldObj..."
+    LOG.debug("Creating viirsCldObj...")
     reload(viirsCld)
     viirsCldObj = viirsCld.viirsCld()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
-        print "Ingesting EDR granule %d ..." % (grans)
+        LOG.debug("Ingesting EDR granule {} ...".format(grans))
 
         # Read in geolocation...
         ViirsGeoFileName = geoList[grans]
         if(pytables.isHDF5File(ViirsGeoFileName)) :
             try :
                 ViirsGeoFileObj = pytables.openFile(ViirsGeoFileName,mode='r')
-                print "Successfully opened geolocation file",ViirsGeoFileName
+                LOG.debug("Successfully opened geolocation file",ViirsGeoFileName)
             except IOError :
-                print ">> error: Could not open geolocation file: ",ViirsGeoFileName
+                LOG.debug(">> error: Could not open geolocation file: ",ViirsGeoFileName)
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
@@ -1279,50 +1284,50 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
             group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Geolocation Group : %s " % (geoGroupName)
+            LOG.debug("Geolocation Group : {} ".format(geoGroupName))
             isEdrGeo = ('VIIRS-CLD-AGG-GEO_All' in geoGroupName)
             if not isEdrGeo :
-                print ">> error: %s is not an EDR resolution cloud geolocation file\n\taborting..."  % (ViirsGeoFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud geolocation file\n\taborting...".format(ViirsGeoFileName))
                 sys.exit(1)
 
             # Get the geolocation Latitude and Longitude nodes...
             try :
                 dataName = 'Latitude'
                 geoLatNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLatNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLatNode.shape)))
                 dataName = 'Longitude'
                 geoLonNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLonNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLonNode.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the geolocation node data, so we can close the file
             try :
                 dataName = 'Latitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 latArr = geoLatNode[:,:]
                 geoLatNode.close()
                 latArr = np.squeeze(latArr)
-                print "done"
+                LOG.debug("done")
                 dataName = 'Longitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 lonArr = geoLonNode[:,:]
                 geoLonNode.close()
                 lonArr = np.squeeze(lonArr)
-                print "done"
-                print "Closing geolocation file"
+                LOG.debug("done")
+                LOG.debug("Closing geolocation file")
                 ViirsGeoFileObj.close()
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 geoLatNode.close()
                 geoLonNode.close()
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsGeoFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsGeoFileName))
             sys.exit(1)
         
         # Read in dataSets...
@@ -1330,9 +1335,9 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
         if(pytables.isHDF5File(ViirsEDRFileName)) :
             try :
                 ViirsEDRFileObj = pytables.openFile(ViirsEDRFileName,mode='r')
-                print "Successfully opened edr file",ViirsEDRFileName
+                LOG.debug("Successfully opened edr file",ViirsEDRFileName)
             except IOError :
-                print ">> error: Could not open edr file: ",ViirsEDRFileName
+                LOG.debug(">> error: Could not open edr file: ",ViirsEDRFileName)
                 sys.exit(1)
 
             # Detemine the edr group name and related information
@@ -1340,58 +1345,58 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
             group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Edr Group : %s " % (edrGroupName)
+            LOG.debug("Edr Group : {} ".format(edrGroupName))
             isEdr = ('VIIRS-CTP-EDR_All' in edrGroupName)
             if not isEdr :
-                print ">> error: %s is not an EDR resolution cloud file\n\taborting..."  % (ViirsEDRFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud file\n\taborting...".format(ViirsEDRFileName))
                 sys.exit(1)
 
             # Get the edr nodes...
             try :
                 dataName = 'AverageCloudTopPressure'
                 ctpNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(ctpNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(ctpNode.shape)))
                 dataName = 'CTPFactors'
                 ctpFactorsNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(ctpFactorsNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(ctpFactorsNode.shape)))
                 dataName = 'QF3_VIIRSCTPAVGEDR'
                 QF3_VIIRSCTPAVGEDR_Node = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(QF3_VIIRSCTPAVGEDR_Node.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(QF3_VIIRSCTPAVGEDR_Node.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 ViirsEDRFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the edr node data, so we can close the file
             try :
                 dataName = 'AverageCloudTopPressure'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 ctp = ctpNode[:,:]
                 ctp = np.squeeze(ctp)
                 ctpNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'CTPFactors'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 ctpFactors = ctpFactorsNode[:]
                 ctpFactors = np.squeeze(ctpFactors)
                 ctpFactorsNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'QF3_VIIRSCTPAVGEDR'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cloudConf = np.bitwise_and(QF3_VIIRSCTPAVGEDR_Node[:,:],3) >> 0
                 waterCldFrac = np.bitwise_and(QF3_VIIRSCTPAVGEDR_Node[:,:],12) >> 2
                 mixedCldFrac = np.bitwise_and(QF3_VIIRSCTPAVGEDR_Node[:,:],192) >> 6
                 QF3_VIIRSCTPAVGEDR_Node.close()
-                print "done"
-                print "Closing edr file"
+                LOG.debug("done")
+                LOG.debug("Closing edr file")
                 ViirsEDRFileObj.close()
 
-                print "Shape of ctp is %s" % (repr(np.shape(ctp)))
-                print "Shape of latsArr is %s" % (repr(np.shape(latArr)))
-                print "Shape of lonsArr is %s" % (repr(np.shape(lonArr)))
+                LOG.debug("Shape of ctp is {}".format(repr(np.shape(ctp))))
+                LOG.debug("Shape of latsArr is {}".format(repr(np.shape(latArr))))
+                LOG.debug("Shape of lonsArr is {}".format(repr(np.shape(lonArr))))
 
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 ctpNode.close()
                 ctpFactorsNode.close()
                 QF3_VIIRSCTPAVGEDR_Node.close()
@@ -1399,10 +1404,10 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsEDRFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsEDRFileName))
             sys.exit(1)
         
-        print "Creating some masks"
+        LOG.debug("Creating some masks")
         try :
             
             lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
@@ -1410,10 +1415,10 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
 
             badGeo = False
             if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
+                LOG.debug("\n>> error: Latitude of granule midpoint ({}) does not satisfy (-90. <= lat_0 <= 90.)\nfor file {}\n\taborting...".format(lat_0,geoList[grans]))
                 badGeo = True
             if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
+                LOG.debug("\n>> error: Longitude of granule midpoint ({}) does not satisfy (-180. <= lon_0 <= 180.)\nfor file {}\n\taborting...".format(lon_0,geoList[grans]))
                 badGeo = True
 
             if badGeo :
@@ -1438,7 +1443,7 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
                     if (ctpFillMasks[fillType].__class__.__name__ != 'ndarray') :
                         ctpFillMasks[fillType] = None
                 else :
-                    print "Dataset was neither int not float... a worry"
+                    LOG.debug("Dataset was neither int not float... a worry")
                     pass
 
             # Construct the total mask from all of the various fill values
@@ -1456,7 +1461,7 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
                 lats = ma.array(latArr,mask=totalMask.mask)
                 lons = ma.array(lonArr,mask=totalMask.mask)
             except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
                 sys.exit(1)
 
             data = data * ctpFactors[0] + ctpFactors[1]
@@ -1470,15 +1475,15 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
             waterMask = cloudFracMask * (waterFracMask + mixedFracMask)
             iceMask = cloudFracMask * np.logical_not(waterFracMask + mixedFracMask)
 
-            print "Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum()
-            print "Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum()
-            print "Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum()
+            LOG.debug("Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum())
+            LOG.debug("Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum())
+            LOG.debug("Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum())
 
-            print "Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum()
-            print "Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum()
+            LOG.debug("Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum())
+            LOG.debug("Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum())
 
-            print "Number of water pixels: ",waterMask.sum()
-            print "Number of ice pixels: ",iceMask.sum()
+            LOG.debug("Number of water pixels: ",waterMask.sum())
+            LOG.debug("Number of ice pixels: ",iceMask.sum())
 
             cldPhaseShape = cldPhase.shape
             cldPhase = np.ravel(cldPhase)
@@ -1491,14 +1496,14 @@ def gran_CTP_EDR(geoList,ctpList,shrink=1):
             cldPhase = np.reshape(cldPhase,cldPhaseShape)
 
         except Exception, err :
-            print ">> error: %s..." % (str(err))
+            LOG.debug(">> error: {}...".format(str(err)))
             sys.exit(1)
 
-    print "lat_0,lon_0 = %f,%f" % (lat_0,lon_0)
-    print "Shape of data is %s" % (repr(np.shape(data)))
-    print "Shape of cldPhase is %s" % (repr(np.shape(cldPhase)))
-    print "Shape of lats is %s" % (repr(np.shape(lats)))
-    print "Shape of lons is %s" % (repr(np.shape(lons)))
+    LOG.debug("lat_0,lon_0 = {},{}".format(lat_0,lon_0))
+    LOG.debug("Shape of data is {}".format(repr(np.shape(data))))
+    LOG.debug("Shape of cldPhase is {}".format(repr(np.shape(cldPhase))))
+    LOG.debug("Shape of lats is {}".format(repr(np.shape(lats))))
+    LOG.debug("Shape of lons is {}".format(repr(np.shape(lons))))
 
     return lats,lons,data,cldPhase,lat_0,lon_0
 
@@ -1517,26 +1522,26 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
     except :
         pass
 
-    print "Creating viirsCldObj..."
+    LOG.debug("Creating viirsCldObj...")
     reload(viirsCld)
     viirsCldObj = viirsCld.viirsCld()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
     eps = 1.e-6
 
     for grans in np.arange(len(geoList)):
-        print "Ingesting EDR granule %d ..." % (grans)
+        LOG.debug("Ingesting EDR granule {} ...".format(grans))
 
         # Read in geolocation...
         ViirsGeoFileName = geoList[grans]
         if(pytables.isHDF5File(ViirsGeoFileName)) :
             try :
                 ViirsGeoFileObj = pytables.openFile(ViirsGeoFileName,mode='r')
-                print "Successfully opened geolocation file",ViirsGeoFileName
+                LOG.debug("Successfully opened geolocation file",ViirsGeoFileName)
             except IOError :
-                print ">> error: Could not open geolocation file: ",ViirsGeoFileName
+                LOG.debug(">> error: Could not open geolocation file: ",ViirsGeoFileName)
                 sys.exit(1)
 
             # Detemine the geolocation group name and related information
@@ -1544,50 +1549,50 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
             group = ViirsGeoFileObj.getNode('/All_Data')
             geoGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Geolocation Group : %s " % (geoGroupName)
+            LOG.debug("Geolocation Group : {} ".format(geoGroupName))
             isEdrGeo = ('VIIRS-CLD-AGG-GEO_All' in geoGroupName)
             if not isEdrGeo :
-                print ">> error: %s is not an EDR resolution cloud geolocation file\n\taborting..."  % (ViirsGeoFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud geolocation file\n\taborting...".format(ViirsGeoFileName))
                 sys.exit(1)
 
             # Get the geolocation Latitude and Longitude nodes...
             try :
                 dataName = 'Latitude'
                 geoLatNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLatNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLatNode.shape)))
                 dataName = 'Longitude'
                 geoLonNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLonNode.shape))
+                LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLonNode.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the geolocation node data, so we can close the file
             try :
                 dataName = 'Latitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 latArr = geoLatNode[:,:]
                 geoLatNode.close()
                 latArr = np.squeeze(latArr)
-                print "done"
+                LOG.debug("done")
                 dataName = 'Longitude'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 lonArr = geoLonNode[:,:]
                 geoLonNode.close()
                 lonArr = np.squeeze(lonArr)
-                print "done"
-                print "Closing geolocation file"
+                LOG.debug("done")
+                LOG.debug("Closing geolocation file")
                 ViirsGeoFileObj.close()
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
                 geoLatNode.close()
                 geoLonNode.close()
                 ViirsGeoFileObj.close()
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsGeoFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsGeoFileName))
             sys.exit(1)
         
         # Read in dataSets...
@@ -1595,9 +1600,9 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
         if(pytables.isHDF5File(ViirsEDRFileName)) :
             try :
                 ViirsEDRFileObj = pytables.openFile(ViirsEDRFileName,mode='r')
-                print "Successfully opened edr file",ViirsEDRFileName
+                LOG.debug("Successfully opened edr file",ViirsEDRFileName)
             except IOError :
-                print ">> error: Could not open edr file: ",ViirsEDRFileName
+                LOG.debug(">> error: Could not open edr file: ",ViirsEDRFileName)
                 sys.exit(1)
 
             # Detemine the edr group name and related information
@@ -1605,58 +1610,58 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
             group = ViirsEDRFileObj.getNode('/All_Data')
             edrGroupName = '/All_Data/'+group.__members__[0]
             group._g_close()
-            print "Edr Group : %s " % (edrGroupName)
+            LOG.debug("Edr Group : {} ".format(edrGroupName))
             isEdr = ('VIIRS-CTH-EDR_All' in edrGroupName)
             if not isEdr :
-                print ">> error: %s is not an EDR resolution cloud file\n\taborting..."  % (ViirsEDRFileName)
+                LOG.debug(">> error: {} is not an EDR resolution cloud file\n\taborting...".format(ViirsEDRFileName))
                 sys.exit(1)
 
             # Get the edr nodes...
             try :
                 dataName = 'AverageCloudTopHeight'
                 cthNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(cthNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(cthNode.shape)))
                 dataName = 'CTHFactors'
                 cthFactorsNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(cthFactorsNode.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(cthFactorsNode.shape)))
                 dataName = 'QF3_VIIRSCTHAVGEDR'
                 QF3_VIIRSCTHAVGEDR_Node = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-                print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(QF3_VIIRSCTHAVGEDR_Node.shape))
+                LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(QF3_VIIRSCTHAVGEDR_Node.shape)))
             except pyEx.NoSuchNodeError :
-                print "\n>> error: No required node %s/%s in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 ViirsEDRFileObj.close()
                 sys.exit(1)
 
             # Make a copy of the edr node data, so we can close the file
             try :
                 dataName = 'AverageCloudTopHeight'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cth = cthNode[:,:]
                 cth = np.squeeze(cth)
                 cthNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'CTHFactors'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cthFactors = cthFactorsNode[:]
                 cthFactors = np.squeeze(cthFactors)
                 cthFactorsNode.close()
-                print "done"
+                LOG.debug("done")
                 dataName = 'QF3_VIIRSCTTAVGEDR'
-                print "Reading %s dataset..." % (dataName)
+                LOG.debug("Reading {} dataset...".format(dataName))
                 cloudConf = np.bitwise_and(QF3_VIIRSCTHAVGEDR_Node[:,:],3) >> 0
                 waterCldFrac = np.bitwise_and(QF3_VIIRSCTHAVGEDR_Node[:,:],12) >> 2
                 mixedCldFrac = np.bitwise_and(QF3_VIIRSCTHAVGEDR_Node[:,:],192) >> 6
                 QF3_VIIRSCTHAVGEDR_Node.close()
-                print "done"
-                print "Closing edr file"
+                LOG.debug("done")
+                LOG.debug("Closing edr file")
                 ViirsEDRFileObj.close()
 
-                print "Shape of cth is %s" % (repr(np.shape(cth)))
-                print "Shape of latsArr is %s" % (repr(np.shape(latArr)))
-                print "Shape of lonsArr is %s" % (repr(np.shape(lonArr)))
+                LOG.debug("Shape of cth is {}".format(repr(np.shape(cth))))
+                LOG.debug("Shape of latsArr is {}".format(repr(np.shape(latArr))))
+                LOG.debug("Shape of lonsArr is {}".format(repr(np.shape(lonArr))))
 
             except :
-                print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+                LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
                 cthNode.close()
                 cthFactorsNode.close()
                 QF3_VIIRSCTHAVGEDR_Node.close()
@@ -1664,10 +1669,10 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
                 sys.exit(1)
 
         else :
-            print "\n>> error: %s is not a HDF5 file,\n\taborting..." % (ViirsEDRFileName)
+            LOG.debug("\n>> error: {} is not a HDF5 file,\n\taborting...".format(ViirsEDRFileName))
             sys.exit(1)
         
-        print "Creating some masks"
+        LOG.debug("Creating some masks")
         try :
             
             lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
@@ -1675,10 +1680,10 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
 
             badGeo = False
             if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
+                LOG.debug("\n>> error: Latitude of granule midpoint ({}) does not satisfy (-90. <= lat_0 <= 90.)\nfor file {}\n\taborting...".format(lat_0,geoList[grans]))
                 badGeo = True
             if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
+                LOG.debug("\n>> error: Longitude of granule midpoint ({}) does not satisfy (-180. <= lon_0 <= 180.)\nfor file {}\n\taborting...".format(lon_0,geoList[grans]))
                 badGeo = True
 
             if badGeo :
@@ -1703,7 +1708,7 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
                     if (cthFillMasks[fillType].__class__.__name__ != 'ndarray') :
                         cthFillMasks[fillType] = None
                 else :
-                    print "Dataset was neither int not float... a worry"
+                    LOG.debug("Dataset was neither int not float... a worry")
                     pass
 
             # Construct the total mask from all of the various fill values
@@ -1721,7 +1726,7 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
                 lats = ma.array(latArr,mask=totalMask.mask)
                 lons = ma.array(lonArr,mask=totalMask.mask)
             except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
                 sys.exit(1)
 
             data = data * cthFactors[0] + cthFactors[1]
@@ -1735,15 +1740,15 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
             waterMask = cloudFracMask * (waterFracMask + mixedFracMask)
             iceMask = cloudFracMask * np.logical_not(waterFracMask + mixedFracMask)
 
-            print "Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum()
-            print "Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum()
-            print "Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum()
+            LOG.debug("Number of pixels with > 25% cloudy confidence: ",cloudFracMask.sum())
+            LOG.debug("Number of pixels with > 25% water cloud fraction: ",waterFracMask.sum())
+            LOG.debug("Number of pixels with > 25% mixed cloud fraction: ",mixedFracMask.sum())
 
-            print "Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum()
-            print "Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum()
+            LOG.debug("Number of water pixels: ",(cloudFracMask * (waterFracMask + mixedFracMask)).sum())
+            LOG.debug("Number of ice pixels: ",cloudFracMask.sum() - (waterFracMask + mixedFracMask).sum())
 
-            print "Number of water pixels: ",waterMask.sum()
-            print "Number of ice pixels: ",iceMask.sum()
+            LOG.debug("Number of water pixels: ",waterMask.sum())
+            LOG.debug("Number of ice pixels: ",iceMask.sum())
 
             cldPhaseShape = cldPhase.shape
             cldPhase = np.ravel(cldPhase)
@@ -1756,14 +1761,14 @@ def gran_CTH_EDR(geoList,cthList,shrink=1):
             cldPhase = np.reshape(cldPhase,cldPhaseShape)
 
         except Exception, err :
-            print ">> error: %s..." % (str(err))
+            LOG.debug(">> error: {}...".format(str(err)))
             sys.exit(1)
 
-    print "lat_0,lon_0 = %f,%f" % (lat_0,lon_0)
-    print "Shape of data is %s" % (repr(np.shape(data)))
-    print "Shape of cldPhase is %s" % (repr(np.shape(cldPhase)))
-    print "Shape of lats is %s" % (repr(np.shape(lats)))
-    print "Shape of lons is %s" % (repr(np.shape(lons)))
+    LOG.debug("lat_0,lon_0 = {},{}".format(lat_0,lon_0))
+    LOG.debug("Shape of data is {}".format(repr(np.shape(data))))
+    LOG.debug("Shape of cldPhase is {}".format(repr(np.shape(cldPhase))))
+    LOG.debug("Shape of lats is {}".format(repr(np.shape(lats))))
+    LOG.debug("Shape of lons is {}".format(repr(np.shape(lons))))
 
     return lats,lons,data,cldPhase,lat_0,lon_0
 
@@ -1785,10 +1790,10 @@ def gran_AOT(geoList,aotList,shrink=1):
     except :
         pass
 
-    print "Creating viirsAeroObj..."
+    LOG.debug("Creating viirsAeroObj...")
     reload(viirsAero)
     viirsAeroObj = viirsAero.viirsAero()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
@@ -1797,42 +1802,42 @@ def gran_AOT(geoList,aotList,shrink=1):
     # Build up the swath...
     for grans in np.arange(len(geoList)):
 
-        print "\nIngesting granule %d ..." % (grans)
+        LOG.debug("\nIngesting granule {} ...".format(grans))
         retList = viirsAeroObj.ingest(geoList[grans],aotList[grans],'aot',shrink,'linear')
 
         try :
             latArr  = np.vstack((latArr,viirsAeroObj.Lat[:,:]))
             lonArr  = np.vstack((lonArr,viirsAeroObj.Lon[:,:]))
             ModeGran = viirsAeroObj.ModeGran
-            print "subsequent geo arrays..."
+            LOG.debug("subsequent geo arrays...")
         except NameError :
             latArr  = viirsAeroObj.Lat[:,:]
             lonArr  = viirsAeroObj.Lon[:,:]
             ModeGran = viirsAeroObj.ModeGran
-            print "first geo arrays..."
+            LOG.debug("first geo arrays...")
 
         try :
             aotArr  = np.vstack((aotArr ,viirsAeroObj.ViirsAProdSDS[:,:]))
             retArr  = np.vstack((retArr ,viirsAeroObj.ViirsAProdRet[:,:]))
             qualArr = np.vstack((qualArr,viirsAeroObj.ViirsCMquality[:,:]))
             #lsmArr  = np.vstack((lsmArr ,viirsAeroObj.LandSeaMask[:,:]))
-            print "subsequent aot arrays..."
+            LOG.debug("subsequent aot arrays...")
         except NameError :
             aotArr  = viirsAeroObj.ViirsAProdSDS[:,:]
             retArr  = viirsAeroObj.ViirsAProdRet[:,:]
             qualArr = viirsAeroObj.ViirsCMquality[:,:]
             #lsmArr  = viirsAeroObj.LandSeaMask[:,:]
-            print "first aot arrays..."
+            LOG.debug("first aot arrays...")
 
-        print "Intermediate aotArr.shape = %s" % (str(aotArr.shape))
-        print "Intermediate retArr.shape = %s" % (str(retArr.shape))
-        print "Intermediate qualArr.shape = %s" % (str(qualArr.shape))
-        #print "Intermediate lsmArr.shape = %s" % (str(lsmArr.shape))
+        LOG.debug("Intermediate aotArr.shape = {}".format(str(aotArr.shape)))
+        LOG.debug("Intermediate retArr.shape = {}".format(str(retArr.shape)))
+        LOG.debug("Intermediate qualArr.shape = {}".format(str(qualArr.shape)))
+        #LOG.debug("Intermediate lsmArr.shape = {}".format(str(lsmArr.shape)))
 
     lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
     lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
 
-    print "lat_0,lon_0 = ",lat_0,lon_0
+    LOG.debug("lat_0,lon_0 = ",lat_0,lon_0)
 
     try :
         # Determine masks for each fill type, for the VCM IP
@@ -1848,7 +1853,7 @@ def gran_AOT(geoList,aotList,shrink=1):
                 if (aotFillMasks[fillType].__class__.__name__ != 'ndarray') :
                     aotFillMasks[fillType] = None
             else :
-                print "Dataset was neither int not float... a worry"
+                LOG.debug("Dataset was neither int not float... a worry")
                 pass
 
         # Construct the total mask from all of the various fill values
@@ -1874,14 +1879,14 @@ def gran_AOT(geoList,aotList,shrink=1):
             lats = ma.array(latArr,mask=totalMask.mask)
             lons = ma.array(lonArr,mask=totalMask.mask)
         except ma.core.MaskError :
-            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
             sys.exit(1)
 
     except Exception, err :
-        print ">> error: %s..." % (str(err))
+        LOG.debug(">> error: {}...".format(str(err)))
         sys.exit(1)
 
-    print "gran_AOT ModeGran = ",ModeGran
+    LOG.debug("gran_AOT ModeGran = ",ModeGran)
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
@@ -1906,10 +1911,10 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
     except :
         pass
 
-    print "Creating viirsAeroObj..."
+    LOG.debug("Creating viirsAeroObj...")
     reload(viirsAero)
     viirsAeroObj = viirsAero.viirsAero()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
@@ -1918,17 +1923,17 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
     # Build up the swath...
     for grans in np.arange(len(geoList)):
 
-        print "Ingesting EDR granule %d ..." % (grans)
+        LOG.debug("Ingesting EDR granule {} ...".format(grans))
 
         # Read in geolocation...
         ViirsGeoFileName = geoList[grans]
-        print "Geo file name: %s" % (ViirsGeoFileName)
+        LOG.debug("Geo file name: {}".format(ViirsGeoFileName))
 
         try :
             ViirsGeoFileObj = pytables.openFile(ViirsGeoFileName,mode='r')
-            print "Successfully opened geolocation file",ViirsGeoFileName
+            LOG.debug("Successfully opened geolocation file",ViirsGeoFileName)
         except IOError :
-            print ">> error: Could not open geolocation file: ",ViirsGeoFileName
+            LOG.debug(">> error: Could not open geolocation file: ",ViirsGeoFileName)
             sys.exit(1)
 
         # Detemine the geolocation group name and related information
@@ -1936,10 +1941,10 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
         group = ViirsGeoFileObj.getNode('/All_Data')
         geoGroupName = '/All_Data/'+group.__members__[0]
         group._g_close()
-        print "Geolocation Group : %s " % (geoGroupName)
+        LOG.debug("Geolocation Group : {} ".format(geoGroupName))
         isEdrGeo = ('VIIRS-Aeros-EDR-GEO_All' in geoGroupName)
         if not isEdrGeo :
-            print ">> error: %s is not an EDR resolution aerosol geolocation file\n\taborting..."  % (ViirsGeoFileName)
+            LOG.debug(">> error: {} is not an EDR resolution aerosol geolocation file\n\taborting...".format(ViirsGeoFileName))
             sys.exit(1)
 
         # Determine if this is a day/night/both granule
@@ -1947,46 +1952,46 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
             dataNode = ViirsGeoFileObj.getNode('/Data_Products/VIIRS-Aeros-EDR-GEO/VIIRS-Aeros-EDR-GEO_Gran_0')
             dayNightFlag = np.squeeze(dataNode.attrs['N_Day_Night_Flag'])
         except Exception, err :
-            print ">> error: %s..." % (str(err))
+            LOG.debug(">> error: {}...".format(str(err)))
             dataNode.close()
 
         # Get the geolocation Latitude and Longitude nodes...
         try :
             dataName = 'Latitude'
             geoLatNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-            print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLatNode.shape))
+            LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLatNode.shape)))
             dataName = 'Longitude'
             geoLonNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-            print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoLonNode.shape))
+            LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoLonNode.shape)))
             dataName = 'SolarZenithAngle'
             geoSzaNode = ViirsGeoFileObj.getNode(geoGroupName+'/'+dataName)
-            print "Shape of %s node is %s" % (geoGroupName+'/'+dataName,repr(geoSzaNode.shape))
+            LOG.debug("Shape of {} node is {}".format(geoGroupName+'/'+dataName,repr(geoSzaNode.shape)))
         except pyEx.NoSuchNodeError :
-            print "\n>> error: No required node %s/%s in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+            LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
             ViirsGeoFileObj.close()
             sys.exit(1)
 
         # Make a copy of the geolocation node data, so we can close the file
         try :
             dataName = 'Latitude'
-            print "Reading %s dataset..." % (dataName)
+            LOG.debug("Reading {} dataset...".format(dataName))
             latArr = np.vstack((latArr,geoLatNode[:,:]))
             geoLatNode.close()
             latArr = np.squeeze(latArr)
-            print "done"
+            LOG.debug("done")
             dataName = 'Longitude'
-            print "Reading %s dataset..." % (dataName)
+            LOG.debug("Reading {} dataset...".format(dataName))
             lonArr = np.vstack((lonArr,geoLonNode[:,:]))
             geoLonNode.close()
             lonArr = np.squeeze(lonArr)
-            print "done"
+            LOG.debug("done")
             dataName = 'SolarZenithAngle'
-            print "Reading %s dataset..." % (dataName)
+            LOG.debug("Reading {} dataset...".format(dataName))
             szaArr = np.vstack((szaArr,geoSzaNode[:,:]))
             geoSzaNode.close()
             szaArr = np.squeeze(szaArr)
-            print "done"
-            print "Closing geolocation file"
+            LOG.debug("done")
+            LOG.debug("Closing geolocation file")
             ViirsGeoFileObj.close()
         except NameError :
             latArr = geoLatNode[:,:]
@@ -1997,7 +2002,7 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
             geoSzaNode.close()
             ViirsGeoFileObj.close()
         #except :
-            #print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (geoGroupName,dataName,ViirsGeoFileName)
+            #LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(geoGroupName,dataName,ViirsGeoFileName))
             #geoLatNode.close()
             #geoLonNode.close()
             #geoSzaNode.close()
@@ -2015,24 +2020,24 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
                 ModeGran = 0
             if dayNightFlag=='Both':
                 ModeGran = 2
-            print "ModeGran = %d" % (ModeGran)
+            LOG.debug("ModeGran = {}".format(ModeGran))
         else :
             szaMask = ma.masked_less(szaArr,85.).mask
             dayFraction = float(szaMask.sum())/float(szaArr.size)
-            print "Day Fraction = %f" % (dayFraction)
+            LOG.debug("Day Fraction = {}".format(dayFraction))
             ModeGran = 2 # Default to a mixed day/night granule
             if dayFraction == 1.00 : ModeGran = 1
             if dayFraction == 0.00 : ModeGran = 0
-            print "ModeGran = %d" % (ModeGran)
+            LOG.debug("ModeGran = {}".format(ModeGran))
 
         # Read in dataSets...
         ViirsEDRFileName = aotList[grans]
 
         try :
             ViirsEDRFileObj = pytables.openFile(ViirsEDRFileName,mode='r')
-            print "Successfully opened edr file",ViirsEDRFileName
+            LOG.debug("Successfully opened edr file",ViirsEDRFileName)
         except IOError :
-            print ">> error: Could not open edr file: ",ViirsEDRFileName
+            LOG.debug(">> error: Could not open edr file: ",ViirsEDRFileName)
             sys.exit(1)
 
         # Detemine the edr group name and related information
@@ -2040,45 +2045,45 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
         group = ViirsEDRFileObj.getNode('/All_Data')
         edrGroupName = '/All_Data/'+group.__members__[0]
         group._g_close()
-        print "Edr Group : %s " % (edrGroupName)
+        LOG.debug("Edr Group : {} ".format(edrGroupName))
         isEdr = ('VIIRS-Aeros-EDR_All' in edrGroupName)
         if not isEdr :
-            print ">> error: %s is not an EDR resolution aerosol file\n\taborting..."  % (ViirsEDRFileName)
+            LOG.debug(">> error: {} is not an EDR resolution aerosol file\n\taborting...".format(ViirsEDRFileName))
             sys.exit(1)
 
         # Get the edr nodes...
         try :
             dataName = 'AerosolOpticalDepth_at_550nm'
             aot550Node = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-            print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(aot550Node.shape))
+            LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(aot550Node.shape)))
             dataName = 'AerosolOpticalDepthFactors'
             aotFactorsNode = ViirsEDRFileObj.getNode(edrGroupName+'/'+dataName)
-            print "Shape of %s node is %s" % (edrGroupName+'/'+dataName,repr(aotFactorsNode.shape))
+            LOG.debug("Shape of {} node is {}".format(edrGroupName+'/'+dataName,repr(aotFactorsNode.shape)))
         except pyEx.NoSuchNodeError :
-            print "\n>> error: No required node %s/%s in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+            LOG.debug("\n>> error: No required node {}/{} in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
             ViirsEDRFileObj.close()
             sys.exit(1)
 
         # Make a copy of the edr node data, so we can close the file
         try :
             dataName = 'AerosolOpticalDepth_at_550nm'
-            print "Reading %s dataset..." % (dataName)
+            LOG.debug("Reading {} dataset...".format(dataName))
             aot550 = np.vstack((aot550,aot550Node[:,:]))
             aot550 = np.squeeze(aot550)
             aot550Node.close()
-            print "done"
+            LOG.debug("done")
             dataName = 'AerosolOpticalDepthFactors'
-            print "Reading %s dataset..." % (dataName)
+            LOG.debug("Reading {} dataset...".format(dataName))
             aotFactors = aotFactorsNode[:]
             aotFactors = np.squeeze(aotFactors)
             aotFactorsNode.close()
-            print "done"
-            print "Closing edr file"
+            LOG.debug("done")
+            LOG.debug("Closing edr file")
             ViirsEDRFileObj.close()
 
-            print "Shape of aot550 is %s" % (repr(np.shape(aot550)))
-            print "Shape of latsArr is %s" % (repr(np.shape(latArr)))
-            print "Shape of lonsArr is %s" % (repr(np.shape(lonArr)))
+            LOG.debug("Shape of aot550 is {}".format(repr(np.shape(aot550))))
+            LOG.debug("Shape of latsArr is {}".format(repr(np.shape(latArr))))
+            LOG.debug("Shape of lonsArr is {}".format(repr(np.shape(lonArr))))
 
         except NameError :
             aot550 = aot550Node[:,:]
@@ -2088,13 +2093,13 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
             ViirsEDRFileObj.close()
 
         #except :
-            #print "\n>> error: Could not retrieve %/% node data in %s\n\taborting..." % (edrGroupName,dataName,ViirsEDRFileName)
+            #LOG.debug("\n>> error: Could not retrieve %/% node data in {}\n\taborting...".format(edrGroupName,dataName,ViirsEDRFileName))
             #aot550Node.close()
             #aotFactorsNode.close()
             #ViirsEDRFileObj.close()
             #sys.exit(1)
         
-        print "Creating some masks"
+        LOG.debug("Creating some masks")
         try :
             
             lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
@@ -2102,10 +2107,10 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
 
             badGeo = False
             if not (-90. <= lat_0 <= 90.) :
-                print "\n>> error: Latitude of granule midpoint (%f) does not satisfy (-90. <= lat_0 <= 90.)\nfor file %s\n\taborting..." % (lat_0,geoList[grans])
+                LOG.debug("\n>> error: Latitude of granule midpoint ({}) does not satisfy (-90. <= lat_0 <= 90.)\nfor file {}\n\taborting...".format(lat_0,geoList[grans]))
                 badGeo = True
             if not (-180. <= lat_0 <= 180.) :
-                print "\n>> error: Longitude of granule midpoint (%f) does not satisfy (-180. <= lon_0 <= 180.)\nfor file %s\n\taborting..." % (lon_0,geoList[grans])
+                LOG.debug("\n>> error: Longitude of granule midpoint ({}) does not satisfy (-180. <= lon_0 <= 180.)\nfor file {}\n\taborting...".format(lon_0,geoList[grans]))
                 badGeo = True
 
             if badGeo :
@@ -2126,7 +2131,7 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
                     if (aotFillMasks[fillType].__class__.__name__ != 'ndarray') :
                         aotFillMasks[fillType] = None
                 else :
-                    print "Dataset was neither int not float... a worry"
+                    LOG.debug("Dataset was neither int not float... a worry")
                     pass
 
             # Construct the total mask from all of the various fill values
@@ -2141,19 +2146,19 @@ def gran_AOT_EDR(geoList,aotList,shrink=1):
                 lats = ma.array(latArr,mask=totalMask.mask)
                 lons = ma.array(lonArr,mask=totalMask.mask)
             except ma.core.MaskError :
-                print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+                LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
                 sys.exit(1)
 
             data = data * aotFactors[0] + aotFactors[1]
 
         except :
-            print ">> error: There was an exception..."
+            LOG.debug(">> error: There was an exception...")
             sys.exit(1)
 
-    print "lat_0,lon_0 = %f,%f" % (lat_0,lon_0)
-    print "Shape of data is %s" % (repr(np.shape(data)))
-    print "Shape of lats is %s" % (repr(np.shape(lats)))
-    print "Shape of lons is %s" % (repr(np.shape(lons)))
+    LOG.debug("lat_0,lon_0 = {},{}".format(lat_0,lon_0))
+    LOG.debug("Shape of data is {}".format(repr(np.shape(data))))
+    LOG.debug("Shape of lats is {}".format(repr(np.shape(lats))))
+    LOG.debug("Shape of lons is {}".format(repr(np.shape(lons))))
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
@@ -2174,10 +2179,10 @@ def gran_SST(geoList,sstList,shrink=1):
     except :
         pass
 
-    print "Creating viirsSSTObj..."
+    LOG.debug("Creating viirsSSTObj...")
     reload(viirsSST)
     viirsSSTObj = viirsSST.viirsSST()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
@@ -2185,19 +2190,19 @@ def gran_SST(geoList,sstList,shrink=1):
     # Build up the swath...
     for grans in np.arange(len(geoList)):
 
-        print "\nIngesting granule %d ..." % (grans)
+        LOG.debug("\nIngesting granule {} ...".format(grans))
         retList = viirsSSTObj.ingest(geoList[grans],sstList[grans],'sst',shrink)
 
         try :
             latArr  = np.vstack((latArr,viirsSSTObj.Lat[:,:]))
             lonArr  = np.vstack((lonArr,viirsSSTObj.Lon[:,:]))
             ModeGran = viirsSSTObj.ModeGran
-            print "subsequent geo arrays..."
+            LOG.debug("subsequent geo arrays...")
         except NameError :
             latArr  = viirsSSTObj.Lat[:,:]
             lonArr  = viirsSSTObj.Lon[:,:]
             ModeGran = viirsSSTObj.ModeGran
-            print "first geo arrays..."
+            LOG.debug("first geo arrays...")
 
         try :
             sstArr  = np.vstack((sstArr ,viirsSSTObj.ViirsSSTprodSDS[:,:]))
@@ -2205,25 +2210,25 @@ def gran_SST(geoList,sstList,shrink=1):
             qf2Arr = np.vstack((qf2Arr,viirsSSTObj.ViirsSST_QF2[:,:]))
             qf3Arr = np.vstack((qf3Arr,viirsSSTObj.ViirsSST_QF3[:,:]))
             qf4Arr = np.vstack((qf4Arr,viirsSSTObj.ViirsSST_QF4[:,:]))
-            print "subsequent sst arrays..."
+            LOG.debug("subsequent sst arrays...")
         except NameError :
             sstArr  = viirsSSTObj.ViirsSSTprodSDS[:,:]
             qf1Arr = viirsSSTObj.ViirsSST_QF1[:,:]
             qf2Arr = viirsSSTObj.ViirsSST_QF2[:,:]
             qf3Arr = viirsSSTObj.ViirsSST_QF3[:,:]
             qf4Arr = viirsSSTObj.ViirsSST_QF4[:,:]
-            print "first sst arrays..."
+            LOG.debug("first sst arrays...")
 
-        print "Intermediate sstArr.shape = %s" % (str(sstArr.shape))
-        print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
-        print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
-        print "Intermediate qf3Arr.shape = %s" % (str(qf3Arr.shape))
-        print "Intermediate qf4Arr.shape = %s" % (str(qf4Arr.shape))
+        LOG.debug("Intermediate sstArr.shape = {}".format(str(sstArr.shape)))
+        LOG.debug("Intermediate qf1Arr.shape = {}".format(str(qf1Arr.shape)))
+        LOG.debug("Intermediate qf2Arr.shape = {}".format(str(qf2Arr.shape)))
+        LOG.debug("Intermediate qf3Arr.shape = {}".format(str(qf3Arr.shape)))
+        LOG.debug("Intermediate qf4Arr.shape = {}".format(str(qf4Arr.shape)))
 
     lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
     lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
 
-    print "lat_0,lon_0 = ",lat_0,lon_0
+    LOG.debug("lat_0,lon_0 = ",lat_0,lon_0)
 
     try :
         #Determine masks for each fill type, for the SST EDR
@@ -2239,7 +2244,7 @@ def gran_SST(geoList,sstList,shrink=1):
                 if (sstFillMasks[fillType].__class__.__name__ != 'ndarray') :
                     sstFillMasks[fillType] = None
             else :
-                print "Dataset was neither int not float... a worry"
+                LOG.debug("Dataset was neither int not float... a worry")
                 pass
 
         #Construct the total mask from all of the various fill values
@@ -2273,14 +2278,14 @@ def gran_SST(geoList,sstList,shrink=1):
             lats = ma.array(latArr,mask=totalMask)
             lons = ma.array(lonArr,mask=totalMask)
         except ma.core.MaskError :
-            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
             sys.exit(1)
 
     except Exception, err :
-        print ">> error: %s..." % (str(err))
+        LOG.debug(">> error: {}...".format(str(err)))
         sys.exit(1)
 
-    print "gran_SST ModeGran = ",ModeGran
+    LOG.debug("gran_SST ModeGran = ",ModeGran)
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
@@ -2293,7 +2298,7 @@ def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
     try :
         reload(viirsVI)
         reload(viirs_edr_data)
-        del(viirsNDVIObj)
+        del(viirsVIObj)
         del(latArr)
         del(lonArr)
         del(ndviArr)
@@ -2301,10 +2306,10 @@ def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
     except :
         pass
 
-    print "Creating viirsNDVIObj..."
+    LOG.debug("Creating viirsVIObj...")
     reload(viirsVI)
-    viirsNDVIObj = viirsVI.viirsVI()
-    print "done"
+    viirsVIObj = viirsVI.viirsVI()
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
@@ -2312,47 +2317,45 @@ def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
     # Build up the swath...
     for grans in np.arange(len(geoList)):
 
-        print "\nIngesting granule %d ..." % (grans)
-        retList = viirsNDVIObj.ingest(geoList[grans],ndviList[grans],prodName,shrink)
+        LOG.debug("\nIngesting granule {} ...".format(grans))
+        retList = viirsVIObj.ingest(geoList[grans],ndviList[grans],prodName,shrink)
 
         try :
-            latArr  = np.vstack((latArr,viirsNDVIObj.Lat[:,:]))
-            lonArr  = np.vstack((lonArr,viirsNDVIObj.Lon[:,:]))
-            ModeGran = viirsNDVIObj.ModeGran
-            print "subsequent geo arrays..."
+            latArr  = np.vstack((latArr,viirsVIObj.Lat[:,:]))
+            lonArr  = np.vstack((lonArr,viirsVIObj.Lon[:,:]))
+            ModeGran = viirsVIObj.ModeGran
+            LOG.debug("subsequent geo arrays...")
         except NameError :
-            latArr  = viirsNDVIObj.Lat[:,:]
-            lonArr  = viirsNDVIObj.Lon[:,:]
-            ModeGran = viirsNDVIObj.ModeGran
-            print "first geo arrays..."
+            latArr  = viirsVIObj.Lat[:,:]
+            lonArr  = viirsVIObj.Lon[:,:]
+            ModeGran = viirsVIObj.ModeGran
+            LOG.debug("first geo arrays...")
 
-        print "Intermediate latArr = %s" % (str(latArr.shape))
-        print "Intermediate lonArr = %s" % (str(lonArr.shape))
+        LOG.debug("Intermediate latArr = {}".format(str(latArr.shape)))
+        LOG.debug("Intermediate lonArr = {}".format(str(lonArr.shape)))
 
         try :
-            ndviArr  = np.vstack((ndviArr ,viirsNDVIObj.ViirsVIprodSDS[:,:]))
-            #qf1Arr = np.vstack((qf1Arr,viirsNDVIObj.ViirsNDVI_QF1[:,:]))
-            #qf2Arr = np.vstack((qf2Arr,viirsNDVIObj.ViirsNDVI_QF2[:,:]))
-            #qf3Arr = np.vstack((qf3Arr,viirsNDVIObj.ViirsNDVI_QF3[:,:]))
-            print "subsequent ndvi arrays..."
+            ndviArr  = np.vstack((ndviArr ,viirsVIObj.ViirsVIprodSDS[:,:]))
+            #qf1Arr = np.vstack((qf1Arr,viirsVIObj.ViirsVI_QF1[:,:]))
+            qf2Arr = np.vstack((qf2Arr,viirsVIObj.ViirsVI_QF2[:,:]))
+            #qf3Arr = np.vstack((qf3Arr,viirsVIObj.ViirsVI_QF3[:,:]))
+            LOG.debug("subsequent ndvi arrays...")
         except NameError :
-            ndviArr  = viirsNDVIObj.ViirsVIprodSDS[:,:]
-            #qf1Arr = viirsNDVIObj.ViirsNDVI_QF1[:,:]
-            #qf2Arr = viirsNDVIObj.ViirsNDVI_QF2[:,:]
-            #qf3Arr = viirsNDVIObj.ViirsNDVI_QF3[:,:]
-            #qf4Arr = viirsNDVIObj.ViirsNDVI_QF4[:,:]
-            print "first ndvi arrays..."
+            ndviArr  = viirsVIObj.ViirsVIprodSDS[:,:]
+            #qf1Arr = viirsVIObj.ViirsVI_QF1[:,:]
+            qf2Arr = viirsVIObj.ViirsVI_QF2[:,:]
+            #qf3Arr = viirsVIObj.ViirsVI_QF3[:,:]
+            LOG.debug("first ndvi arrays...")
 
-        print "Intermediate ndviArr.shape = %s" % (str(ndviArr.shape))
-        #print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
-        #print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
-        #print "Intermediate qf3Arr.shape = %s" % (str(qf3Arr.shape))
-        #print "Intermediate qf4Arr.shape = %s" % (str(qf4Arr.shape))
+        LOG.debug("Intermediate ndviArr.shape = {}".format(str(ndviArr.shape)))
+        #LOG.debug("Intermediate qf1Arr.shape = {}".format(str(qf1Arr.shape)))
+        LOG.debug("Intermediate qf2Arr.shape = {}".format(str(qf2Arr.shape)))
+        #LOG.debug("Intermediate qf3Arr.shape = {}".format(str(qf3Arr.shape)))
 
     lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
     lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
 
-    print "lat_0,lon_0 = ",lat_0,lon_0
+    LOG.debug("lat_0,lon_0 = ",lat_0,lon_0)
 
     try :
         #Determine masks for each fill type, for the NDVI EDR
@@ -2368,7 +2371,7 @@ def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
                 if (ndviFillMasks[fillType].__class__.__name__ != 'ndarray') :
                     ndviFillMasks[fillType] = None
             else :
-                print "Dataset was neither int not float... a worry"
+                LOG.debug("Dataset was neither int not float... a worry")
                 pass
 
         #Construct the total mask from all of the various fill values
@@ -2380,15 +2383,23 @@ def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
 
 
         # Unscale the NDVI dataset
-        ndviArr =  ndviArr * viirsNDVIObj.viFactors[0] + viirsNDVIObj.viFactors[1]
+        ndviArr =  ndviArr * viirsVIObj.viFactors[0] + viirsVIObj.viFactors[1]
 
         # Define some masks...
         #fillMask = ma.masked_less(ndviArr,-800.).mask
+        
+        VIlandWaterFlag = np.bitwise_and(qf2Arr[:,:],7) >> 0
+        VIlandWaterMask = ma.masked_greater(VIlandWaterFlag,1).mask
+
+        VIcldConfFlag = np.bitwise_and(qf2Arr[:,:],24) >> 3
+        VIcldConfMask = ma.masked_not_equal(VIcldConfFlag,0).mask
+
         #NDVIqualFlag = np.bitwise_and(qf1Arr,3) >> 0
         #ndviQualMask = ma.masked_equal(NDVIqualFlag,0).mask
 
         # Combine the fill mask and quality masks...
-        totalMask = fillMask.mask
+        #totalMask = fillMask.mask
+        totalMask = fillMask.mask + VIlandWaterMask + VIcldConfMask
         #totalMask = fillMask.mask + ndviQualMask
         #totalMask = np.zeros(ndviArr.shape,dtype=np.bool)
 
@@ -2397,16 +2408,16 @@ def gran_NDVI(geoList,ndviList,prodName='NDVI',shrink=1):
             lats = ma.array(latArr,mask=totalMask)
             lons = ma.array(lonArr,mask=totalMask)
         except ma.core.MaskError :
-            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
             traceback.print_exc(file=sys.stdout)
             sys.exit(1)
 
     except Exception, err :
-        print ">> error: %s..." % (str(err))
+        LOG.debug(">> error: {}...".format(str(err)))
         traceback.print_exc(file=sys.stdout)
         sys.exit(1)
 
-    print "gran_NDVI ModeGran = ",ModeGran
+    LOG.debug("gran_NDVI ModeGran = ",ModeGran)
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
@@ -2428,10 +2439,10 @@ def gran_ST(geoList,stList,shrink=1):
     except :
         pass
 
-    print "Creating viirsSTObj..."
+    LOG.debug("Creating viirsSTObj...")
     reload(viirsST)
     viirsSTObj = viirsST.viirsST()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
@@ -2439,39 +2450,39 @@ def gran_ST(geoList,stList,shrink=1):
     # Build up the swath...
     for grans in np.arange(len(geoList)):
 
-        print "\nIngesting granule %d ..." % (grans)
+        LOG.debug("\nIngesting granule {} ...".format(grans))
         retList = viirsSTObj.ingest(geoList[grans],stList[grans],'st',shrink)
 
         try :
             latArr  = np.vstack((latArr,viirsSTObj.Lat[:,:]))
             lonArr  = np.vstack((lonArr,viirsSTObj.Lon[:,:]))
             ModeGran = viirsSTObj.ModeGran
-            print "subsequent geo arrays..."
+            LOG.debug("subsequent geo arrays...")
         except NameError :
             latArr  = viirsSTObj.Lat[:,:]
             lonArr  = viirsSTObj.Lon[:,:]
             ModeGran = viirsSTObj.ModeGran
-            print "first geo arrays..."
+            LOG.debug("first geo arrays...")
 
         try :
             stArr  = np.vstack((stArr ,viirsSTObj.ViirsSTprodSDS[:,:]))
             qf1Arr = np.vstack((qf1Arr,viirsSTObj.ViirsST_QF1[:,:]))
             qf2Arr = np.vstack((qf2Arr,viirsSTObj.ViirsST_QF2[:,:]))
-            print "subsequent st arrays..."
+            LOG.debug("subsequent st arrays...")
         except NameError :
             stArr  = viirsSTObj.ViirsSTprodSDS[:,:]
             qf1Arr = viirsSTObj.ViirsST_QF1[:,:]
             qf2Arr = viirsSTObj.ViirsST_QF2[:,:]
-            print "first st arrays..."
+            LOG.debug("first st arrays...")
 
-        print "Intermediate stArr.shape = %s" % (str(stArr.shape))
-        print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
-        print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
+        LOG.debug("Intermediate stArr.shape = {}".format(str(stArr.shape)))
+        LOG.debug("Intermediate qf1Arr.shape = {}".format(str(qf1Arr.shape)))
+        LOG.debug("Intermediate qf2Arr.shape = {}".format(str(qf2Arr.shape)))
 
     lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
     lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
 
-    print "lat_0,lon_0 = ",lat_0,lon_0
+    LOG.debug("lat_0,lon_0 = ",lat_0,lon_0)
 
     try :
         #Determine masks for each fill type, for the ST EDR
@@ -2487,7 +2498,7 @@ def gran_ST(geoList,stList,shrink=1):
                 if (stFillMasks[fillType].__class__.__name__ != 'ndarray') :
                     stFillMasks[fillType] = None
             else :
-                print "Dataset was neither int not float... a worry"
+                LOG.debug("Dataset was neither int not float... a worry")
                 pass
 
         #Construct the total mask from all of the various fill values
@@ -2505,22 +2516,22 @@ def gran_ST(geoList,stList,shrink=1):
             lats = ma.array(latArr,mask=totalMask)
             lons = ma.array(lonArr,mask=totalMask)
         except ma.core.MaskError :
-            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
             sys.exit(1)
 
     except Exception, err :
-        print ">> error: %s..." % (str(err))
+        LOG.debug(">> error: {}...".format(str(err)))
         sys.exit(1)
 
-    print "gran_ST ModeGran = ",ModeGran
+    LOG.debug("gran_ST ModeGran = ",ModeGran)
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
 
-    print "lat_0,lon_0 = %f,%f" % (lat_0,lon_0)
-    print "Shape of data is %s" % (repr(np.shape(data)))
-    print "Shape of lats is %s" % (repr(np.shape(lats)))
-    print "Shape of lons is %s" % (repr(np.shape(lons)))
+    LOG.debug("lat_0,lon_0 = {},{}".format(lat_0,lon_0))
+    LOG.debug("Shape of data is {}".format(repr(np.shape(data))))
+    LOG.debug("Shape of lats is {}".format(repr(np.shape(lats))))
+    LOG.debug("Shape of lons is {}".format(repr(np.shape(lons))))
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
@@ -2541,10 +2552,10 @@ def gran_LST(geoList,lstList,shrink=1):
     except :
         pass
 
-    print "Creating viirsLSTObj..."
+    LOG.debug("Creating viirsLSTObj...")
     reload(viirsLST)
     viirsLSTObj = viirsLST.viirsLST()
-    print "done"
+    LOG.debug("done")
 
     # Determine the correct fillValue
     trimObj = ViirsTrimTable()
@@ -2552,42 +2563,42 @@ def gran_LST(geoList,lstList,shrink=1):
     # Build up the swath...
     for grans in np.arange(len(geoList)):
 
-        print "\nIngesting granule %d ..." % (grans)
+        LOG.debug("\nIngesting granule {} ...".format(grans))
         retList = viirsLSTObj.ingest(geoList[grans],lstList[grans],'lst',shrink)
 
         try :
             latArr  = np.vstack((latArr,viirsLSTObj.Lat[:,:]))
             lonArr  = np.vstack((lonArr,viirsLSTObj.Lon[:,:]))
             ModeGran = viirsLSTObj.ModeGran
-            print "subsequent geo arrays..."
+            LOG.debug("subsequent geo arrays...")
         except NameError :
             latArr  = viirsLSTObj.Lat[:,:]
             lonArr  = viirsLSTObj.Lon[:,:]
             ModeGran = viirsLSTObj.ModeGran
-            print "first geo arrays..."
+            LOG.debug("first geo arrays...")
 
         try :
             lstArr  = np.vstack((lstArr ,viirsLSTObj.ViirsLSTprodSDS[:,:]))
             qf1Arr = np.vstack((qf1Arr,viirsLSTObj.ViirsLST_QF1[:,:]))
             qf2Arr = np.vstack((qf2Arr,viirsLSTObj.ViirsLST_QF2[:,:]))
             #qf3Arr = np.vstack((qf3Arr,viirsLSTObj.ViirsLST_QF3[:,:]))
-            print "subsequent lst arrays..."
+            LOG.debug("subsequent lst arrays...")
         except NameError :
             lstArr  = viirsLSTObj.ViirsLSTprodSDS[:,:]
             qf1Arr = viirsLSTObj.ViirsLST_QF1[:,:]
             qf2Arr = viirsLSTObj.ViirsLST_QF2[:,:]
             #qf3Arr = viirsLSTObj.ViirsLST_QF3[:,:]
-            print "first lst arrays..."
+            LOG.debug("first lst arrays...")
 
-        print "Intermediate lstArr.shape = %s" % (str(lstArr.shape))
-        print "Intermediate qf1Arr.shape = %s" % (str(qf1Arr.shape))
-        print "Intermediate qf2Arr.shape = %s" % (str(qf2Arr.shape))
-        #print "Intermediate qf3Arr.shape = %s" % (str(qf3Arr.shape))
+        LOG.debug("Intermediate lstArr.shape = {}".format(str(lstArr.shape)))
+        LOG.debug("Intermediate qf1Arr.shape = {}".format(str(qf1Arr.shape)))
+        LOG.debug("Intermediate qf2Arr.shape = {}".format(str(qf2Arr.shape)))
+        #LOG.debug("Intermediate qf3Arr.shape = {}".format(str(qf3Arr.shape)))
 
     lat_0 = latArr[np.shape(latArr)[0]/2,np.shape(latArr)[1]/2]
     lon_0 = lonArr[np.shape(lonArr)[0]/2,np.shape(lonArr)[1]/2]
 
-    print "lat_0,lon_0 = ",lat_0,lon_0
+    LOG.debug("lat_0,lon_0 = ",lat_0,lon_0)
 
     try :
         #Determine masks for each fill type, for the LST EDR
@@ -2603,7 +2614,7 @@ def gran_LST(geoList,lstList,shrink=1):
                 if (lstFillMasks[fillType].__class__.__name__ != 'ndarray') :
                     lstFillMasks[fillType] = None
             else :
-                print "Dataset was neither int not float... a worry"
+                LOG.debug("Dataset was neither int not float... a worry")
                 pass
 
         #Construct the total mask from all of the various fill values
@@ -2633,14 +2644,14 @@ def gran_LST(geoList,lstList,shrink=1):
             lats = ma.array(latArr,mask=totalMask)
             lons = ma.array(lonArr,mask=totalMask)
         except ma.core.MaskError :
-            print ">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting..."
+            LOG.debug(">> error: Mask Error, probably mismatched geolocation and product array sizes, aborting...")
             sys.exit(1)
 
     except Exception, err :
-        print ">> error: %s..." % (str(err))
+        LOG.debug(">> error: {}...".format(str(err)))
         sys.exit(1)
 
-    print "gran_LST ModeGran = ",ModeGran
+    LOG.debug("gran_LST ModeGran = ",ModeGran)
 
     return lats,lons,data,lat_0,lon_0,ModeGran
 
@@ -2663,7 +2674,7 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scatte
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon)[0]==0) :
-        print "We have no valid data, synthesising dummy data..."
+        LOG.debug("We have no valid data, synthesising dummy data...")
         gridLat = np.array([lat_0,lat_0])
         gridLon = np.array([lon_0,lon_0])
         gridData = np.array([vmin,vmax])
@@ -2677,15 +2688,15 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scatte
     cmap = ListedColormap(viirs_edr_data.CloudMaskData.ViirsCMfillColours[cmByte][cmBit])
     numCats = np.array(viirs_edr_data.CloudMaskData.ViirsCMfillColours[cmByte][cmBit]).size
     numBounds = numCats + 1
-    print "Number of Categories: %d" %(numCats)
-    print "Number of Boundaries: %d" %(numBounds)
+    LOG.debug("Number of Categories: {}".format(numCats))
+    LOG.debug("Number of Boundaries: {}".format(numBounds))
 
     # The tick positions in colourbar ([0..1]) coordinates
     viirs_edr_data.CloudMaskData.ViirsCMTickPos = np.arange(float(numBounds))/float(numCats)
     viirs_edr_data.CloudMaskData.ViirsCMTickPos = viirs_edr_data.CloudMaskData.ViirsCMTickPos[0 :-1] + \
         viirs_edr_data.CloudMaskData.ViirsCMTickPos[1]/2.
 
-    print "viirs_edr_data.CloudMaskData.ViirsCMTickPos: %r" %(viirs_edr_data.CloudMaskData.ViirsCMTickPos)
+    LOG.debug("viirs_edr_data.CloudMaskData.ViirsCMTickPos: {}".format(viirs_edr_data.CloudMaskData.ViirsCMTickPos))
 
     # Create figure with default size, and create canvas to draw on
     fig = Figure(figsize=((figWidth,figHeight)))
@@ -2759,8 +2770,8 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scatte
     #tickPos = [1.,2.,3.,4.]
     #tickLabels = ['1.','2.','3.','4.']
 
-    print "tickPos: %r" %(tickPos)
-    print "tickLabels: %r" %(tickLabels)
+    LOG.debug("tickPos: {}".format(tickPos))
+    LOG.debug("tickLabels: {}".format(tickLabels))
 
     # Old style...
     #ppl.setp(cax,xticks=tickPos)
@@ -2789,7 +2800,7 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scatte
     # so the data points are visible on the global plot
     pointSize = 0.2
     if (np.shape(gridLon)[0]==2) :
-        print "We have no valid data, synthesising dummy data..."
+        LOG.debug("We have no valid data, synthesising dummy data...")
         pointSize = 5.
 
     x,y=m_globe(np.array(gridLon),np.array(gridLat))
@@ -2809,7 +2820,7 @@ def orthoPlot_VCM(gridLat,gridLon,gridData,lat_0=0.,lon_0=0.,pointSize=1.,scatte
     canvas.draw()
 
     # save image 
-    print "Writing file to ",outFileName
+    LOG.debug("Writing file to ",outFileName)
     canvas.print_figure(outFileName,dpi=dpi)
 
 
@@ -2824,13 +2835,13 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     reload(viirs_edr_data)
 
     # The plot range...
-    print "vmin,vmax = ",vmin,vmax 
+    LOG.debug("vmin,vmax = ",vmin,vmax)
 
     # If we have a zero size data array, make a dummy dataset
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon)[0]==0) :
-        print "We have no valid data, synthesising dummy data..."
+        LOG.debug("We have no valid data, synthesising dummy data...")
         gridLat = np.array([lat_0,lat_0])
         gridLon = np.array([lon_0,lon_0])
         gridData = np.array([0.,1.])
@@ -2889,9 +2900,9 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     else:
         cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
-    print "orthoPlot_AOT ModeGran = ",ModeGran
+    LOG.debug("orthoPlot_AOT ModeGran = ",ModeGran)
     if (ModeGran == 0) :
-        print "Printing NIGHT text"
+        LOG.debug("Printing NIGHT text")
         fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
 
     # add a colorbar axis
@@ -2940,7 +2951,7 @@ def orthoPlot_AOT(gridLat,gridLon,gridData,ModeGran, \
     canvas.draw()
 
     # save image 
-    print "Writing file to ",outFileName
+    LOG.debug("Writing file to ",outFileName)
     canvas.print_figure(outFileName,dpi=dpi)
 
 
@@ -2957,13 +2968,13 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
     cmap = SeaSurfaceTempProduct.cmap
 
     # The plot range...
-    print "vmin,vmax = ",vmin,vmax 
+    LOG.debug("vmin,vmax = ",vmin,vmax )
 
     # If we have a zero size data array, make a dummy dataset
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon)[0]==0) :
-        print "We have no valid data, synthesising dummy data..."
+        LOG.debug("We have no valid data, synthesising dummy data...")
         gridLat = np.array([lat_0,lat_0])
         gridLon = np.array([lon_0,lon_0])
         gridData = np.array([0.,1.])
@@ -3022,9 +3033,9 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
     else:
         cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
-    print "orthoPlot_SST ModeGran = ",ModeGran
+    LOG.debug("orthoPlot_SST ModeGran = ",ModeGran)
     #if (ModeGran == 0) :
-        #print "Printing NIGHT text"
+        #LOG.debug("Printing NIGHT text")
         #fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
 
     # add a colorbar axis
@@ -3073,7 +3084,7 @@ def orthoPlot_SST(gridLat,gridLon,gridData,ModeGran, \
     canvas.draw()
 
     # save image 
-    print "Writing file to ",outFileName
+    LOG.debug("Writing file to ",outFileName)
     canvas.print_figure(outFileName,dpi=dpi)
 
 
@@ -3090,13 +3101,13 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     cmap = VegetationIndexProduct.cmap
 
     # The plot range...
-    print "vmin,vmax = ",vmin,vmax 
+    LOG.debug("vmin,vmax = ",vmin,vmax )
 
     # If we have a zero size data array, make a dummy dataset
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon)[0]==0) :
-        print "We have no valid data, synthesising dummy data..."
+        LOG.debug("We have no valid data, synthesising dummy data...")
         gridLat = np.array([lat_0,lat_0])
         gridLon = np.array([lon_0,lon_0])
         gridData = np.array([0.,1.])
@@ -3155,9 +3166,9 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     else:
         cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
-    print "orthoPlot_NDVI ModeGran = ",ModeGran
+    LOG.debug("orthoPlot_NDVI ModeGran = ",ModeGran)
     if (ModeGran == 0) :
-        print "Printing NIGHT text"
+        LOG.debug("Printing NIGHT text")
         fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
 
     # add a colorbar axis
@@ -3206,30 +3217,30 @@ def orthoPlot_NDVI(gridLat,gridLon,gridData,ModeGran, \
     canvas.draw()
 
     # save image 
-    print "Writing file to ",outFileName
+    LOG.debug("Writing file to ",outFileName)
     canvas.print_figure(outFileName,dpi=dpi)
 
 
 def orthoPlot_LST(gridLat,gridLon,gridData,ModeGran, \
         vmin=270.,vmax=320.,scale=1.3, \
         lat_0=0.,lon_0=0.,pointSize=1.,scatterPlot=False,mapRes='c',cmap=None, \
-        prodFileName='',outFileName='VSSTO.png',dpi=300,titleStr='VIIRS SST EDR'):
+        prodFileName='',outFileName='VSSTO.png',dpi=300,titleStr='VIIRS LST EDR'):
     '''
-    Plots the VIIRS Sea Surface Temperature on an orthographic projection
+    Plots the VIIRS Land Surface Temperature on an orthographic projection
     '''
 
     reload(viirs_edr_data)
-    SeaSurfaceTempProduct = viirs_edr_data.SeaSurfaceTempProdData.SeaSurfaceTempProd()
-    cmap = SeaSurfaceTempProduct.cmap
+    LandSurfaceTempProduct = viirs_edr_data.LandSurfaceTempProdData.LandSurfaceTempProd()
+    cmap = LandSurfaceTempProduct.cmap
 
     # The plot range...
-    print "vmin,vmax = ",vmin,vmax 
+    LOG.debug("vmin,vmax = ",vmin,vmax )
 
     # If we have a zero size data array, make a dummy dataset
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon)[0]==0) :
-        print "We have no valid data, synthesising dummy data..."
+        LOG.debug("We have no valid data, synthesising dummy data...")
         gridLat = np.array([lat_0,lat_0])
         gridLon = np.array([lon_0,lon_0])
         gridData = np.array([0.,1.])
@@ -3288,9 +3299,9 @@ def orthoPlot_LST(gridLat,gridLon,gridData,ModeGran, \
     else:
         cs = m.pcolor(x,y,gridData,axes=ax,edgecolors='none',vmin=vmin,vmax=vmax,cmap=cmap,antialiased=False)
 
-    print "orthoPlot_LST ModeGran = ",ModeGran
+    LOG.debug("orthoPlot_LST ModeGran = ",ModeGran)
     #if (ModeGran == 0) :
-        #print "Printing NIGHT text"
+        #LOG.debug("Printing NIGHT text")
         #fig.text(0.5, 0.555, 'NIGHT',fontsize=30, color='white',ha='center',va='center',alpha=0.6)
 
     # add a colorbar axis
@@ -3302,7 +3313,7 @@ def orthoPlot_LST(gridLat,gridLon,gridData,ModeGran, \
     ppl.setp(cax.get_xticklabels(),fontsize=9)
 
     # Colourbar title
-    cax_title = ppl.setp(cax,title="Sea Surface Temperature ($\mathrm{K}$)")
+    cax_title = ppl.setp(cax,title="Land Surface Temperature ($\mathrm{K}$)")
     ppl.setp(cax_title,fontsize=9)
 
     #
@@ -3339,7 +3350,7 @@ def orthoPlot_LST(gridLat,gridLon,gridData,ModeGran, \
     canvas.draw()
 
     # save image 
-    print "Writing file to ",outFileName
+    LOG.debug("Writing file to ",outFileName)
     canvas.print_figure(outFileName,dpi=dpi)
 
 
@@ -3377,7 +3388,7 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon_water)[0]==0) :
-        print "We have no valid water data, synthesising dummy data..."
+        LOG.debug("We have no valid water data, synthesising dummy data...")
         gridLat_water = np.array([lat_0,lat_0])
         gridLon_water = np.array([lon_0,lon_0])
         gridData_water = np.array([CloudProduct.vmin_water,CloudProduct.vmax_water])
@@ -3395,7 +3406,7 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon_ice)[0]==0) :
-        print "We have no valid ice data, synthesising dummy data..."
+        LOG.debug("We have no valid ice data, synthesising dummy data...")
         gridLat_ice = np.array([lat_0,lat_0])
         gridLon_ice = np.array([lon_0,lon_0])
         gridData_ice = np.array([CloudProduct.vmin_ice,CloudProduct.vmax_ice])
@@ -3403,10 +3414,10 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
 
     # Make logarithmic if appropriate
     if(CloudProduct.logScale):
-        print "Log scaling the dataset..."
+        LOG.debug("Log scaling the dataset...")
         gridData_water = np.log10(gridData_water)
         gridData_ice = np.log10(gridData_ice)
-        print "Finished log scaling the dataset..."
+        LOG.debug("Finished log scaling the dataset...")
 
     vmin_water = CloudProduct.vmin_water
     vmax_water = CloudProduct.vmax_water
@@ -3478,7 +3489,7 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     # Add the water colorbar axis
     cax_water = fig.add_axes(rect_cbar_water,frameon=False) # setup colorbar axes
     if(CloudProduct.logScale):
-        print "vmin_water,vmax_water = ",vmin_water,vmax_water
+        LOG.debug("vmin_water,vmax_water = ",vmin_water,vmax_water)
         cIndices = np.arange(-10,10)
         minIndex = cIndices[np.where(cIndices <= vmin_water)][-1]
         maxIndex = cIndices[np.where(cIndices >= vmax_water)][0]
@@ -3524,7 +3535,7 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     # If we previously had a zero size data array, increase the pointSize
     # so the data points are visible on the global plot
     if (np.shape(gridLon)[0]==0) :
-        print "We have no valid data, synthesising dummy data..."
+        LOG.debug("We have no valid data, synthesising dummy data...")
         gridLat = np.array([lat_0,lat_0])
         gridLon = np.array([lon_0,lon_0])
         pointSize = 5.
@@ -3546,7 +3557,7 @@ def orthoPlot_COP(gridLat,gridLon,gridData,gridPhase,dataSet, \
     canvas.draw()
 
     # save image 
-    print "Writing file to ",outFileName
+    LOG.debug("Writing file to ",outFileName)
     canvas.print_figure(outFileName,dpi=dpi)
 
 def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
@@ -3579,7 +3590,7 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon_water)[0]==0) :
-        print "We have no valid water data, synthesising dummy data..."
+        LOG.debug("We have no valid water data, synthesising dummy data...")
         gridLat_water = np.array([lat_0,lat_0])
         gridLon_water = np.array([lon_0,lon_0])
         gridData_water = np.array([CloudProduct.vmin_water,CloudProduct.vmax_water])
@@ -3597,7 +3608,7 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
     # to span the allowed data range, which will be plotted with 
     # vanishing pointsize
     if (np.shape(gridLon_ice)[0]==0) :
-        print "We have no valid ice data, synthesising dummy data..."
+        LOG.debug("We have no valid ice data, synthesising dummy data...")
         gridLat_ice = np.array([lat_0,lat_0])
         gridLon_ice = np.array([lon_0,lon_0])
         gridData_ice = np.array([CloudProduct.vmin_ice,CloudProduct.vmax_ice])
@@ -3605,10 +3616,10 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
 
     # Make logarithmic if appropriate
     if(CloudProduct.logScale):
-        print "Log scaling the dataset..."
+        LOG.debug("Log scaling the dataset...")
         gridData_water = np.log10(gridData_water)
         gridData_ice = np.log10(gridData_ice)
-        print "Finished log scaling the dataset..."
+        LOG.debug("Finished log scaling the dataset...")
 
     vmin_water = CloudProduct.vmin_water
     vmax_water = CloudProduct.vmax_water
@@ -3707,7 +3718,7 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
     # If we previously had a zero size data array, increase the pointSize
     # so the data points are visible on the global plot
     if (np.shape(gridLon)[0]==0) :
-        print "We have no valid data, synthesising dummy data..."
+        LOG.debug("We have no valid data, synthesising dummy data...")
         gridLat = np.array([lat_0,lat_0])
         gridLon = np.array([lon_0,lon_0])
         pointSize = 5.
@@ -3729,7 +3740,7 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
     canvas.draw()
 
     # save image 
-    print "Writing file to ",outFileName
+    LOG.debug("Writing file to ",outFileName)
     canvas.print_figure(outFileName,dpi=dpi)
 
 ###################################################
@@ -3738,7 +3749,6 @@ def orthoPlot_CTp(gridLat,gridLon,gridData,gridPhase,dataSet,lat_0=0.,lon_0=0.,\
 
 def main():
 
-    #prodChoices=['VCM','VCP','COT','COT_EDR','EPS','EPS_EDR','CTT','CTT_EDR','CTH','CTH_EDR','CTP','CTP_EDR','AOT','AOT_EDR','SST_EDR','SDR']
     prodChoices=['VCM','VCP','AOT','AOT_EDR','SST_EDR','NDVI','EVI','LST']
     mapRes = ['c','l','i']
 
@@ -3856,6 +3866,7 @@ def main():
                       #default='',
                       type="string",
                       help="The map legend describing the dataset being shown. [default: IPPROD]")
+
     optionalGroup.add_option('-o','--output_file',
                       action="store",
                       dest="outputFile",
@@ -3863,10 +3874,25 @@ def main():
                       type="string",
                       help="The full path of the output png file. [default: %default]")
 
+    optionalGroup.add_option('-v', '--verbose',
+                      dest='verbosity',
+                      action="count",
+                      default=2,
+                      help="""each occurrence increases verbosity 1 level from 
+                      ERROR: -v=WARNING -vv=INFO -vvv=DEBUG""")
+
     parser.add_option_group(optionalGroup)
 
     # Parse the arguments from the command line
     (options, args) = parser.parse_args()
+
+    # Set up the logging
+    console_logFormat = '%(asctime)s : (%(levelname)s):%(filename)s:%(funcName)s:%(lineno)d:  %(message)s'
+    dateFormat = '%Y-%m-%d %H:%M:%S'
+    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+    logging.basicConfig(level = levels[options.verbosity], 
+            format = console_logFormat, 
+            datefmt = dateFormat)
 
     # Copy the Product name to the map annotation
     if options.mapAnn == None :
@@ -3886,7 +3912,7 @@ def main():
     for m,m_err in zip(mandatories,mand_errors):
         if not options.__dict__[m]:
             isMissingMand = True
-            print m_err
+            LOG.debug("{}".format(m_err))
     if isMissingMand :
         parser.error("Incomplete mandatory arguments, aborting...")
 
@@ -3937,7 +3963,7 @@ def main():
     # Call the granulation and plotting routine for the desired product...
 
     if options.ipProd == 'VCM' or options.ipProd == 'VCP' in options.ipProd:
-        print "Calling VCM ingester..."
+        LOG.debug("Calling VCM ingester...")
         stride = stride_IP if options.stride==None else options.stride
         if 'VCM' in options.ipProd :
             set_vcm_dset(0,1)
@@ -3949,14 +3975,14 @@ def main():
         lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
         lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
 
-        print "Calling VCM plotter..."
+        LOG.debug("Calling VCM plotter...")
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_VCM(lats,lons,vcmData,lat_0=lat_0,lon_0=lon_0,\
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     if options.ipProd == 'AOT_EDR' :
-        print "Calling AOT EDR ingester..."
+        LOG.debug("Calling AOT EDR ingester...")
         stride = stride_EDR if options.stride==None else options.stride
         vmin = 0.0 if (vmin==None) else vmin
         vmax = 1.0   if (vmax==None) else vmax
@@ -3966,14 +3992,14 @@ def main():
         lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
         lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
 
-        print "Calling AOT plotter..."
+        LOG.debug("Calling AOT plotter...")
         pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         orthoPlot_AOT(lats,lons,aotData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax,\
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     elif options.ipProd == 'AOT' :
-        print "Calling AOT ingester..."
+        LOG.debug("Calling AOT ingester...")
         stride = stride_IP if options.stride==None else options.stride
         vmin = 0.0 if (vmin==None) else vmin
         vmax = 1.0   if (vmax==None) else vmax
@@ -3983,14 +4009,14 @@ def main():
         lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
         lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
 
-        print "Calling AOT plotter..."
+        LOG.debug("Calling AOT plotter...")
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_AOT(lats,lons,aotData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=cloud_cmap, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     elif options.ipProd == 'SST_EDR' :
-        print "Calling SST_EDR ingester..."
+        LOG.debug("Calling SST_EDR ingester...")
         stride = stride_IP if options.stride==None else options.stride
 
         vmin = 271. if (vmin==None) else vmin
@@ -4001,14 +4027,14 @@ def main():
         lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
         lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
 
-        print "Calling SST plotter..."
+        LOG.debug("Calling SST plotter...")
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_SST(lats,lons,sstData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     elif options.ipProd == 'NDVI'  or options.ipProd == 'EVI':
-        print "Calling NDVI ingester..."
+        LOG.debug("Calling NDVI ingester...")
         stride = stride_IP if options.stride==None else options.stride
         ipProd = options.ipProd
 
@@ -4025,14 +4051,14 @@ def main():
         if ipProd == 'EVI':
             mapAnn = 'TOC EVI'
 
-        print "Calling NDVI plotter..."
+        LOG.debug("Calling NDVI plotter...")
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_NDVI(lats,lons,ndviData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=mapAnn)
 
     elif options.ipProd == 'ST':
-        print "Calling ST ingester..."
+        LOG.debug("Calling ST ingester...")
         stride = stride_IP if options.stride==None else options.stride
 
         vmin = 0 if (vmin==None) else vmin
@@ -4043,14 +4069,14 @@ def main():
         lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
         lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
 
-        print "Calling SST plotter..."
+        LOG.debug("Calling SST plotter...")
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_ST(lats,lons,sstData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
             prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     elif options.ipProd == 'LST' :
-        print "Calling LST ingester..."
+        LOG.debug("Calling LST ingester...")
         stride = stride_IP if options.stride==None else options.stride
 
         vmin = 271. if (vmin==None) else vmin
@@ -4061,7 +4087,7 @@ def main():
         lat_0 = options.lat_0 if (options.lat_0 is not None) else gran_lat_0 
         lon_0 = options.lon_0 if (options.lon_0 is not None) else gran_lon_0 
 
-        print "Calling LST plotter..."
+        LOG.debug("Calling LST plotter...")
         pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         orthoPlot_LST(lats,lons,lstData,ModeGran,lat_0=lat_0,lon_0=lon_0,vmin=vmin,vmax=vmax, \
             pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,cmap=None, \
@@ -4069,83 +4095,83 @@ def main():
 
 
     #if 'COT_EDR' in options.ipProd :
-        #print "Calling COT EDR ingester..."
+        #LOG.debug("Calling COT EDR ingester...")
         #stride = stride_EDR if options.stride==None else options.stride
         #lats,lons,cotData,cotPhase,lat_0,lon_0 = gran_COT_EDR([options.geoFile],[options.ipFile],shrink=stride)
         #dset=string.split(dataSet,'_')[0]
-        #print "Calling COT plotter...",dset
+        #LOG.debug("Calling COT plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_COP(lats,lons,cotData,cotPhase,dset,lat_0=lat_0,lon_0=lon_0,\
             #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'EPS_EDR' in options.ipProd :
-        #print "Calling EPS EDR ingester..."
+        #LOG.debug("Calling EPS EDR ingester...")
         #stride = stride_EDR if options.stride==None else options.stride
         #lats,lons,epsData,epsPhase,lat_0,lon_0 = gran_EPS_EDR([options.geoFile],[options.ipFile],shrink=stride)
         #dset=string.split(dataSet,'_')[0]
-        #print "Calling EPS plotter...",dset
+        #LOG.debug("Calling EPS plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_COP(lats,lons,epsData,epsPhase,dset,lat_0=lat_0,lon_0=lon_0,\
             #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'COT' in options.ipProd or 'EPS' in options.ipProd :
-        #print "Calling COP ingester..."
+        #LOG.debug("Calling COP ingester...")
         #stride = stride_IP if options.stride==None else options.stride
         #lats,lons,copData,copPhase,lat_0,lon_0 = gran_COP([options.geoFile],[options.ipFile],\
             #dataSet,shrink=stride)
-        #print "Calling COP plotter..."
+        #LOG.debug("Calling COP plotter...")
         #pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         #orthoPlot_COP(lats,lons,copData,copPhase,dataSet,lat_0=lat_0,lon_0=lon_0,\
             #abScale='log',pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #if 'CTT_EDR' in options.ipProd :
-        #print "Calling CTT EDR ingester..."
+        #LOG.debug("Calling CTT EDR ingester...")
         #stride = stride_EDR if options.stride==None else options.stride
         #lats,lons,cttData,cttPhase,lat_0,lon_0 = gran_CTT_EDR([options.geoFile],[options.ipFile],shrink=stride)
         #dset=string.split(dataSet,'_')[0]
-        #print "Calling CTT plotter...",dset
+        #LOG.debug("Calling CTT plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_CTp(lats,lons,cttData,cttPhase,dset,lat_0=lat_0,lon_0=lon_0,\
             #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'CTP_EDR' in options.ipProd :
-        #print "Calling CTP EDR ingester..."
+        #LOG.debug("Calling CTP EDR ingester...")
         #stride = stride_EDR if options.stride==None else options.stride
         #lats,lons,ctpData,ctpPhase,lat_0,lon_0 = gran_CTP_EDR([options.geoFile],[options.ipFile],shrink=stride)
         #dset=string.split(dataSet,'_')[0]
-        #print "Calling CTP plotter...",dset
+        #LOG.debug("Calling CTP plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_CTp(lats,lons,ctpData,ctpPhase,dset,lat_0=lat_0,lon_0=lon_0,\
             #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'CTH_EDR' in options.ipProd :
-        #print "Calling CTH EDR ingester..."
+        #LOG.debug("Calling CTH EDR ingester...")
         #stride = stride_EDR if options.stride==None else options.stride
         #lats,lons,cthData,cthPhase,lat_0,lon_0 = gran_CTH_EDR([options.geoFile],[options.ipFile],shrink=stride)
         #dset=string.split(dataSet,'_')[0]
-        #print "Calling CTH plotter...",dset
+        #LOG.debug("Calling CTH plotter...",dset
         #pointSize = pointSize_EDR if options.pointSize==None else options.pointSize
         #orthoPlot_CTp(lats,lons,cthData,cthPhase,dset,lat_0=lat_0,lon_0=lon_0,\
             #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
     #elif 'CTT' in options.ipProd or 'CTP' in options.ipProd or 'CTH' in options.ipProd :
-        #print "Calling CTp ingester..."
+        #LOG.debug("Calling CTp ingester...")
         #stride = stride_IP if options.stride==None else options.stride
         #lats,lons,ctpData,ctpPhase,lat_0,lon_0 = gran_CTp([options.geoFile],[options.ipFile],\
             #dataSet,shrink=stride)
-        #print "Calling CTp plotter..."
+        #LOG.debug("Calling CTp plotter...")
         #pointSize = pointSize_IP if options.pointSize==None else options.pointSize
         #orthoPlot_CTp(lats,lons,ctpData,ctpPhase,dataSet,lat_0=lat_0,lon_0=lon_0,\
             #pointSize=pointSize,scatterPlot=doScatterPlot,scale=options.scale,mapRes=mapRes,\
             #prodFileName=prodFileName,outFileName=options.outputFile,dpi=options.dpi,titleStr=options.mapAnn)
 
-    print "Exiting..."
+    LOG.debug("Exiting...")
     sys.exit(0)
 
 if __name__ == '__main__':

@@ -37,7 +37,10 @@ OUTPUT_FILE_OPT=
 
 #echo $@
 
-OPTS=`getopt -o "g:i:p:d:s:S:P:m:a:o:h" -l "geo_files:,ip_files:,product:,plotMin:,plotMax:,dpi:,scale:,lat_0:,lon_0:,stride:,scatter_plot,pointSize:,map_res:,map_annotation:,output_file:,help" -- "$@"`
+OPTS=`getopt -o "g:i:p:d:s:S:P:m:a:o:vh" -l "geo_files:,ip_files:,product:,plotMin:,plotMax:,dpi:,scale:,lat_0:,lon_0:,stride:,scatter_plot,pointSize:,map_res:,map_annotation:,output_file:,verbose,help" -- "$@"`
+
+# From viirs_edr.sh
+#OPTS=`getopt -o "i:w:p:dvhaz" -l "input_files:,alg:,work_directory:,processors:,anc_endianness:,sdr_endianness:,skip_sdr_unpack,skip_aux_linking,skip_ancillary,skip_algorithm,zip,aggregate,no_dummy_granules,debug,no_chain,verbose,help" -- "$@"`
 
 # If returncode from getopt != 0, exit with error.
 if [ $? != 0 ]
@@ -152,6 +155,12 @@ do
             haveFlag=1
             shift 2;;
 
+        -v|--verbose)
+            VERBOSITY_OPT="-"$(echo $VERBOSITY_OPT | sed s#-##)"v"
+            #echo "Setting VERBOSITY_OPT"
+            haveFlag=1
+            shift ;;
+
         -h|--help)
             if [[ $haveFlag -eq 0 ]];
             then
@@ -197,6 +206,8 @@ fi
 #echo "MAP_RES_OPT        = "$MAP_RES_OPT
 #echo "MAP_ANNOTATION_OPT = "$MAP_ANNOTATION_OPT
 #echo "OUTPUT_FILE_OPT    = "$OUTPUT_FILE_OPT
+#echo "VERBOSITY_OPT        = "$VERBOSITY_OPT
+
 
 
 GDB=''
@@ -219,7 +230,9 @@ GDB=''
     #$POINTSIZE_OPT \
     #$MAP_RES_OPT \
     #$MAP_ANNOTATION_OPT \
-    #$OUTPUT_FILE_OPT
+    #$OUTPUT_FILE_OPT \
+    #$VERBOSITY_OPT
+
 #"
 
 #exit 1
@@ -239,7 +252,9 @@ $PY $CSPP_EDR_HOME/viirs/ql_viirs_edr.py \
     $POINTSIZE_OPT \
     $MAP_RES_OPT \
     $MAP_ANNOTATION_OPT \
-    $OUTPUT_FILE_OPT
+    $OUTPUT_FILE_OPT \
+    $VERBOSITY_OPT
+
 
 ##############################
 #         Packaging          #
