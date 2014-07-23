@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # $Id: ql_viirs_edr.sh 1512 2013-07-03 15:27:11Z geoffc $
 # Wrapper script for VIIRS EDR quicklooks python script.
 #
