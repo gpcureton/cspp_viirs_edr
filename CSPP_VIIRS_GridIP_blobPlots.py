@@ -168,7 +168,8 @@ class GridIPclass():
         #self.plotLims['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = [None, 200]
         self.plotLims['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = [0, 1]
         #self.plotLims['VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran'] = [None,None]
-        self.plotLims['VIIRS-I-Conc-IP'] = [0., 1.]
+        #self.plotLims['VIIRS-I-Conc-IP'] = [0., 1.]
+        self.plotLims['VIIRS-I-Conc-IP'] = [None,None]
 
         self.dataName = {}
         self.dataName['VIIRS-GridIP-VIIRS-Qst-Mod-Gran']   =  'igbp'
@@ -237,6 +238,12 @@ class GridIPclass():
 
             LOG.info("Final data shape = {}".format(data.shape))
 
+            if data.shape[1] == 6400 :
+                LOG.info("We have an imager resolution dataset...")
+                isImgRes = True
+            else:
+                isImgRes = False
+
             # Assuming this is an ascending granule, flip it...
             data = data[::-1,::-1]
 
@@ -248,7 +255,10 @@ class GridIPclass():
             # scans in the pass...
             numGranules = len(blobDict[shortName].keys())
             numScans = numGranules * 48
-            ongroundTrimMask = trimObj.createOngroundModTrimArray(nscans=numScans,trimType=bool)
+            if isImgRes:
+                ongroundTrimMask = trimObj.createOngroundImgTrimArray(nscans=numScans,trimType=bool)
+            else:
+                ongroundTrimMask = trimObj.createOngroundModTrimArray(nscans=numScans,trimType=bool)
 
             # Apply the On-ground pixel trim
             data = ma.array(data,mask=ongroundTrimMask,fill_value=ongroundPixelTrimValue)
@@ -323,8 +333,8 @@ class GridIPclass():
         plotLims = self.plotLims
 
         blobDict = self.blob_dict
-        #collShortNames = blobDict.keys()
-        collShortNames = self.collShortNames
+        collShortNames = blobDict.keys()
+        #collShortNames = self.collShortNames
 
         for shortName in collShortNames :
 
@@ -337,8 +347,6 @@ class GridIPclass():
                 blobFile = path.join(blobPath,'%s'%(blobFile))
                 blobObj = adl_blob.map(xmlFile,blobFile,endian=endian)
                 print "dataName = %s" % (dataName)
-                #blobArrObj = blobObj.as_arrays()
-                #data = getattr(blobArrObj,dataName)
                 data = getattr(blobObj,dataName)[:,:]
                 if (data.dtype.kind == 'O') :
                     data = data.astype(np.float)
@@ -608,11 +616,13 @@ def main():
     try :
         GridIPobj.set_blob_dict(xml_dir,blob_dir,plotProduct)
 
+        print GridIPobj.blob_dict
         if plotPass :
             LOG.info("Plotting a pass")
             GridIPobj.plot_GridIP_pass(pngDir=pngDir,endian=adl_blob.LITTLE_ENDIAN)
         else:
             LOG.info("Plotting a single granule")
+            GridIPobj.plot_GridIP_granules(pngDir=pngDir,endian=adl_blob.LITTLE_ENDIAN)
 
     except Exception, err:
         traceback.print_exc(file=sys.stdout)
