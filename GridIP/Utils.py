@@ -30,7 +30,6 @@ from subprocess import CalledProcessError
 import numpy as np
 from bisect import bisect_left,bisect_right
 
-#import adl_blob
 import adl_blob2 as adl_blob
 from adl_common import sh, env
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE
@@ -376,7 +375,7 @@ def shipOutToFile(GridIPobj):
     return URID
 
 
-def plotArr(data,pngName):
+def plotArr(data,pngName,vmin=None,vmax=None):
     '''
     Plot the input array, with a colourbar.
     '''
@@ -393,10 +392,12 @@ def plotArr(data,pngName):
     # This must come *after* the backend is specified.
     import matplotlib.pyplot as ppl
 
+    LOG.info("Plotting a GridIP dataset {}".format(pngName))
+
     plotTitle =  string.replace(pngName,".png","")
     cbTitle   =  "Value"
     #vmin,vmax =  0,1
-    vmin,vmax =  None,None
+
 
     # Create figure with default size, and create canvas to draw on
     scale=1.5

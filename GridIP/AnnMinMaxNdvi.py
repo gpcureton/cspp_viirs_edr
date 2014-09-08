@@ -45,7 +45,6 @@ import h5py
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-#import adl_blob
 import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, \
@@ -150,15 +149,13 @@ class AnnMinMaxNdvi() :
 
         endian = self.sdrEndian
 
-        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=adl_blob.LITTLE_ENDIAN)
+        geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
 
         # Get scan_mode to find any bad scans
 
         scanMode = geoBlobObj.scan_mode[:]
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
-
 
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.

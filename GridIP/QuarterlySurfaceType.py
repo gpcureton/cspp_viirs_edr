@@ -46,7 +46,6 @@ from tables import exceptions as pyEx
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-#import adl_blob
 import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
@@ -168,7 +167,6 @@ class QuarterlySurfaceType() :
         endian = self.sdrEndian
 
         geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=endian)
-        #geoBlobObj = adl_blob.map(geoXmlFile,geoFiles[0], endian=adl_blob.LITTLE_ENDIAN)
 
         # Get scan_mode to find any bad scans
 

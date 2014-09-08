@@ -46,7 +46,6 @@ from tables import exceptions as pyEx
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-#import adl_blob
 import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
@@ -61,6 +60,7 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
+from Utils import plotArr
 
 
 class LandWaterMask() :
@@ -169,8 +169,14 @@ class LandWaterMask() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobObj,'latitude').astype('float')
-            longitude = getattr(geoBlobObj,'longitude').astype('float')
+            if endian==adl_blob.BIG_ENDIAN:
+                latitude = getattr(geoBlobObj,'latitude').byteswap()
+                longitude = getattr(geoBlobObj,'longitude').byteswap()
+                latitude = latitude.astype('float')
+                longitude = longitude.astype('float')
+            else:
+                latitude = getattr(geoBlobObj,'latitude').astype('float')
+                longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
             latitude = getattr(geoBlobObj,'lat').astype('float')
             longitude = getattr(geoBlobObj,'lon').astype('float')

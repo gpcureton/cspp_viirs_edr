@@ -44,7 +44,6 @@ from tables import exceptions as pyEx
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-#import adl_blob
 import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
@@ -59,6 +58,7 @@ except :
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
+from Utils import plotArr
 
 
 class NbarNdvi17Day() :
@@ -148,13 +148,18 @@ class NbarNdvi17Day() :
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
-
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobObj,'latitude').astype('float')
-            longitude = getattr(geoBlobObj,'longitude').astype('float')
+            if endian==adl_blob.BIG_ENDIAN:
+                latitude = getattr(geoBlobObj,'latitude').byteswap()
+                longitude = getattr(geoBlobObj,'longitude').byteswap()
+                latitude = latitude.astype('float')
+                longitude = longitude.astype('float')
+            else:
+                latitude = getattr(geoBlobObj,'latitude').astype('float')
+                longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
             latitude = getattr(geoBlobObj,'lat').astype('float')
             longitude = getattr(geoBlobObj,'lon').astype('float')
@@ -485,6 +490,12 @@ class NbarNdvi17Day() :
 
         LOG.debug("min of gridData  = %r"%(np.min(gridData)))
         LOG.debug("max of gridData  = %r"%(np.max(gridData)))
+
+        shortName = self.collectionShortName
+        LOG.debug("{} latitude corners: {}"
+                .format(shortName,GridIP_objects[shortName].latCrnList))
+        LOG.debug("{} longitude corners: {}"
+                .format(shortName,GridIP_objects[shortName].lonCrnList))
 
         t1 = time()
         data,dataIdx = self._grid2Gran(np.ravel(latitude),

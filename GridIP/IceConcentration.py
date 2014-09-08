@@ -25,7 +25,6 @@ import string
 import re
 import uuid
 import shlex, subprocess
-#from subprocess import CalledProcessError, call
 from glob import glob
 from time import time
 from datetime import datetime,timedelta
@@ -46,7 +45,6 @@ import pygrib
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-#import adl_blob
 import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains
@@ -62,7 +60,7 @@ except :
 
 from Utils import check_exe, getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
 from Utils import index, find_lt, find_le, find_gt, find_ge
-#from Utils import plotArr
+from Utils import plotArr
 
 
 class IceConcentration() :
@@ -156,13 +154,18 @@ class IceConcentration() :
         badScanIdx = np.where(scanMode==254)[0]
         LOG.debug("Bad Scans: %r" % (badScanIdx))
 
-
         # Detemine the min, max and range of the latitude and longitude, 
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobObj,'latitude').astype('float')
-            longitude = getattr(geoBlobObj,'longitude').astype('float')
+            if endian==adl_blob.BIG_ENDIAN:
+                latitude = getattr(geoBlobObj,'latitude').byteswap()
+                longitude = getattr(geoBlobObj,'longitude').byteswap()
+                latitude = latitude.astype('float')
+                longitude = longitude.astype('float')
+            else:
+                latitude = getattr(geoBlobObj,'latitude').astype('float')
+                longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
             latitude = getattr(geoBlobObj,'lat').astype('float')
             longitude = getattr(geoBlobObj,'lon').astype('float')
@@ -424,6 +427,10 @@ class IceConcentration() :
         self.gridData = message['values']
         LOG.debug("Shape of gridded %s data is %s" % (self.collectionShortName,np.shape(self.gridData)))
 
+        # Get the subset of MMAB global dataset.
+        MMAB_dLat = 0.5
+        MMAB_dLon = 0.5
+
 
     def _grid2Gran_bilinearInterp(self,dataLat, dataLon, gridData, gridLat, gridLon):
         '''Granulates a gridded dataset using an input geolocation'''
@@ -562,8 +569,8 @@ class IceConcentration() :
         # Obtain the required GridIP collection shortnames for this algorithm
         collectionShortNames = []
         for shortName in self.GridIP_collectionShortNames :
-            LOG.info("Adding %s to the list of required collection short names..." \
-                    %(shortName))
+            LOG.info("Adding {} to the list of required collection short names..."
+                    .format(shortName))
             collectionShortNames.append(shortName)
 
         # Create a dict of GridIP class instances, which will handle ingest and 
@@ -571,30 +578,40 @@ class IceConcentration() :
         for shortName in collectionShortNames :
             className = GridIP.classNames[shortName]
             GridIP_objects[shortName] = getattr(GridIP,className)(inDir=inDir,sdrEndian=self.sdrEndian)
-            LOG.info("GridIP_objects[%s].blobDatasetName = %r" % (shortName,GridIP_objects[shortName].blobDatasetName))
+            LOG.debug("GridIP_objects[{}].blobDatasetName = {}"
+                    .format(shortName,GridIP_objects[shortName].blobDatasetName))
 
-        # Loop through the required GridIP datasets and create the blobs.
+        # Loop through the prerequisite GridIP datasets and create the blobs.
         for shortName in collectionShortNames :
         
-            LOG.info("Processing dataset %s for %s" % (GridIP_objects[shortName].blobDatasetName,shortName))
+            LOG.debug("Processing prerequisite dataset {} for {}"
+                    .format(GridIP_objects[shortName].blobDatasetName,shortName))
 
-            # Set the geolocation information in this ancillary object for the current granule...
+            # Set the geolocation debugrmation in this ancillary object for the current granule...
             GridIP_objects[shortName].setGeolocationInfo(geoDict)
 
-            LOG.debug("min,max,range of latitude: %f %f %f" % (\
-                    GridIP_objects[shortName].latMin,\
-                    GridIP_objects[shortName].latMax,\
-                    GridIP_objects[shortName].latRange))
-            LOG.debug("min,max,range of longitude: %f %f %f" % (\
-                    GridIP_objects[shortName].lonMin,\
-                    GridIP_objects[shortName].lonMax,\
-                    GridIP_objects[shortName].lonRange))
+            LOG.debug("{} min,max,range of latitude: {} {} {}"
+                    .format(
+                        shortName,
+                        GridIP_objects[shortName].latMin,
+                        GridIP_objects[shortName].latMax,
+                        GridIP_objects[shortName].latRange))
+            LOG.debug("{} min,max,range of longitude: {} {} {}"
+                    .format(
+                        shortName,
+                        GridIP_objects[shortName].lonMin,
+                        GridIP_objects[shortName].lonMax,
+                        GridIP_objects[shortName].lonRange))
 
-            LOG.debug("latitude corners: %r" % (GridIP_objects[shortName].latCrnList))
-            LOG.debug("longitude corners: %r" % (GridIP_objects[shortName].lonCrnList))
+            LOG.debug("{} latitude corners: {}"
+                    .format(shortName,GridIP_objects[shortName].latCrnList))
+            LOG.debug("{} longitude corners: {}"
+                    .format(shortName,GridIP_objects[shortName].lonCrnList))
+
 
             # Subset the gridded data for this ancillary object to cover the required lat/lon range.
             GridIP_objects[shortName].subset()
+
 
             # Interpolate latitude and longitude to make IMG resolution geolocation
             modRows,modCols = 768,3200
@@ -619,13 +636,28 @@ class IceConcentration() :
             GridIP_objects[shortName].granulate(GridIP_objects)
 
 
-        LOG.info("Granulating %s ..." % (self.collectionShortName))
-
         # Generate a land mask
         LSM = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].data
+        DEM_SHALLOW_OCEAN = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict['DEM_SHALLOW_OCEAN']
         DEM_LAND = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict['DEM_LAND']
         DEM_COASTLINE = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict['DEM_COASTLINE']
-        LSM_LandMask = (ma.masked_equal(LSM,DEM_LAND) * ma.masked_equal(LSM,DEM_COASTLINE)).mask
+        DEM_SHALLOW_INLAND_WATER = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict['DEM_SHALLOW_INLAND_WATER']
+        DEM_EPHEMERAL_WATER = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict['DEM_EPHEMERAL_WATER']
+        DEM_DEEP_INLAND_WATER = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict['DEM_DEEP_INLAND_WATER']
+        DEM_MOD_CONT_OCEAN = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict['DEM_MOD_CONT_OCEAN']
+        DEM_DEEP_OCEAN = GridIP_objects['VIIRS-GridIP-VIIRS-Lwm-Mod-Gran'].DEM_dict['DEM_DEEP_OCEAN']
+        LSM_LandMask = (
+                      #ma.masked_equal(LSM,DEM_SHALLOW_OCEAN)
+                        ma.masked_equal(LSM,DEM_LAND) 
+                      * ma.masked_equal(LSM,DEM_COASTLINE)
+                      * ma.masked_equal(LSM,DEM_SHALLOW_INLAND_WATER)
+                      * ma.masked_equal(LSM,DEM_EPHEMERAL_WATER)
+                      * ma.masked_equal(LSM,DEM_DEEP_INLAND_WATER)
+                      #* ma.masked_equal(LSM,DEM_MOD_CONT_OCEAN)
+                      #* ma.masked_equal(LSM,DEM_DEEP_OCEAN)
+                      ).mask
+
+        LOG.info("Granulating %s ..." % (self.collectionShortName))
 
         # Massage the gridded ice concentration to make it easier to granulate
         iceConc_Land    = ma.masked_equal(self.gridData,1.57).mask
@@ -633,34 +665,36 @@ class IceConcentration() :
         iceConc_Weather = ma.masked_equal(self.gridData,1.77).mask
         iceConc_Coast   = ma.masked_equal(self.gridData,1.95).mask
         iceConc_NoData  = ma.masked_equal(self.gridData,2.24).mask
-        iceConc_genMask  = ma.masked_greater(self.gridData,1.).mask
+        iceConc_genMask = ma.masked_greater(self.gridData,1.).mask
+        dummy_mask      = np.zeros(self.gridData.shape,dtype='bool')
 
-        #totalMask = iceConc_Land * iceConc_BadData * iceConc_Weather * iceConc_Coast * iceConc_NoData
-        totalMask = iceConc_genMask
+        #totalMask = iceConc_BadData + iceConc_NoData + iceConc_Weather + iceConc_Coast
+        totalMask = iceConc_Land + iceConc_BadData + iceConc_NoData + iceConc_Weather + iceConc_Coast
+        #totalMask = iceConc_genMask
+        #totalMask = dummy_mask
 
         self.gridData = ma.array(self.gridData,mask=totalMask,fill_value=0.)
         self.gridData = self.gridData.filled()
 
-
         degInc = 0.5
 
-        #lats = np.arange(361.)*degInc - 90.
-        lats = self.distinctLatitudes
-        lons = np.arange(720.)*degInc - 180.
-        latitude = latitude_img
-        longitude = longitude_img
+        lats = self.distinctLatitudes[::-1]
+        lons = self.distinctLongitudes
+        neg_idx = (lons>180.)
+        lons[neg_idx] = lons[neg_idx] - 360.
+        lons = np.roll(lons,360)
 
-        gridData = self.gridData
+        gridData = self.gridData[::-1,:]
 
         if self.num180Crossings != 2 :
 
-            #gridData = np.roll(gridData,360) # old
-            gridData = np.roll(gridData,360,axis=1) # new
-
+            gridData = np.roll(gridData,360,axis=1)
             gridLon,gridLat = np.meshgrid(lons,lats)
 
-            LOG.debug("start,end MMAB Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.debug("start,end MMAB Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end MMAB Grid Latitude values : {},{}"
+                    .format(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end MMAB Grid Longitude values: {},{}"
+                    .format(gridLon[0,0],gridLon[0,-1]))
 
         else :
 
@@ -672,13 +706,35 @@ class IceConcentration() :
             longitudeNegIdx = np.where(longitude < 0.)
             longitude[longitudeNegIdx] += 360.
 
-            LOG.debug("start,end MMAB Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.debug("start,end MMAB Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.debug("start,end MMAB Grid Latitude values : {},{}"
+                    .format(gridLat[0,0],gridLat[-1,0]))
+            LOG.debug("start,end MMAB Grid Longitude values: {},{}"
+                    .format(gridLon[0,0],gridLon[0,-1]))
 
 
-        LOG.debug("min of gridData  = %r"%(np.min(gridData)))
-        LOG.debug("max of gridData  = %r"%(np.max(gridData)))
+        # Interpolate latitude and longitude to make IMG resolution geolocation
+        modRows,modCols = 768,3200
+        imgRows,imgCols = 1536,6400
 
+        x = np.linspace(0,modRows-1,modRows)
+        y = np.linspace(0,modCols-1,modCols)
+        xnew = np.linspace(0,modRows-1,imgRows)
+        ynew = np.linspace(0,modCols-1,imgCols)
+
+        z = self.latitude
+        fRect = interpolate.RectBivariateSpline( x, y, z)
+        latitude_img = fRect(xnew,ynew)
+        self.latitude = latitude_img
+
+        z = self.longitude
+        fRect = interpolate.RectBivariateSpline( x, y, z)
+        longitude_img = fRect(xnew,ynew)
+        self.longitude = longitude_img
+
+        latitude = self.latitude
+        longitude = self.longitude
+
+        # Call the granulation routine
         t1 = time()
         #data,dataIdx = self._grid2Gran(np.ravel(latitude),
         data,dataIdx = self._grid2Gran_bilinearInterp(np.ravel(latitude),
@@ -693,8 +749,6 @@ class IceConcentration() :
         data = data.reshape(latitude.shape)
         dataIdx = dataIdx.reshape(latitude.shape)
 
-        #plotArr(data,'VIIRS-I-Conc-IP_%s.png'%(geoDict['N_Granule_ID']))
-
         LOG.debug("Shape of granulated %s data is %s" % (self.collectionShortName,np.shape(data)))
         LOG.debug("Shape of granulated %s dataIdx is %s" % (self.collectionShortName,np.shape(dataIdx)))
 
@@ -703,19 +757,25 @@ class IceConcentration() :
         data = ma.array(data,mask=LSM_LandMask,fill_value=fillValue)
         data = data.filled()
 
+        # A final masking for values that are outside of the allowed range
+        iceConc_genMask = ma.masked_inside(data,1.,2.).mask
+        data = ma.array(data,mask=iceConc_genMask,fill_value=0.)
+        data = data.filled()
+
+
         # Construct the ice concentration weights
         weights = np.ones(data.shape,dtype=self.dataType) * 0.1
-        weights = ma.array(weights,mask=LSM_LandMask,fill_value=0.)
-        weights = weights.filled()
+        #weights = ma.array(weights,mask=LSM_LandMask,fill_value=0.)
+        #weights = weights.filled()
 
-        # Moderate resolution trim table arrays. These are 
+        # Imager resolution trim table arrays. These are 
         # bool arrays, and the trim pixels are set to True.
         imgTrimMask = self.trimObj.createImgTrimArray(nscans=48,trimType=bool)
 
-        # Fill the required pixel trim rows in the granulated MMAB data with 
+        # Fill the required pixel trim rows in the granulated NCEP data with 
         # the ONBOARD_PT_FILL value for the correct data type
 
-        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]
+        fillValue = self.trimObj.sdrTypeFill['ONBOARD_PT_FILL'][self.dataType]        
 
         data = ma.array(data,mask=imgTrimMask,fill_value=fillValue)
         self.data = data.filled()
