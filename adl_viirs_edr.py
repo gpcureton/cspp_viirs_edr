@@ -102,8 +102,7 @@ from tables import exceptions as pyEx
 from multiprocessing import Pool, Lock, Value, cpu_count
 
 # skim and convert routines for reading .asc metadata fields of interest
-import adl_blob
-import adl_blob2
+import adl_blob2 as adl_blob
 from adl_asc import skim_dir, contiguous_granule_groups,eliminate_duplicates, \
         granule_groups_contain, effective_anc_contains, \
         _is_contiguous, corresponding_asc_path, RDR_REQUIRED_KEYS, \
@@ -146,9 +145,9 @@ def set_sdr_endian(inputEndianness) :
     '''
     global sdrEndian 
     if inputEndianness=='big' :
-        sdrEndian = adl_blob2.BIG_ENDIAN
+        sdrEndian = adl_blob.BIG_ENDIAN
     elif inputEndianness=='little' :
-        sdrEndian = adl_blob2.LITTLE_ENDIAN
+        sdrEndian = adl_blob.LITTLE_ENDIAN
     else :
         LOG.error('Invalid value for the VIIRS SDR endianness : %s ' 
                 % (inputEndianness))
@@ -159,6 +158,7 @@ def set_anc_endian(inputEndianness) :
     Set the global ancillary endianness variable.
     '''
     global ancEndian 
+    # FIXME: Use adl_blob here...    
     if inputEndianness=='big' :
         ancEndian = adl_blob.BIG_ENDIAN
     elif inputEndianness=='little' :
@@ -166,6 +166,8 @@ def set_anc_endian(inputEndianness) :
     else :
         LOG.error('Invalid value for the VIIRS ancillary endianness : %s ' 
                 % (inputEndianness))
+
+    LOG.info("ancEndian is {}".format(ancEndian))
 
 
 def _create_input_file_globs(inputFiles):
@@ -806,7 +808,7 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
         if shortName == requiredGeoShortname[0]:
             first_XmlFile = "{}.xml".format(string.replace(first_N_Collection_Short_Name,'-','_'))
             first_XmlFile = path.join(ADL_HOME,'xml/VIIRS',first_XmlFile)
-            first_BlobObj = adl_blob2.map(first_XmlFile,first_BlobFile,writable=False,endian=sdrEndian)
+            first_BlobObj = adl_blob.map(first_XmlFile,first_BlobFile,writable=False,endian=sdrEndian)
             first_scanStartTime = getattr(first_BlobObj,'scanStartTime')[0]
 
         first_ascFile = firstDict['_filename']
@@ -911,7 +913,7 @@ def _create_dummy_sdr(inDir,requiredGeoShortname,requiredSdrShortname,crossGranu
         if shortName == requiredGeoShortname[0]:
             last_XmlFile = "{}.xml".format(string.replace(last_N_Collection_Short_Name,'-','_'))
             last_XmlFile = path.join(ADL_HOME,'xml/VIIRS',last_XmlFile)
-            last_BlobObj = adl_blob2.map(last_XmlFile,last_BlobFile,writable=False,endian=sdrEndian)
+            last_BlobObj = adl_blob.map(last_XmlFile,last_BlobFile,writable=False,endian=sdrEndian)
             last_scanStartTime = getattr(last_BlobObj,'scanStartTime')[0]
 
         last_ascFile = lastDict['_filename']
@@ -1077,14 +1079,13 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
         # Open the NCEP gridded blob file
 
         ncepXmlFile = path.join(ADL_HOME,'xml/ANC/NCEP_ANC_Int.xml')
-        #endian = adl_blob.LITTLE_ENDIAN
-        endian = adl_blob2.LITTLE_ENDIAN
+        endian = adl_blob.LITTLE_ENDIAN
         ncepBlobObjs = []
 
         for gridBlobFile in ncepGridBlobFiles :
             timeObj = gridBlobFile[0]
             ncepBlobFile = gridBlobFile[1]
-            ncepBlobObj = adl_blob2.map(ncepXmlFile, ncepBlobFile, endian=endian)
+            ncepBlobObj = adl_blob.map(ncepXmlFile, ncepBlobFile, endian=endian)
             ncepBlobObjs.append([timeObj,ncepBlobObj])
             LOG.debug("%s...\n%r" % (ncepBlobFile,[field for field in ncepBlobObj._fields]))
         
@@ -1114,14 +1115,13 @@ def _granulate_ANC(inDir,geoDicts,algList,dummy_granule_dict):
             LOG.debug("NAAPS naapsGridBlobFiles = %r" % (naapsGridBlobFiles))
 
             naapsXmlFile = path.join(ADL_HOME,'xml/ANC/NAAPS_ANC_Int.xml')
-            #endian = adl_blob.LITTLE_ENDIAN
-            endian = adl_blob2.LITTLE_ENDIAN
+            endian = adl_blob.LITTLE_ENDIAN
             naapsBlobObjs = []
 
             for gridBlobFile in naapsGridBlobFiles :
                 timeObj = gridBlobFile[0]
                 naapsBlobFile = gridBlobFile[1]
-                naapsBlobObj = adl_blob2.map(naapsXmlFile, naapsBlobFile, endian=endian)
+                naapsBlobObj = adl_blob.map(naapsXmlFile, naapsBlobFile, endian=endian)
                 naapsBlobObjs.append([timeObj,naapsBlobObj])
                 LOG.debug("%s...\n%r" % (naapsBlobFile,[field for field in naapsBlobObj._fields]))
 
