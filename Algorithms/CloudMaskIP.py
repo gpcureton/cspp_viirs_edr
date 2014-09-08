@@ -81,8 +81,6 @@ ANC_collectionShortNames = [
                           ]
 
 GridIP_collectionShortNames = [
-                            #'VIIRS-MOD-GRC',
-                            #'VIIRS-MOD-GRC-TC',
                             'VIIRS-GridIP-VIIRS-Qst-Lwm-Mod-Gran',
                             'VIIRS-GridIP-VIIRS-Snow-Ice-Cover-Mod-Gran',
                             'VIIRS-GridIP-VIIRS-Nbar-Ndvi-Mod-Gran'

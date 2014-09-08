@@ -395,8 +395,8 @@ int gran2grid_moments(double *lat,
  *
  *  Inputs:
  *
- *  gridLat     : Non-regular latitude grid (nGridRows*nGridCols)
- *  gridLon     : Non-regular longitude grid (nGridRows*nGridCols)
+ *  gridLat     : Regular latitude grid (nGridRows*nGridCols)
+ *  gridLon     : Regular longitude grid (nGridRows*nGridCols)
  *  gridData    : Data array on grid defined by gridLat and gridLon 
  *                grid (nGridRows*nGridCols)
  *  lat         : Non-regular latitude grid (nData)
@@ -462,7 +462,7 @@ int grid2gran_nearest(double *lat,
     gridLatInc = fabs(gridLat[nGridCols]-gridLat[0]);
     gridLonInc = fabs(gridLon[1]-gridLon[0]);
 
-    /*printf("gridLatInc,gridLonInc = (%6.1f %6.1f)\n",gridLatInc,gridLonInc);*/
+    /*printf("gridLatInc,gridLonInc = (%8.3f %8.3f)\n",gridLatInc,gridLonInc);*/
 
     // Loop through non-gridded data points, find matching gridpoint, and assign
     // gridpoint data value to that non-gridded data point.
