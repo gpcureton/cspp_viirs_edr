@@ -80,8 +80,7 @@ import matplotlib.pyplot as ppl
 
 import optparse as optparse
 
-import adl_blob
-import adl_blob2
+import adl_blob2 as adl_blob
 from ViirsData import ViirsTrimTable
 import viirs_edr_data
 
@@ -316,6 +315,11 @@ class ANCclass():
             dataName = self.dataName[shortName]
             LOG.info("dataName = {}".format(dataName))
 
+            adl_blob_kwargs = {"writable":False,"endian":endian}
+            if dataName == 'data':
+                adl_blob_kwargs["rename"] = {"data":"ncep_data"}
+                dataName = "ncep_data"
+
             xmlFile = path.join(xmlDir,xmlName[shortName])
 
             granID_list = blobDict[shortName].keys()
@@ -327,27 +331,29 @@ class ANCclass():
                 
                 blobFile = blobDict[shortName][granID][0]
                 blobFile = path.join(blobPath,'%s'%(blobFile))
-                blobObj = adl_blob.map(xmlFile,blobFile,endian=endian)
-                blobArrObj = blobObj.as_arrays()
+                blobObj = adl_blob.map(xmlFile,blobFile,**adl_blob_kwargs)
 
-                dataGranule = getattr(blobArrObj,dataName)
+                dataGranule = getattr(blobObj,dataName)[:,:]
                 
+                LOG.info("{} is of shape {}".format(shortName,dataGranule.shape))
                 LOG.info("{} is of kind {}".format(shortName,dataGranule.dtype.kind))
-                if (dataGranule.dtype.kind == 'O') :
-                    dataGranule = data.astype(np.float)
 
                 # Concatenate the granules.
                 try :
                     data = np.vstack((data,dataGranule))
                     LOG.info("data shape = {}".format(data.shape))
                 except :
-                    data = dataGranule[:,:]
+                    data = np.ndarray(dataGranule.shape,dtype=dataGranule.dtype)
+                    data[:,:] = dataGranule[:,:]
                     LOG.info("data shape = {}".format(data.shape))
 
             LOG.info("Final data shape = {}".format(data.shape))
+            LOG.info("min(data) = {}".format(np.min(data)))
+            LOG.info("max(data) = {}".format(np.max((data))))
+
 
             # Assuming this is an ascending granule, flip it...
-            data = data[::-1,::-1]
+            data[:,:] = data[::-1,::-1]
 
             # What value are the bowtie deletion pixels
             ongroundPixelTrimValue = trimObj.sdrTypeFill['ONGROUND_PT_FILL'][data.dtype.name]
@@ -446,8 +452,7 @@ class ANCclass():
                 blobFile = path.join(blobPath,'%s'%(blobFile))
                 blobObj = adl_blob.map(xmlFile,blobFile,endian=endian)
                 print "dataName = %s" % (dataName)
-                blobArrObj = blobObj.as_arrays()
-                data = getattr(blobArrObj,dataName)
+                data = getattr(blobObj,dataName)
                 print "%s is of kind %r" % (shortName,data.dtype.kind)
                 if (data.dtype.kind == 'O') :
                     data = data.astype(np.float)
