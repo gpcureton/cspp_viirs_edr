@@ -43,56 +43,19 @@ __docformat__ = 'Epytext'
 
 import os,sys,logging
 import xml.etree.ElementTree as ET
-import optparse as optparse
 from os import path
-import uuid
-from datetime import datetime,timedelta
 
-
-import adl_blob as adl
+import adl_blob2 as adl
 
 # every module should have a LOG object
-sourcename= file_Id.split(" ")
-LOG = logging.getLogger(sourcename[1])
-from adl_common import configure_logging
-
-
-def getURID() :
-    '''
-    Create a new URID to be used in making the asc filenames
-    '''
-    
-    URID_dict = {}
-
-    URID_timeObj = datetime.utcnow()
-    
-    creationDateStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.%f")
-    creationDate_nousecStr = URID_timeObj.strftime("%Y-%m-%d %H:%M:%S.000000")
-    
-    tv_sec = int(URID_timeObj.strftime("%s"))
-    tv_usec = int(URID_timeObj.strftime("%f"))
-    hostId_ = uuid.getnode()
-    thisAddress = id(URID_timeObj)
-    
-    l = tv_sec + tv_usec + hostId_ + thisAddress
-    
-    URID = '-'.join( ('{0:08x}'.format(tv_sec)[:8],
-                      '{0:05x}'.format(tv_usec)[:5],
-                      '{0:08x}'.format(hostId_)[:8],
-                      '{0:08x}'.format(l)[:8]) )
-    
-    URID_dict['creationDateStr'] = creationDateStr
-    URID_dict['creationDate_nousecStr'] = creationDate_nousecStr
-    URID_dict['tv_sec'] = tv_sec
-    URID_dict['tv_usec'] = tv_usec
-    URID_dict['hostId_'] = hostId_
-    URID_dict['thisAddress'] = thisAddress
-    URID_dict['URID'] = URID
-    
-    return URID_dict
+LOG = logging.getLogger(__file__)
 
 
 def expr_iter(xmldataname):
+    '''
+    Trawls through the xml file and finds all instances of the "name":"value" 
+    attribute pairs in the "coeff" blocks.
+    '''
     xml = ET.fromstring(file(xmldataname, 'rt').read())
     (coeffs_node,) = xml.findall('coefficients')
     coeffs = coeffs_node.findall('coeff')
@@ -122,118 +85,149 @@ def process(xmlguidename, xmldataname, blobname, blobEndianness):
     elif blobEndianness=='big':
         endian=adl.BIG_ENDIAN
     else :
-        LOG.error('Incorrect endianness %r specified. Should either be "big" or"little"'%(blobEndianness))
+        LOG.error('Incorrect endianness {} specified. Should either be "big" or"little"'
+                .format(blobEndianness))
         sys.exit(1)
 
     xmlguidename = path.expanduser(xmlguidename)
     xmldataname = path.expanduser(xmldataname)
     blobname = path.expanduser(blobname)
 
-    cc = adl.map(xmlguidename, blobname, writable=True, endian=endian)
-    ccm = blob_as_mapping(cc)
-    for lhs, rhs in expr_iter(xmldataname):
-        expr = "%s = %s" % (lhs,rhs)
-        old_value = eval(lhs, None, ccm)
-        exec expr in globals(), ccm
-        changed = eval(lhs, None, ccm) != old_value
-        LOG.info(repr(expr) + ' previously %r %s' % (old_value, '*'*32 if changed else ''))
-    cc.sync()
+    blob_obj = adl.map(xmlguidename, blobname, writable=True, endian=endian)
+
+    for name, value in expr_iter(xmldataname):
+        LOG.debug('Updating the field {} in file {}'.format(name,blobname))
+        LOG.debug('Data XML {} = {}'.format(name,value))
+
+        try:
+            LOG.debug("altering field {}".format(name))
+            old_value = eval(name, None, blob_obj[0])
+            LOG.info('Old {} = {}'.format(name,old_value))
+        except IndexError as huhwhut:
+            LOG.error('unable to access field "{}", present in data but missing from schema'
+                    .format(name))
+            continue
+
+        # Make a string containing a python expression
+        expr = "{} = {}".format(name,value)
+
+        exec expr in globals(), blob_obj[0]
+        
+        new_value = eval(name, None, blob_obj[0])
+        LOG.info('New {} = {}'.format(name,new_value))
+
+        if old_value != new_value :
+            LOG.warn('"{} = {}" changed to {}'.format(name,old_value,new_value))
+
+    blob_obj.sync()
+
+
+def _argparse():
+    '''
+    Method to encapsulate the option parsing and various setup tasks.
+    '''
+
+    import argparse
+
+    endianChoices = ['little','big']
+
+    defaults = {
+                'blobEndianness':'big',
+                }
+
+    description = '''Edit a VIIRS-CM-IP-AC-Int blob using data from its XML PCT.'''
+    usage = "usage: %prog [mandatory args] [options]"
+    version = __version__
+
+    parser = argparse.ArgumentParser(
+                                     #usage=usage,
+                                     #version=version,
+                                     description=description
+                                     )
+
+    # Mandatory arguments
+
+    parser.add_argument('-g','--guide_xml',
+                      action="store",
+                      dest="xmlguidename",
+                      type=str,
+                      required=True,
+                      help='''Guide file defining the internal structure of the
+                      blob file.'''
+                      )
+
+    parser.add_argument('-d','--data_xml',
+                      action="store",
+                      dest="xmldataname",
+                      type=str,
+                      required=True,
+                      help='''Data Quality Monitoring (DQM) XML file giving the 
+                      blob data values.'''
+                      )
+
+    parser.add_argument('-b','--data_blob',
+                      action="store",
+                      dest="blobname",
+                      type=str,
+                      required=True,
+                      help='''New blob file copied from existing file with the 
+                      same structure.'''
+                      )
+
+    # Optional arguments 
+
+    parser.add_argument('-e','--endianness',
+                      action="store",
+                      dest="blobEndianness",
+                      type=str,
+                      default=defaults['blobEndianness'],
+                      choices=endianChoices,
+                      help='''The endiannessof the coefficient blob file.\n\n
+                              Possible values are...
+                              {}. [default: '{}']
+                           '''.format(endianChoices.__str__()[1:-1],
+                               defaults['blobEndianness'])
+                      )
+
+    parser.add_argument('-v', '--verbose',
+                      dest='verbosity',
+                      action="count",
+                      default=0,
+                      help='''Each occurrence increases 
+                      verbosity 1 level from INFO: -v=DEBUG'''
+                      )
+
+    args = parser.parse_args()
+
+    # Set up the logging
+    console_logFormat = '{} : {}:{}:{}:{}:  {}'.format(
+            '%(asctime)s',
+            '(%(levelname)s)',
+            '%(filename)s',
+            '%(funcName)s',
+            '%(lineno)d',
+            '  %(message)s',
+            )
+    dateFormat = '%Y-%m-%d %H:%M:%S'
+    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
+    logging.basicConfig(level = levels[args.verbosity], 
+            format = console_logFormat, 
+            datefmt = dateFormat)
+
+
+    return args
 
 
 def main():
 
-    endianChoices = ['little','big']
+    options = _argparse()
 
-    description = '''Edit a VIIRS-CM-IP-AC-Int blob using data from its XML PCT.'''
-    usage = "usage: %prog [mandatory args] [options]"
-    version = "%prog "+__version__
-
-    parser = optparse.OptionParser(description=description,usage=usage,version=version)
-
-    # Mandatory arguments
-
-    mandatoryGroup = optparse.OptionGroup(parser, "Mandatory Arguments",
-                        "At a minimum these arguments must be specified")
-
-    mandatoryGroup.add_option('-g','--guide_xml',
-                      action="store",
-                      dest="xmlguidename",
-                      type="string",
-                      help="Guide file defining the internal structure of the blob file.")
-
-    mandatoryGroup.add_option('-d','--data_xml',
-                      action="store",
-                      dest="xmldataname",
-                      type="string",
-                      help="Data Quality Monitoring (DQM) XML file giving the blob data values.")
-
-    mandatoryGroup.add_option('-b','--data_blob',
-                      action="store",
-                      dest="blobname",
-                      type="string",
-                      help="New blob file copied from existing file with the same structure.")
-
-    parser.add_option_group(mandatoryGroup)
-
-
-    # Optional arguments 
-
-    optionalGroup = optparse.OptionGroup(parser, "Extra Options",
-                         "These options may be used to customize behaviour of this program.")
-
-    optionalGroup.add_option('-e','--sdr_endianness',
-                      action="store",
-                      dest="blobEndianness",
-                      type="choice",
-                      default='big',
-                      choices=endianChoices,
-                      help='''The input VIIRS SDR endianness.\n\n
-                              Possible values are...
-                              %s. [default: 'little']
-                           ''' % (endianChoices.__str__()[1:-1]))
-
-    optionalGroup.add_option('-v', '--verbose',
-                      dest='verbosity',
-                      action="count",
-                      default=0,
-                      help='each occurrence increases verbosity 1 level from ERROR: -v=WARNING -vv=INFO -vvv=DEBUG')
-
-    parser.add_option_group(optionalGroup)
-
-
-    # Parse the arguments from the command line
-    (options, args) = parser.parse_args()
-
-    # Check that all of the mandatory options are given. If one or more 
-    # are missing, print error message and exit...
-    mandatories = ['xmlguidename','xmldataname','blobname']
-    mand_errors = ["Missing mandatory argument [-g guide_xml --guide_xml=guide_xml]",
-                   "Missing mandatory argument [-d data_xml --data_xml=data_xml]",
-                   "Missing mandatory argument [-b data_blob --data_blob=data_blob]"
-                   ]
-    isMissingMand = False
-    for m,m_err in zip(mandatories,mand_errors):
-        if not options.__dict__[m]:
-            isMissingMand = True
-            parser.error(m_err)
-    if isMissingMand :
-        parser.error("Incomplete mandatory arguments, aborting...")
-
-    # Set up the logging
-    levels = [logging.ERROR, logging.WARN, logging.INFO, logging.DEBUG]
-    configure_logging(level = levels[min(options.verbosity,3)])
-
-    process(options.xmlguidename, \
-            options.xmldataname, \
-            options.blobname, \
+    process(options.xmlguidename, 
+            options.xmldataname, 
+            options.blobname, 
             options.blobEndianness)
 
 
 if __name__=='__main__':
     sys.exit(main())  
-    #print sys.argv
-    #if len(sys.argv)<5:
-        #print "Usage: viirs-cm-ip-ac-int.py xml-blob-guide-file VIIRS-CM-IP-AC-Int_blob blobEndianness  xml-pct-file"
-    #else:
-        #process(*sys.argv[1:])
     
