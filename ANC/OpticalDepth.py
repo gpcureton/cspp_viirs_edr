@@ -45,7 +45,6 @@ import ViirsData
 from NAAPStoBlob import NAAPSclass
 
 # skim and convert routines for reading .asc metadata fields of interest
-#import adl_blob
 import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
@@ -59,6 +58,7 @@ except :
     LOG = logging.getLogger('OpticalDepth')
 
 from Utils import getURID, getAscLine, getAscStructs, findDatelineCrossings, shipOutToFile
+from Utils import plotArr
 
 
 class OpticalDepth() :
@@ -92,8 +92,6 @@ class OpticalDepth() :
         '''
         Ingest the ancillary dataset.
         '''
-        LOG.debug("Ingesting the NAAPS AOT ...")
-        
         dates = []
         naapsBlobFiles = []
         for gridBlobStruct in ancBlob:
@@ -112,9 +110,6 @@ class OpticalDepth() :
 
         naapsBlobFile_0 = naapsBlobFiles[0]
         naapsBlobFile_1 = naapsBlobFiles[0]
-
-        LOG.debug("NAAPS Blob fields: %s...\n%r" % (naapsBlobFile_0,[field for field in naapsBlobFile_0._fields]))
-        LOG.debug("NAAPS Blob fields: %s...\n%r" % (naapsBlobFile_1,[field for field in naapsBlobFile_1._fields]))
 
         self.gridData_0 = getattr(naapsBlobFile_0,self.blobDatasetName).astype(self.dataType)
         self.gridData_1 = getattr(naapsBlobFile_1,self.blobDatasetName).astype(self.dataType)
@@ -150,6 +145,9 @@ class OpticalDepth() :
         timeDelta = (self.date_1 - self.date_0).total_seconds()
         LOG.debug("timeDelta is %r seconds" %(timeDelta))
 
+        # FIXME: Currently we are only getting a single NAAPS file, so timeDelta
+        #        will be zero. This if/then block is a workaround, until we are 
+        #        ingesting NAAPS files on the same schedule as the NCEP files.
         if (timeDelta > 1.):
             timePrime = (ObservedStartTimeObj - self.date_0).total_seconds()
             LOG.debug("timePrime is %r seconds (%f percent along time interval)" % \
@@ -208,8 +206,14 @@ class OpticalDepth() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobObj,'latitude').astype('float')
-            longitude = getattr(geoBlobObj,'longitude').astype('float')
+            if endian==adl_blob.BIG_ENDIAN:
+                latitude = getattr(geoBlobObj,'latitude').byteswap()
+                longitude = getattr(geoBlobObj,'longitude').byteswap()
+                latitude = latitude.astype('float')
+                longitude = longitude.astype('float')
+            else:
+                latitude = getattr(geoBlobObj,'latitude').astype('float')
+                longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
             latitude = getattr(geoBlobObj,'lat').astype('float')
             longitude = getattr(geoBlobObj,'lon').astype('float')
@@ -363,7 +367,7 @@ class OpticalDepth() :
 
     def granulate(self,ANC_objects):
         '''
-        Granulate the ancillary dataset.
+        Granulate the NAAPS ancillary dataset.
         '''
         LOG.info("Granulating %s ..." % (self.collectionShortName))
 
@@ -376,17 +380,22 @@ class OpticalDepth() :
 
         gridData = self.gridData[:,:]
 
+
         if self.num180Crossings != 2 :
 
+            LOG.info("Crossing #1")
             #gridData = np.roll(gridData,360) # old
             gridData = np.roll(gridData,360,axis=1) # new
             gridLon,gridLat = np.meshgrid(lons,lats)
 
-            LOG.debug("start,end NCEP Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.debug("start,end NCEP Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.info("start,end NAAPS Grid Latitude values : {},{}"
+                    .format(gridLat[0,0],gridLat[-1,0]))
+            LOG.info("start,end NAAPS Grid Longitude values: {},{}"
+                    .format(gridLon[0,0],gridLon[0,-1]))
 
         else :
 
+            LOG.info("Crossing #2")
             negLonIdx = np.where(lons<0)
             lons[negLonIdx] += 360.
             lons = np.roll(lons,360)
@@ -395,15 +404,18 @@ class OpticalDepth() :
             longitudeNegIdx = np.where(longitude < 0.)
             longitude[longitudeNegIdx] += 360.
 
-            LOG.debug("start,end NAAPS Grid Latitude values : %f,%f"%(gridLat[0,0],gridLat[-1,0]))
-            LOG.debug("start,end NAAPS Grid Longitude values : %f,%f"%(gridLon[0,0],gridLon[0,-1]))
+            LOG.info("start,end NAAPS Grid Latitude values : {},{}"
+                    .format(gridLat[0,0],gridLat[-1,0]))
+            LOG.info("start,end NAAPS Grid Longitude values: {},{}"
+                    .format(gridLon[0,0],gridLon[0,-1]))
 
 
-        LOG.debug("min of gridData  = %r"%(np.min(gridData)))
-        LOG.debug("max of gridData  = %r"%(np.max(gridData)))
+        LOG.info("min of gridData  = %r"%(np.min(gridData)))
+        LOG.info("max of gridData  = %r"%(np.max(gridData)))
 
         t1 = time()
         data,dataIdx = self._grid2Gran_bilinearInterp(np.ravel(latitude),
+        #data,dataIdx = self._grid2Gran(np.ravel(latitude),
                                   np.ravel(longitude),
                                   gridData.astype(np.float64),
                                   gridLat,
@@ -441,6 +453,11 @@ class OpticalDepth() :
         # Create new ANC ancillary blob, and copy granulated data to it
 
         endian = self.ancEndian
+        if endian is adl_blob.LITTLE_ENDIAN :
+            endianString = "LE"
+        else :
+            endianString = "BE"
+
         xmlName = path.join(ADL_HOME,'xml/VIIRS',self.xmlName)
 
         # Create a new URID to be used in making the asc filenames
@@ -465,8 +482,13 @@ class OpticalDepth() :
         # Create a new ancillary blob, and copy the data to it.
         newANCblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
 
+        LOG.info("Creating new {} blob file {}".format(self.collectionShortName,
+            blobName))
         blobData = getattr(newANCblobObj,'faot550')
         blobData[:,:] = self.data[:,:]
+        LOG.info("blobData.shape = {}".format(blobData.shape))
+        LOG.info("min(blobData) = {}".format(np.min(blobData)))
+        LOG.info("max(blobData) = {}".format(np.max(blobData)))
 
         # Make a new ANC asc file from the template, and substitute for the various tags
 
@@ -475,6 +497,8 @@ class OpticalDepth() :
         LOG.debug("Creating new asc file\n%s\nfrom template\n%s" % (ascFileName,ascTemplateFileName))
         
         ANC_fileList = self.sourceList
+        LOG.info("Source files for {}: {}".format(self.collectionShortName,ANC_fileList))
+
         for idx in range(len(ANC_fileList)) :
             ANC_fileList[idx] = path.basename(ANC_fileList[idx])
         ANC_fileList.sort()
@@ -507,7 +531,10 @@ class OpticalDepth() :
            line = line.replace("  CSPP_GRINGLATITUDE",self.GRingLatitudeStr)
            line = line.replace("  CSPP_GRINGLONGITUDE",self.GRingLongitudeStr)
            line = line.replace("    CSPP_ANC_SOURCE_FILES",ancFileStr)
+           line = line.replace("CSPP_ANC_ENDIANNESS",endianString)
            ascFile.write(line) 
 
         ascFile.close()
         ascTemplateFile.close()
+
+        return URID

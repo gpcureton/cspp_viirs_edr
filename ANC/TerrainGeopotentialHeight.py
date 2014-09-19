@@ -44,7 +44,6 @@ from numpy.ctypeslib import ndpointer
 import ViirsData
 
 # skim and convert routines for reading .asc metadata fields of interest
-#import adl_blob
 import adl_blob2 as adl_blob
 import adl_asc
 from adl_asc import skim_dir, contiguous_granule_groups, granule_groups_contain, effective_anc_contains,eliminate_duplicates,_is_contiguous, RDR_REQUIRED_KEYS, POLARWANDER_REQUIRED_KEYS
@@ -123,8 +122,6 @@ class TerrainGeopotentialHeight() :
         '''
         Populate this class instance with the geolocation data for a single granule
         '''
-        LOG.info("Inside setGeolocationInfo() for current geolocation dict")
-
         # Set some environment variables and paths
         ANC_SCRIPTS_PATH = path.join(CSPP_RT_HOME,'viirs')
         ADL_ASC_TEMPLATES = path.join(ANC_SCRIPTS_PATH,'asc_templates')
@@ -185,8 +182,14 @@ class TerrainGeopotentialHeight() :
         # taking care to exclude any fill values.
 
         if longFormGeoNames :
-            latitude = getattr(geoBlobObj,'latitude').astype('float')
-            longitude = getattr(geoBlobObj,'longitude').astype('float')
+            if endian==adl_blob.BIG_ENDIAN:
+                latitude = getattr(geoBlobObj,'latitude').byteswap()
+                longitude = getattr(geoBlobObj,'longitude').byteswap()
+                latitude = latitude.astype('float')
+                longitude = longitude.astype('float')
+            else:
+                latitude = getattr(geoBlobObj,'latitude').astype('float')
+                longitude = getattr(geoBlobObj,'longitude').astype('float')
         else :
             latitude = getattr(geoBlobObj,'lat').astype('float')
             longitude = getattr(geoBlobObj,'lon').astype('float')

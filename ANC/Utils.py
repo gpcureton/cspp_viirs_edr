@@ -33,8 +33,7 @@ from subprocess import CalledProcessError, call
 
 import pygrib
 
-import adl_blob
-import adl_blob2
+import adl_blob2 as adl_blob
 from adl_common import sh, env
 from adl_common import ADL_HOME, CSPP_RT_HOME, CSPP_RT_ANC_PATH, CSPP_RT_ANC_CACHE_DIR, COMMON_LOG_CHECK_TABLE, env, JPSS_REMOTE_ANC_DIR
 
@@ -258,7 +257,6 @@ def shipOutToFile(ANCobj):
 
     endian = ANCobj.ancEndian
     if endian is adl_blob.LITTLE_ENDIAN :
-    #if endian is adl_blob2.LITTLE_ENDIAN :
         endianString = "LE"
     else :
         endianString = "BE"
@@ -285,13 +283,12 @@ def shipOutToFile(ANCobj):
     LOG.debug("blobName : %s" % (blobName))
 
     # Create a new ancillary blob, and copy the data to it.
-    newANCblobObj = adl_blob.create(xmlName, blobName, endian=endian, overwrite=True)
-    #newANCblobObj = adl_blob2.create(xmlName, blobName, endian=endian, overwrite=True)
-    newANCblobArrObj = newANCblobObj.as_arrays()
+    newANCblobObj = adl_blob.create(xmlName, blobName, endian=endian, 
+            overwrite=True,rename = {"data": "ncep_data"})
 
-    # FIXME: Why doesn't adl_blob2 work here?
-    blobData = getattr(newANCblobArrObj,'data')
-    #blobData = getattr(newANCblobObj,'data')
+    LOG.info("Creating new {} blob file {}".format(ANCobj.collectionShortName,
+        blobName))
+    blobData = getattr(newANCblobObj,'ncep_data')
     blobData[:,:] = ANCobj.data[:,:]
 
     # Make a new ANC asc file from the template, and substitute for the various tags
@@ -549,8 +546,7 @@ def create_NCEP_grid_blobs(gribFile):
 
             # Write the contents of the NCEPobj object to an ADL blob file
             LOG.debug('Writing the contents of the the NCEPobj object to ADL blob file %s'%(gribBlob))
-            #endian = adl_blob.LITTLE_ENDIAN
-            endian = adl_blob2.LITTLE_ENDIAN
+            endian = adl_blob.LITTLE_ENDIAN
             procRetVal = NCEPclass.NCEPgribToBlob_interpNew(NCEPobj,NCEPxml,gribBlob,endian=endian)
 
             if not (procRetVal == 0) :
@@ -609,8 +605,7 @@ def create_NAAPS_grid_blobs(gribFile):
             LOG.debug('Successfully created NAAPSobj...')
 
             # Write the contents of the NAAPSobj object to an ADL blob file
-            #endian = adl_blob.LITTLE_ENDIAN
-            endian = adl_blob2.LITTLE_ENDIAN
+            endian = adl_blob.LITTLE_ENDIAN
             procRetVal = NAAPSclass.NAAPSgribToBlob_interpNew(NAAPSobj,NAAPSxml,gribBlob,endian=endian)
 
             if not (procRetVal == 0) :
@@ -632,15 +627,28 @@ def create_NAAPS_grid_blobs(gribFile):
     return validDate, gribBlob
 
 
-def plotArr(data,pngName):
+def plotArr(data,pngName,vmin=None,vmax=None):
     '''
     Plot the input array, with a colourbar.
     '''
 
+    # Plotting stuff
+    import matplotlib
+    import matplotlib.cm as cm
+    from matplotlib.colors import ListedColormap
+    from matplotlib.figure import Figure
+
+    matplotlib.use('Agg')
+    from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+
+    # This must come *after* the backend is specified.
+    import matplotlib.pyplot as ppl
+
+    LOG.info("Plotting a GridIP dataset {}".format(pngName))
+
     plotTitle =  string.replace(pngName,".png","")
     cbTitle   =  "Value"
     #vmin,vmax =  0,1
-    vmin,vmax =  None,None
 
     # Create figure with default size, and create canvas to draw on
     scale=1.5
@@ -658,7 +666,6 @@ def plotArr(data,pngName):
     ppl.setp(ax_title,family="sans-serif")
 
     # Plot the data
-    data = ma.masked_less(data,-800.)
     im = ax.imshow(data,axes=ax,interpolation='nearest',vmin=vmin,vmax=vmax)
     
     # add a colorbar axis
@@ -678,5 +685,4 @@ def plotArr(data,pngName):
 
     # save image 
     canvas.print_figure(pngName,dpi=200)
-
 
