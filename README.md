@@ -1,0 +1,1 @@
+This project contains the python scripting which wraps the various ADL VIIRS EDR executables, for use in the CSPP VIIRS EDR package.
